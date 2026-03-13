@@ -297,6 +297,13 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       <span>⬆</span> Excelで同期
     </button>
     <input type="file" id="xlFile" accept=".xlsx,.xls" style="display:none" onchange="importXL(event)">
+    <button class="upload-area" id="csv-upload-btn" style="margin-top:6px;background:rgba(45,212,160,.08);border-color:rgba(45,212,160,.2);color:var(--green)" onclick="document.getElementById('csvFile').click()">
+      <span>📥</span> CSVで一括登録
+    </button>
+    <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="importCSV(event)">
+    <button onclick="downloadCSVTemplate()" style="display:flex;align-items:center;gap:7px;padding:7px 10px;background:none;border:1px dashed var(--b2);border-radius:7px;cursor:pointer;font-size:10px;color:var(--t2);font-family:var(--sans);width:100%;margin-top:4px;transition:all .15s" onmouseover="this.style.color='var(--t1)'" onmouseout="this.style.color='var(--t2)'">
+      <span>⬇</span> CSVテンプレートDL
+    </button>
     <div id="user-info-bar" style="display:none;background:var(--s2);border:1px solid var(--b1);border-radius:7px;padding:8px 10px;margin:6px 0">
       <div style="font-size:9px;color:var(--t3);letter-spacing:.06em;margin-bottom:3px">ログイン中</div>
       <div id="user-display-name" style="font-size:11px;font-weight:700;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
@@ -1529,7 +1536,7 @@ async function renderHistory() {
 // ══════════════════════════════════════════════════
 (async () => {
   // 設定未完了チェック
-  if (SUPABASE_URL === 'YOUR_SUPABASE_URL_PLACEHOLDER_NEVER_MATCHES') {
+  if (SUPABASE_URL === 'https://hhifpqlbgyjdfbluigfo.supabase.co') {
     document.getElementById('login-screen').innerHTML = `
       <div style="max-width:500px;padding:24px;text-align:center">
         <div style="font-family:var(--disp);font-size:22px;font-weight:800;color:var(--acc);margin-bottom:16px">⚙️ 初期設定が必要です</div>
@@ -1557,4 +1564,180 @@ const SUPABASE_ANON_KEY = 'eyJ...';</pre>
     }
   });
 })();
+
+// ══════════════════════════════════════════════════
+// CSV IMPORT / EXPORT
+// ══════════════════════════════════════════════════
+
+// CSVフォーマット:
+// program,session_title,date,fee_name,budget,estimate,actual
+// キックオフ,,, 会場費,400000,662000,346500
+// ホームルーム,第1回 長尾さん,2025-07-13,会場費,55000,55000,50000
+
+function downloadCSVTemplate() {
+  const rows = [
+    ['# NEO福岡 経費データ CSVテンプレート'],
+    ['# 列説明: program=プログラム名, session=回次タイトル(シリーズのみ), date=日付(YYYY-MM-DD), fee_name=費目名, budget=予算, estimate=見積, actual=実数'],
+    ['# programの値: キックオフ / アワード / イヤーエンド / ホームルーム / 評議会 / 応援カイギ'],
+    ['program','session','date','fee_name','budget','estimate','actual'],
+    // キックオフサンプル
+    ['キックオフ','','','会場費',400000,662000,346500],
+    ['キックオフ','','','映像・撮影',300000,0,490000],
+    ['キックオフ','','','MC・キャスティング',150000,165000,230000],
+    // ホームルームサンプル
+    ['ホームルーム','第1回 長尾さん','2025-07-13','会場費',55000,55000,50000],
+    ['ホームルーム','第1回 長尾さん','2025-07-13','講師・演者費',110000,110000,135140],
+    ['ホームルーム','第2回 上田さん','2025-07-15','会場費',55000,55000,50000],
+    // 評議会サンプル
+    ['評議会','第1回','2025-06-20','会場費',55000,0,55000],
+    ['評議会','第1回','2025-06-20','諸経費',5500,0,5500],
+    // 応援カイギサンプル
+    ['応援カイギ','#1','2025-06-10','会場・飲食費',5500,0,5500],
+  ];
+
+  const bom = '\uFEFF'; // BOM for Excel
+  const csv = bom + rows.map(r => r.map(v => {
+    const s = String(v);
+    return s.startsWith('#') ? s : (s.includes(',') ? `"${s}"` : s);
+  }).join(',')).join('\n');
+
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'NEO福岡_経費テンプレート.csv';
+  a.click();
+}
+
+function importCSV(ev) {
+  if (!isAdmin()) { alert('CSVインポートは管理者のみ可能です'); ev.target.value=''; return; }
+  const file = ev.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      // BOM除去
+      let text = e.target.result.replace(/^\uFEFF/, '');
+      const lines = text.split(/\r?\n/).filter(l => l.trim() && !l.startsWith('#'));
+      if (!lines.length) { alert('データが見つかりません'); return; }
+
+      // ヘッダー行解析
+      const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase());
+      const ci = {
+        program: headers.indexOf('program'),
+        session: headers.indexOf('session'),
+        date:    headers.indexOf('date'),
+        fee:     headers.indexOf('fee_name'),
+        budget:  headers.indexOf('budget'),
+        estimate:headers.indexOf('estimate'),
+        actual:  headers.indexOf('actual'),
+      };
+      if (ci.program < 0 || ci.fee < 0) {
+        alert('CSVのヘッダーが正しくありません。\nテンプレートをダウンロードして使用してください。'); return;
+      }
+
+      const log = [];
+      let updated = 0;
+
+      // プログラムマッピング
+      const progMap = {
+        'キックオフ':'ko', 'アワード':'aw', 'イヤーエンド':'ye',
+        'ホームルーム':'hm', '評議会':'gk', '応援カイギ':'oe',
+      };
+      const seriesKeys = new Set(['hm','gk','oe']);
+      const eventKeys  = new Set(['ko','aw','ye']);
+
+      // データ行を解析してグループ化
+      const grouped = {}; // key -> {session -> [{fee,budget,estimate,actual}]}
+      for (let i = 1; i < lines.length; i++) {
+        const cols = parseCSVLine(lines[i]);
+        if (cols.length < 4) continue;
+        const prog    = (cols[ci.program]||'').trim();
+        const sess    = ci.session >= 0 ? (cols[ci.session]||'').trim() : '';
+        const date    = ci.date    >= 0 ? (cols[ci.date]   ||'').trim() : '';
+        const fee     = (cols[ci.fee]||'').trim();
+        const budget  = parseFloat(cols[ci.budget]  ||0)||0;
+        const estimate= parseFloat(cols[ci.estimate]||0)||0;
+        const actual  = parseFloat(cols[ci.actual]  ||0)||0;
+        const key     = progMap[prog];
+        if (!key || !fee) continue;
+        if (!grouped[key]) grouped[key] = {};
+        const sk = sess || '__event__';
+        if (!grouped[key][sk]) grouped[key][sk] = {date, items:[]};
+        grouped[key][sk].items.push({fee, budget, estimate, actual});
+      }
+
+      // データを反映
+      Object.entries(grouped).forEach(([key, sessions]) => {
+        if (eventKeys.has(key)) {
+          // 大規模イベント：費目一覧を更新（名前一致でupdateまたはadd）
+          const evData = S.events[key];
+          if (!evData) return;
+          Object.values(sessions).forEach(({items}) => {
+            items.forEach(({fee, budget, estimate, actual}) => {
+              const existing = evData.items.find(it => it.name === fee);
+              if (existing) {
+                if (ci.budget   >= 0) existing.budget   = budget;
+                if (ci.estimate >= 0) existing.estimate = estimate;
+                if (ci.actual   >= 0) existing.actual   = actual;
+              } else {
+                evData.items.push({id:uid(), name:fee, budget, estimate, actual});
+              }
+              updated++;
+            });
+          });
+          log.push(`✅ ${key === 'ko' ? 'キックオフ' : key === 'aw' ? 'アワード' : 'イヤーエンド'}：費目を更新`);
+        } else if (seriesKeys.has(key)) {
+          // シリーズ：回次タイトル一致でupdate、なければadd
+          Object.entries(sessions).forEach(([sessTitle, {date, items}]) => {
+            if (sessTitle === '__event__') return;
+            let s = S.sessions[key].find(x => x.title === sessTitle);
+            if (!s) {
+              s = {id:uid(), title:sessTitle, date, memo:'', items:[]};
+              S.sessions[key].push(s);
+              log.push(`➕ 追加：${sessTitle}`);
+            }
+            items.forEach(({fee, budget, estimate, actual}) => {
+              const existing = s.items.find(it => it.name === fee);
+              if (existing) {
+                if (ci.budget   >= 0) existing.budget   = budget;
+                if (ci.estimate >= 0) existing.estimate = estimate;
+                if (ci.actual   >= 0) existing.actual   = actual;
+              } else {
+                s.items.push({id:uid(), name:fee, budget, estimate, actual});
+              }
+              updated++;
+            });
+          });
+          const label = key==='hm'?'ホームルーム':key==='gk'?'評議会':'応援カイギ';
+          log.push(`✅ ${label}：${Object.keys(sessions).length}回分を更新`);
+        }
+      });
+
+      save();
+      document.getElementById('xl-result').innerHTML =
+        `<div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:10px">✅ ${file.name}</div>` +
+        `<div style="font-size:11px;color:var(--t2);margin-bottom:8px">${updated}件の費目データを反映しました</div>` +
+        log.map(l => `<div style="font-size:11px;color:var(--t2);padding:3px 0;border-bottom:1px solid var(--b1)">${l}</div>`).join('');
+      openOv('ov-xl');
+      renderPg(_curPg);
+    } catch(err) {
+      document.getElementById('xl-result').innerHTML = `<div style="color:var(--red);font-size:12px">❌ 読み込みエラー: ${err.message}</div>`;
+      openOv('ov-xl');
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+  ev.target.value = '';
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+    else { cur += c; }
+  }
+  result.push(cur);
+  return result;
+}
 </script></body></html>
