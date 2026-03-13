@@ -105,11 +105,11 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 
 /* ── TABLE ── */
 .tbl{width:100%;border-collapse:collapse;}
-.tbl th{font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;
-  padding:0 0 8px;border-bottom:1px solid var(--b1);text-align:left;}
+.tbl th{font-size:11px;font-weight:700;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;
+  padding:0 0 10px;border-bottom:1px solid var(--b1);text-align:left;}
 .tbl th:not(:first-child){text-align:right;}
-.tbl td{padding:8px 0;font-size:11px;border-bottom:1px solid rgba(28,32,48,.7);vertical-align:middle;}
-.tbl td:not(:first-child){text-align:right;font-family:var(--mono);font-size:10px;}
+.tbl td{padding:10px 0;font-size:13px;border-bottom:1px solid rgba(28,32,48,.7);vertical-align:middle;}
+.tbl td:not(:first-child){text-align:right;font-family:var(--mono);font-size:13px;}
 .tbl tr:last-child td{border-bottom:none;}
 .tag{display:inline-block;font-size:8px;padding:1px 5px;border-radius:4px;margin-left:4px;font-weight:700;vertical-align:middle;}
 .tg-o{background:rgba(232,64,96,.15);color:var(--red);}
@@ -131,21 +131,22 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 .sk{text-align:center;}
 .skv{font-family:var(--mono);font-size:17px;font-weight:500;}
 .skl{font-size:9px;color:var(--t2);margin-top:2px;letter-spacing:.06em;text-transform:uppercase;}
-.sg{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;}
+.sg{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;}
+@media(min-width:1400px){.sg{grid-template-columns:repeat(3,1fr);}}
 .sc{background:var(--s1);border:1px solid var(--b1);border-radius:8px;padding:13px 14px;transition:border-color .2s;cursor:pointer;}
 .sc:hover{border-color:var(--b3);}
 .sc.has-items{border-color:rgba(79,142,247,.2);}
-.sc-no{font-family:var(--mono);font-size:9px;color:var(--t3);margin-bottom:3px;}
-.sc-title{font-size:12px;font-weight:700;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.sc-date{font-size:9px;color:var(--t2);font-family:var(--mono);margin-bottom:9px;}
+.sc-no{font-family:var(--mono);font-size:10px;color:var(--t3);margin-bottom:4px;}
+.sc-title{font-size:14px;font-weight:700;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sc-date{font-size:10px;color:var(--t2);font-family:var(--mono);margin-bottom:10px;}
 .sc-bars{display:flex;flex-direction:column;gap:3px;}
 .sbr{display:flex;align-items:center;gap:5px;}
-.sbrl{font-size:8px;color:var(--t3);width:18px;flex-shrink:0;}
-.sbrt{flex:1;height:4px;background:var(--s3);border-radius:2px;overflow:hidden;}
+.sbrl{font-size:10px;color:var(--t3);width:22px;flex-shrink:0;}
+.sbrt{flex:1;height:5px;background:var(--s3);border-radius:2px;overflow:hidden;}
 .sbrf{height:100%;border-radius:2px;}
-.sbrv{font-family:var(--mono);font-size:8px;color:var(--t2);width:52px;text-align:right;flex-shrink:0;}
-.sc-foot{display:flex;justify-content:space-between;margin-top:8px;padding-top:7px;border-top:1px solid var(--b1);font-size:10px;}
-.sc-items-count{font-size:9px;color:var(--blue);font-family:var(--mono);}
+.sbrv{font-family:var(--mono);font-size:11px;color:var(--t2);width:60px;text-align:right;flex-shrink:0;}
+.sc-foot{display:flex;justify-content:space-between;margin-top:8px;padding-top:7px;border-top:1px solid var(--b1);font-size:12px;}
+.sc-items-count{font-size:11px;color:var(--blue);font-family:var(--mono);}
 
 /* ── PANEL OVERLAY ── */
 .ov{position:fixed;inset:0;background:rgba(7,8,13,.8);z-index:500;
@@ -184,15 +185,15 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
   display:grid;grid-template-columns:20px 1fr 90px 90px 90px 26px;
   gap:5px;padding:0 2px;margin-bottom:4px;
 }
-.item-hdr span{font-size:8px;font-weight:700;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;}
+.item-hdr span{font-size:11px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;}
 .item-row{
   display:grid;grid-template-columns:20px 1fr 90px 90px 90px 26px;
   gap:5px;margin-bottom:5px;align-items:center;
   background:var(--s3);border-radius:6px;padding:5px 6px;
 }
-.item-num{font-family:var(--mono);font-size:9px;color:var(--t3);text-align:center;}
-.item-row input{padding:5px 7px;background:var(--s2);border:1px solid var(--b2);
-  border-radius:5px;color:var(--t1);font-size:10px;font-family:var(--mono);
+.item-num{font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;}
+.item-row input{padding:7px 9px;background:var(--s2);border:1px solid var(--b2);
+  border-radius:5px;color:var(--t1);font-size:13px;font-family:var(--mono);
   outline:none;transition:border-color .15s;width:100%;}
 .item-row input:focus{border-color:var(--blue);}
 .del-btn{width:22px;height:22px;border-radius:4px;border:1px solid var(--b2);
@@ -221,16 +222,16 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 
 /* ── BUDGET TABLE ── */
 .btbl{width:100%;border-collapse:collapse;}
-.btbl th{font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;
-  padding:4px 8px 8px;text-align:left;border-bottom:1px solid var(--b1);}
+.btbl th{font-size:12px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;
+  padding:6px 10px 10px;text-align:left;border-bottom:1px solid var(--b1);}
 .btbl th:not(:first-child){text-align:right;}
-.btbl td{padding:5px 8px;border-bottom:1px solid rgba(28,32,48,.6);vertical-align:middle;}
-.btbl td:first-child{font-size:11px;color:var(--t1);font-weight:500;}
-.btbl input{width:90px;padding:4px 7px;background:var(--s3);border:1px solid var(--b2);
-  border-radius:5px;color:var(--t1);font-size:10px;font-family:var(--mono);
+.btbl td{padding:8px 10px;border-bottom:1px solid rgba(28,32,48,.6);vertical-align:middle;}
+.btbl td:first-child{font-size:13px;color:var(--t1);font-weight:500;}
+.btbl input{width:110px;padding:7px 10px;background:var(--s3);border:1px solid var(--b2);
+  border-radius:5px;color:var(--t1);font-size:13px;font-family:var(--mono);
   outline:none;transition:border-color .15s;text-align:right;}
 .btbl input:focus{border-color:var(--blue);}
-.btbl-sec{background:var(--s4);padding:6px 8px;font-size:10px;font-weight:700;color:var(--t2);letter-spacing:.05em;}
+.btbl-sec{background:var(--s4);padding:8px 10px;font-size:12px;font-weight:700;color:var(--t2);letter-spacing:.05em;}
 
 /* ── REVENUE ── */
 .rev-row{display:flex;justify-content:space-between;align-items:center;
@@ -756,9 +757,8 @@ function applyRoleUI() {
   // ユーザー管理ナビ
   const nbUsers = document.getElementById('nb-users');
   if (nbUsers) nbUsers.style.display = isAdmin() ? '' : 'none';
-  // 予算一括登録ボタン
-  const nbBudget = document.getElementById('nb-budget');
-  if (nbBudget) nbBudget.style.display = isAdmin() ? '' : 'none';
+  // 予算一括登録ボタンは全員に表示（内部で権限制御）
+  // nb-budgetは常時表示
   // サイドバーユーザー情報
   const uib = document.getElementById('user-info-bar');
   const logoutBtn = document.getElementById('logout-btn');
@@ -1210,14 +1210,26 @@ function saveEvt(){
 // BULK BUDGET PANEL
 // ══════════════════════════════════════════════════
 function openBulkBudget(){
-  if(!isAdmin()){alert('予算の変更は管理者のみ可能です');return;}
+  // タイトルに権限バッジ
+  const title = document.querySelector('#ov-budget .ph h2');
+  if(title) title.innerHTML = '予算を一括登録' + (isAdmin()
+    ? ' <span style="font-size:9px;background:rgba(240,82,42,.2);color:#f0522a;padding:1px 6px;border-radius:4px;font-weight:700;font-family:var(--sans)">管理者</span>'
+    : ' <span style="font-size:9px;background:rgba(79,142,247,.15);color:#4f8ef7;padding:1px 6px;border-radius:4px;font-weight:700;font-family:var(--sans)">予算は閲覧のみ</span>');
   renderBudgetProg();openOv('ov-budget');
 }
 function renderBudgetProg(){
+  const ro = !isAdmin();
   document.getElementById('bprog-body').innerHTML=S.programs.map((p,i)=>`
     <tr><td>${p.name}</td>
-    <td style="text-align:right"><input type="number" value="${p.budget||''}" placeholder="0" data-pi="${i}" data-f="budget"></td>
-    <td style="text-align:right"><input type="number" value="" placeholder="—" disabled style="opacity:.3;width:90px"></td></tr>`).join('');
+    <td style="text-align:right"><input type="number" value="${p.budget||''}" placeholder="0" data-pi="${i}" data-f="budget"
+      ${ro ? 'readonly style="opacity:.4;pointer-events:none;width:110px"' : ''}></td>
+    <td style="text-align:right"><input type="number" value="" placeholder="—" disabled style="opacity:.3;width:110px"></td></tr>`).join('');
+  // 保存ボタンをメンバーには無効化
+  const saveBtn = document.querySelector('#ov-budget .pf .btn-p');
+  if(saveBtn){
+    if(ro){ saveBtn.disabled=true; saveBtn.style.opacity='.4'; saveBtn.title='予算変更は管理者のみ'; }
+    else { saveBtn.disabled=false; saveBtn.style.opacity=''; }
+  }
 }
 
 let _budgetTab='prog';
@@ -1258,10 +1270,12 @@ function renderBudgetItems(){
 }
 
 function saveBulkBudget(){
-  // プログラム単位
-  document.querySelectorAll('#bprog-body input[data-pi]').forEach(inp=>{
-    S.programs[parseInt(inp.dataset.pi)].budget=parseFloat(inp.value)||0;
-  });
+  // プログラム単位（管理者のみ）
+  if(isAdmin()){
+    document.querySelectorAll('#bprog-body input[data-pi]').forEach(inp=>{
+      S.programs[parseInt(inp.dataset.pi)].budget=parseFloat(inp.value)||0;
+    });
+  }
   // イベント費目
   document.querySelectorAll('#budget-items-content input[data-ei]').forEach(inp=>{
     const key=inp.dataset.key,i=parseInt(inp.dataset.ei),f=inp.dataset.f;
