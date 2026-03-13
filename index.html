@@ -884,12 +884,16 @@ function dc(id){if(_ch[id]){_ch[id].destroy();delete _ch[id];}}
 const TITLES={ov:'サマリー',prog:'プログラム別',hm:'ホームルーム',gk:'評議会',oe:'応援カイギ',ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',rev:'収入管理',users:'ユーザー管理',history:'ログイン履歴'};
 let _curPg='ov';
 function go(id,btn){
+  if(id==='users' && !isAdmin()){alert('管理者のみアクセスできます');return;}
   document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
-  document.getElementById('pg-'+id).classList.add('on');
+  const pg=document.getElementById('pg-'+id);
+  if(pg)pg.classList.add('on');
   if(btn)btn.classList.add('on');
   document.getElementById('pgTitle').textContent=TITLES[id]||id;
   _curPg=id;
+  if(id==='users'){renderUsers();return;}
+  if(id==='history'){renderHistory();return;}
   renderPg(id);
 }
 function renderPg(id){
@@ -1166,6 +1170,7 @@ function deleteSess(){
 // ══════════════════════════════════════════════════
 let _eCtx={};
 function openEvt(key){
+  if(!isAdmin()){alert('費目の編集は管理者のみ可能です');return;}
   _eCtx={key};
   const labels={ko:'キックオフ',aw:'アワード',ye:'イヤーエンド'};
   document.getElementById('evt-title').textContent='費目別明細を編集：'+labels[key];
@@ -1198,6 +1203,7 @@ function saveEvt(){
 // BULK BUDGET PANEL
 // ══════════════════════════════════════════════════
 function openBulkBudget(){
+  if(!isAdmin()){alert('予算の変更は管理者のみ可能です');return;}
   renderBudgetProg();openOv('ov-budget');
 }
 function renderBudgetProg(){
@@ -1516,44 +1522,7 @@ async function renderHistory() {
     </tr>`).join('');
 }
 
-// ══════════════════════════════════════════════════
-// OVERRIDE go() TO CHECK PERMISSIONS + LOAD PAGES
-// ══════════════════════════════════════════════════
-const _origGo = go;
-const go = async (id, btn) => {
-  // 管理者専用ページへのアクセス制限
-  if (id === 'users' && !isAdmin()) { alert('管理者のみアクセスできます'); return; }
-  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
-  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
-  const pg = document.getElementById('pg-'+id);
-  if (pg) pg.classList.add('on');
-  if (btn) btn.classList.add('on');
-  document.getElementById('pgTitle').textContent = TITLES[id]||id;
-  _curPg = id;
-  // 非同期ページ
-  if (id === 'users')   { renderUsers(); return; }
-  if (id === 'history') { renderHistory(); return; }
-  renderPg(id);
-};
-
-// ══════════════════════════════════════════════════
-// GUARD: 予算変更を管理者に限定
-// ══════════════════════════════════════════════════
-const _origOpenBulkBudget = openBulkBudget;
-function openBulkBudget() {
-  if (!isAdmin()) { alert('予算の変更は管理者のみ可能です'); return; }
-  _origOpenBulkBudget();
-}
-const _origOpenEvt = openEvt;
-function openEvt(key) {
-  if (!isAdmin()) { alert('費目の編集は管理者のみ可能です'); return; }
-  _origOpenEvt(key);
-}
-// 回次削除はadminのみ、追加もadminのみ
-function openSessGuarded(key, id) {
-  // memberは既存回次の見積・実数のみ編集可。追加・削除はadminのみ
-  openSess(key, id);
-}
+// 権限チェックはgo()関数に統合済み
 
 // ══════════════════════════════════════════════════
 // INIT — Supabase session check
