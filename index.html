@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEO福岡 経費ダッシュボード</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Syne:wght@700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07080d; --s1:#0d0f17; --s2:#121620; --s3:#181c28; --s4:#1e2335;
+  --b1:#1c2030; --b2:#252b3d; --b3:#2e3650;
+  --acc:#f0522a; --acc2:#ffb347;
+  --blue:#4f8ef7; --blue2:#88b4ff;
+  --green:#2dd4a0; --green2:#6effd4;
+  --purple:#9b7fe8; --yellow:#f0c040; --red:#e84060;
+  --t1:#e8eaf2; --t2:#7a8299; --t3:#3a4255; --t4:#262d3f;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'Noto Sans JP',sans-serif;
+  --disp:'Syne',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;font-size:14px;overflow:hidden;}
+
+/* ── SIDEBAR ── */
+.sb{
+  width:216px;height:100vh;background:var(--s1);border-right:1px solid var(--b1);
+  display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;
+}
+.sb-logo{padding:16px 16px 12px;border-bottom:1px solid var(--b1);}
+.sb-mark{font-family:var(--disp);font-size:17px;font-weight:800;
+  background:linear-gradient(120deg,var(--acc),var(--acc2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.sb-sub{font-size:9px;color:var(--t3);margin-top:2px;letter-spacing:.1em;}
+.sb-sec{padding:12px 14px 3px;font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.15em;text-transform:uppercase;}
+.nb{
+  display:flex;align-items:center;gap:8px;padding:7px 10px;margin:1px 6px;
+  font-size:11px;font-weight:500;color:var(--t2);cursor:pointer;
+  border-radius:6px;border:none;background:none;width:calc(100% - 12px);
+  text-align:left;font-family:var(--sans);transition:all .15s;
+}
+.nb:hover{background:var(--s2);color:var(--t1);}
+.nb.on{background:rgba(79,142,247,.12);color:var(--blue);border-left:2px solid var(--blue);padding-left:8px;}
+.nb .ic{font-size:12px;width:16px;text-align:center;flex-shrink:0;}
+.sb-foot{margin-top:auto;padding:10px;border-top:1px solid var(--b1);}
+.save-row{display:flex;align-items:center;gap:6px;font-size:9px;color:var(--t3);padding:4px 2px;}
+.sdot{width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green);}
+.sdot.uns{background:var(--yellow);box-shadow:0 0 5px var(--yellow);}
+.upload-area{
+  display:flex;align-items:center;gap:7px;padding:8px 10px;
+  background:rgba(240,82,42,.08);border:1px solid rgba(240,82,42,.2);
+  border-radius:7px;cursor:pointer;font-size:10px;color:var(--acc);
+  font-weight:700;font-family:var(--sans);transition:all .15s;width:100%;
+}
+.upload-area:hover{background:rgba(240,82,42,.15);}
+
+/* ── MAIN ── */
+.main-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{
+  height:48px;background:var(--s1);border-bottom:1px solid var(--b1);
+  display:flex;align-items:center;padding:0 22px;
+  justify-content:space-between;flex-shrink:0;z-index:100;
+}
+.topbar-title{font-family:var(--disp);font-size:14px;font-weight:700;}
+.topbar-right{font-family:var(--mono);font-size:10px;color:var(--t2);display:flex;align-items:center;gap:12px;}
+.content{flex:1;overflow-y:auto;padding:18px 22px;}
+
+/* ── PAGES ── */
+.pg{display:none;animation:fi .18s ease;}
+.pg.on{display:block;}
+@keyframes fi{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:none;}}
+
+/* ── LAYOUT ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;}
+.g31{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px;}
+.g13{display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:12px;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+
+/* ── CARDS ── */
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:10px;padding:16px 18px;}
+.ct{font-size:11px;font-weight:700;color:var(--t1);letter-spacing:.05em;text-transform:uppercase;
+  margin-bottom:13px;display:flex;align-items:center;gap:7px;}
+.ct .pip{width:3px;height:13px;border-radius:2px;background:var(--acc);flex-shrink:0;}
+.ch{position:relative;height:190px;}
+.ch-t{position:relative;height:230px;}
+
+/* ── KPI ── */
+.kpi{background:var(--s1);border:1px solid var(--b1);border-radius:9px;padding:14px 16px;position:relative;overflow:hidden;}
+.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.kpi.r::after{background:linear-gradient(90deg,var(--acc),var(--acc2));}
+.kpi.b::after{background:linear-gradient(90deg,var(--blue),var(--blue2));}
+.kpi.g::after{background:linear-gradient(90deg,var(--green),var(--green2));}
+.kpi.y::after{background:linear-gradient(90deg,var(--yellow),#ffe080);}
+.kpi.p::after{background:linear-gradient(90deg,var(--purple),#c4aaff);}
+.kl{font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px;}
+.kv{font-family:var(--mono);font-size:20px;font-weight:500;line-height:1;margin-bottom:4px;}
+.kv em{font-size:10px;color:var(--t2);font-style:normal;margin-left:2px;}
+.ks{font-size:10px;color:var(--t2);}
+.ok{color:var(--green);}
+.ng{color:var(--red);}
+
+/* ── TABLE ── */
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th{font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;
+  padding:0 0 8px;border-bottom:1px solid var(--b1);text-align:left;}
+.tbl th:not(:first-child){text-align:right;}
+.tbl td{padding:8px 0;font-size:11px;border-bottom:1px solid rgba(28,32,48,.7);vertical-align:middle;}
+.tbl td:not(:first-child){text-align:right;font-family:var(--mono);font-size:10px;}
+.tbl tr:last-child td{border-bottom:none;}
+.tag{display:inline-block;font-size:8px;padding:1px 5px;border-radius:4px;margin-left:4px;font-weight:700;vertical-align:middle;}
+.tg-o{background:rgba(232,64,96,.15);color:var(--red);}
+.tg-g{background:rgba(45,212,160,.12);color:var(--green);}
+.tg-z{background:rgba(54,61,82,.5);color:var(--t3);}
+
+/* ── PROGRESS ── */
+.pb{margin-bottom:10px;}
+.pb-top{display:flex;justify-content:space-between;margin-bottom:4px;font-size:10px;}
+.pb-top .n{color:var(--t1);font-weight:500;}
+.pb-top .p{font-family:var(--mono);color:var(--t2);}
+.pb-track{background:var(--s3);border-radius:3px;height:5px;overflow:hidden;}
+.pb-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.4,0,.2,1);}
+
+/* ── SERIES ── */
+.sh{background:var(--s1);border:1px solid var(--b1);border-radius:10px;
+  padding:16px 20px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;}
+.sk-row{display:flex;gap:20px;}
+.sk{text-align:center;}
+.skv{font-family:var(--mono);font-size:17px;font-weight:500;}
+.skl{font-size:9px;color:var(--t2);margin-top:2px;letter-spacing:.06em;text-transform:uppercase;}
+.sg{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;}
+.sc{background:var(--s1);border:1px solid var(--b1);border-radius:8px;padding:13px 14px;transition:border-color .2s;cursor:pointer;}
+.sc:hover{border-color:var(--b3);}
+.sc.has-items{border-color:rgba(79,142,247,.2);}
+.sc-no{font-family:var(--mono);font-size:9px;color:var(--t3);margin-bottom:3px;}
+.sc-title{font-size:12px;font-weight:700;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sc-date{font-size:9px;color:var(--t2);font-family:var(--mono);margin-bottom:9px;}
+.sc-bars{display:flex;flex-direction:column;gap:3px;}
+.sbr{display:flex;align-items:center;gap:5px;}
+.sbrl{font-size:8px;color:var(--t3);width:18px;flex-shrink:0;}
+.sbrt{flex:1;height:4px;background:var(--s3);border-radius:2px;overflow:hidden;}
+.sbrf{height:100%;border-radius:2px;}
+.sbrv{font-family:var(--mono);font-size:8px;color:var(--t2);width:52px;text-align:right;flex-shrink:0;}
+.sc-foot{display:flex;justify-content:space-between;margin-top:8px;padding-top:7px;border-top:1px solid var(--b1);font-size:10px;}
+.sc-items-count{font-size:9px;color:var(--blue);font-family:var(--mono);}
+
+/* ── PANEL OVERLAY ── */
+.ov{position:fixed;inset:0;background:rgba(7,8,13,.8);z-index:500;
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .2s;}
+.ov.open{opacity:1;pointer-events:all;}
+.panel{background:var(--s2);border:1px solid var(--b2);border-radius:12px;
+  width:680px;max-width:94vw;max-height:88vh;
+  display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.7);}
+.panel.wide{width:820px;}
+.ph{padding:14px 18px;border-bottom:1px solid var(--b1);
+  display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+.ph h2{font-family:var(--disp);font-size:14px;}
+.pb-body{padding:14px 18px;overflow-y:auto;flex:1;}
+.pf{padding:10px 18px;border-bottom:1px solid var(--b1);
+  display:flex;justify-content:flex-end;gap:7px;flex-shrink:0;}
+.xbtn{width:26px;height:26px;border-radius:5px;border:1px solid var(--b2);
+  background:var(--s3);color:var(--t2);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .15s;}
+.xbtn:hover{border-color:var(--red);color:var(--red);}
+
+/* ── FORM ── */
+.fl{font-size:9px;font-weight:700;color:var(--t2);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;}
+.fi{width:100%;padding:7px 9px;background:var(--s3);border:1px solid var(--b2);
+  border-radius:6px;color:var(--t1);font-size:11px;font-family:var(--mono);
+  outline:none;transition:border-color .15s;}
+.fi:focus{border-color:var(--blue);}
+.fi::placeholder{color:var(--t3);}
+.frow{margin-bottom:10px;}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.fg4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;}
+
+/* ── ITEM ROWS ── */
+.item-hdr{
+  display:grid;grid-template-columns:20px 1fr 90px 90px 90px 26px;
+  gap:5px;padding:0 2px;margin-bottom:4px;
+}
+.item-hdr span{font-size:8px;font-weight:700;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;}
+.item-row{
+  display:grid;grid-template-columns:20px 1fr 90px 90px 90px 26px;
+  gap:5px;margin-bottom:5px;align-items:center;
+  background:var(--s3);border-radius:6px;padding:5px 6px;
+}
+.item-num{font-family:var(--mono);font-size:9px;color:var(--t3);text-align:center;}
+.item-row input{padding:5px 7px;background:var(--s2);border:1px solid var(--b2);
+  border-radius:5px;color:var(--t1);font-size:10px;font-family:var(--mono);
+  outline:none;transition:border-color .15s;width:100%;}
+.item-row input:focus{border-color:var(--blue);}
+.del-btn{width:22px;height:22px;border-radius:4px;border:1px solid var(--b2);
+  background:none;color:var(--t3);cursor:pointer;font-size:13px;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.del-btn:hover{border-color:var(--red);color:var(--red);}
+.add-btn{display:flex;align-items:center;gap:5px;padding:6px 10px;
+  background:rgba(79,142,247,.07);border:1px dashed rgba(79,142,247,.25);border-radius:6px;
+  color:var(--blue);font-size:10px;cursor:pointer;width:100%;
+  font-family:var(--sans);transition:all .15s;margin-top:4px;}
+.add-btn:hover{background:rgba(79,142,247,.14);}
+
+/* ── BUTTONS ── */
+.btn{padding:7px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:none;
+  font-family:var(--sans);transition:all .15s;}
+.btn-p{background:var(--blue);color:#fff;}
+.btn-p:hover{background:var(--blue2);color:var(--s1);}
+.btn-g{background:var(--s3);border:1px solid var(--b2);color:var(--t2);}
+.btn-g:hover{color:var(--t1);}
+.btn-acc{background:linear-gradient(120deg,var(--acc),var(--acc2));color:#fff;}
+.btn-acc:hover{opacity:.85;}
+.btn-red{background:none;border:1px solid rgba(232,64,96,.3);color:var(--red);}
+.btn-red:hover{background:rgba(232,64,96,.1);}
+.btn-sm{padding:4px 9px;font-size:9px;}
+.btn-xs{padding:2px 7px;font-size:9px;}
+
+/* ── BUDGET TABLE ── */
+.btbl{width:100%;border-collapse:collapse;}
+.btbl th{font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;
+  padding:4px 8px 8px;text-align:left;border-bottom:1px solid var(--b1);}
+.btbl th:not(:first-child){text-align:right;}
+.btbl td{padding:5px 8px;border-bottom:1px solid rgba(28,32,48,.6);vertical-align:middle;}
+.btbl td:first-child{font-size:11px;color:var(--t1);font-weight:500;}
+.btbl input{width:90px;padding:4px 7px;background:var(--s3);border:1px solid var(--b2);
+  border-radius:5px;color:var(--t1);font-size:10px;font-family:var(--mono);
+  outline:none;transition:border-color .15s;text-align:right;}
+.btbl input:focus{border-color:var(--blue);}
+.btbl-sec{background:var(--s4);padding:6px 8px;font-size:10px;font-weight:700;color:var(--t2);letter-spacing:.05em;}
+
+/* ── REVENUE ── */
+.rev-row{display:flex;justify-content:space-between;align-items:center;
+  padding:8px 0;border-bottom:1px solid var(--b1);}
+.rev-row:last-child{border-bottom:none;}
+.rev-name{font-size:12px;color:var(--t2);}
+.rev-val{font-family:var(--mono);font-size:13px;color:var(--green);}
+.net-box{background:var(--s2);border-radius:8px;padding:12px 16px;margin-top:12px;
+  display:flex;justify-content:space-between;align-items:center;border:1px solid var(--b1);}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:3px;margin-bottom:12px;}
+.tab{padding:5px 11px;border-radius:5px;font-size:10px;font-weight:500;
+  cursor:pointer;border:1px solid var(--b1);background:none;color:var(--t2);
+  font-family:var(--sans);transition:all .15s;}
+.tab.on{background:rgba(79,142,247,.12);border-color:rgba(79,142,247,.3);color:var(--blue);}
+.tab:hover:not(.on){background:var(--s2);color:var(--t1);}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px;}
+
+/* ── DROP HINT ── */
+.drop-hint{border:2px dashed var(--b2);border-radius:10px;padding:24px;text-align:center;
+  margin-bottom:12px;transition:all .2s;}
+.drop-hint.drag{border-color:var(--blue);background:rgba(79,142,247,.05);}
+.drop-hint-icon{font-size:28px;opacity:.35;margin-bottom:8px;}
+.drop-hint-text{font-size:12px;color:var(--t2);}
+.drop-hint-sub{font-size:10px;color:var(--t3);margin-top:4px;}
+
+/* ── SECTION DIVIDER ── */
+.sec-div{font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;
+  padding:8px 0 4px;border-bottom:1px solid var(--b1);margin-bottom:8px;margin-top:12px;}
+.sec-div:first-child{margin-top:0;}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sb">
+  <div class="sb-logo">
+    <div class="sb-mark">NEO福岡</div>
+    <div class="sb-sub">経費管理ダッシュボード 第一期</div>
+  </div>
+  <div class="sb-sec">概要</div>
+  <button class="nb on" onclick="go('ov',this)"><span class="ic">📊</span>サマリー</button>
+  <button class="nb" onclick="go('prog',this)"><span class="ic">📋</span>プログラム別</button>
+  <div class="sb-sec">シリーズ</div>
+  <button class="nb" onclick="go('hm',this)"><span class="ic">🏫</span>ホームルーム</button>
+  <button class="nb" onclick="go('gk',this)"><span class="ic">🏛</span>評議会</button>
+  <button class="nb" onclick="go('oe',this)"><span class="ic">📣</span>応援カイギ</button>
+  <div class="sb-sec">大規模イベント</div>
+  <button class="nb" onclick="go('ko',this)"><span class="ic">🚀</span>キックオフ</button>
+  <button class="nb" onclick="go('aw',this)"><span class="ic">🏆</span>アワード</button>
+  <button class="nb" onclick="go('ye',this)"><span class="ic">🎉</span>イヤーエンド</button>
+  <div class="sb-sec">管理</div>
+  <button class="nb" id="nb-budget" onclick="openBulkBudget()"><span class="ic">✏️</span>予算を一括登録</button>
+  <button class="nb" onclick="go('rev',this)"><span class="ic">💰</span>収入管理</button>
+  <button class="nb" id="nb-users" onclick="go('users',this)" style="display:none"><span class="ic">👥</span>ユーザー管理</button>
+  <button class="nb" onclick="go('history',this)"><span class="ic">🕐</span>ログイン履歴</button>
+  <div class="sb-foot">
+    <button class="upload-area" id="xl-upload-btn" onclick="document.getElementById('xlFile').click()">
+      <span>⬆</span> Excelで同期
+    </button>
+    <input type="file" id="xlFile" accept=".xlsx,.xls" style="display:none" onchange="importXL(event)">
+    <div id="user-info-bar" style="display:none;background:var(--s2);border:1px solid var(--b1);border-radius:7px;padding:8px 10px;margin:6px 0">
+      <div style="font-size:9px;color:var(--t3);letter-spacing:.06em;margin-bottom:3px">ログイン中</div>
+      <div id="user-display-name" style="font-size:11px;font-weight:700;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      <div id="user-role-badge" style="margin-top:3px"></div>
+    </div>
+    <button id="logout-btn" onclick="doLogout()" style="display:none;width:100%;padding:7px;background:rgba(232,64,96,.08);border:1px solid rgba(232,64,96,.2);border-radius:6px;color:#e84060;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--sans);">ログアウト</button>
+    <div class="save-row" style="margin-top:6px"><div class="sdot" id="sdot"></div><span id="slbl">接続中...</span></div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main-wrap">
+  <div class="topbar">
+    <div class="topbar-title" id="pgTitle">サマリー</div>
+    <div class="topbar-right">
+      <span style="color:var(--t3)">2025.04–2026.03</span>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- OVERVIEW -->
+    <div class="pg on" id="pg-ov">
+      <div class="g4" id="ov-kpis"></div>
+      <div class="g31">
+        <div class="card"><div class="ct"><div class="pip"></div>月別支出推移（実績）</div><div class="ch"><canvas id="ch-monthly"></canvas></div></div>
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--green)"></div>収入内訳</div><div id="ov-rev"></div></div>
+      </div>
+      <div class="g2">
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>費目別 消化状況</div><div id="ov-cats"></div><div style="margin-top:12px"><div class="ch" style="height:140px"><canvas id="ch-cat"></canvas></div></div></div>
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--purple)"></div>プログラム別 予算比率</div><div class="ch-t"><canvas id="ch-donut"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- PROGRAMS -->
+    <div class="pg" id="pg-prog">
+      <div class="g2">
+        <div class="card"><div class="ct"><div class="pip"></div>プログラム別 予算 vs 実績</div><table class="tbl"><thead><tr><th>プログラム</th><th>予算</th><th>見積</th><th>実績</th><th>差異</th></tr></thead><tbody id="prog-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>予算消化率</div><div class="ch-t"><canvas id="ch-rate"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- HOMEROOM -->
+    <div class="pg" id="pg-hm">
+      <div class="sh"><div><div style="font-family:var(--disp);font-size:15px;font-weight:700;margin-bottom:2px">ホームルーム</div><div style="font-size:10px;color:var(--t2)">講座・ワークショップシリーズ</div></div><div style="display:flex;gap:10px;align-items:center"><div class="sk-row" id="hm-kpis"></div><button class="btn btn-sm btn-g" onclick="openSess('hm',null)" class="btn btn-sm btn-g admin-only">＋ 追加</button></div></div>
+      <div class="sg" id="hm-grid"></div>
+    </div>
+
+    <!-- GIKAI -->
+    <div class="pg" id="pg-gk">
+      <div class="sh"><div><div style="font-family:var(--disp);font-size:15px;font-weight:700;margin-bottom:2px">NEO福岡評議会</div><div style="font-size:10px;color:var(--t2)">意思決定会議シリーズ</div></div><div style="display:flex;gap:10px;align-items:center"><div class="sk-row" id="gk-kpis"></div><button class="btn btn-sm btn-g" onclick="openSess('gk',null)" class="btn btn-sm btn-g admin-only">＋ 追加</button></div></div>
+      <div class="sg" id="gk-grid"></div>
+    </div>
+
+    <!-- OEN -->
+    <div class="pg" id="pg-oe">
+      <div class="sh"><div><div style="font-family:var(--disp);font-size:15px;font-weight:700;margin-bottom:2px">応援カイギ</div><div style="font-size:10px;color:var(--t2)">毎月開催の応援・交流会</div></div><div style="display:flex;gap:10px;align-items:center"><div class="sk-row" id="oe-kpis"></div><button class="btn btn-sm btn-g" onclick="openSess('oe',null)" class="btn btn-sm btn-g admin-only">＋ 追加</button></div></div>
+      <div class="sg" id="oe-grid"></div>
+    </div>
+
+    <!-- KICKOFF -->
+    <div class="pg" id="pg-ko">
+      <div class="g4" id="ko-kpis"></div>
+      <div class="g2">
+        <div class="card"><div class="ct"><div class="pip"></div>費目別明細<button class="btn btn-xs btn-g" style="margin-left:auto" onclick="openEvt('ko')" class="btn btn-xs btn-g admin-only">✏️ 編集</button></div><table class="tbl"><thead><tr><th>費目</th><th>予算</th><th>見積</th><th>実数</th><th>差異</th></tr></thead><tbody id="ko-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--acc)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-ko"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- AWARD -->
+    <div class="pg" id="pg-aw">
+      <div class="g4" id="aw-kpis"></div>
+      <div class="g2">
+        <div class="card"><div class="ct"><div class="pip"></div>費目別明細<button class="btn btn-xs btn-g" style="margin-left:auto" onclick="openEvt('aw')" class="btn btn-xs btn-g admin-only">✏️ 編集</button></div><table class="tbl"><thead><tr><th>費目</th><th>予算</th><th>見積</th><th>実数</th><th>差異</th></tr></thead><tbody id="aw-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-aw"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- YEAREND -->
+    <div class="pg" id="pg-ye">
+      <div class="g4" id="ye-kpis"></div>
+      <div class="g2">
+        <div class="card"><div class="ct"><div class="pip"></div>費目別明細<button class="btn btn-xs btn-g" style="margin-left:auto" onclick="openEvt('ye')" class="btn btn-xs btn-g admin-only">✏️ 編集</button></div><table class="tbl"><thead><tr><th>費目</th><th>予算</th><th>見積</th><th>実数</th><th>差異</th></tr></thead><tbody id="ye-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--purple)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-ye"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- REVENUE -->
+    <div class="pg" id="pg-rev">
+      <div class="g2">
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--green)"></div>収入内訳<button class="btn btn-xs btn-g" style="margin-left:auto" onclick="openRev()" class="btn btn-xs btn-g admin-only">✏️ 編集</button></div><div id="rev-detail"></div></div>
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>収支サマリー</div><div id="net-summary"></div></div>
+      </div>
+    </div>
+
+    <!-- USERS (admin only) -->
+    <div class="pg" id="pg-users">
+      <div class="card" style="margin-bottom:12px">
+        <div class="ct"><div class="pip" style="background:var(--blue)"></div>ユーザー一覧
+          <button class="btn btn-xs btn-p" style="margin-left:auto" onclick="openInvitePanel()">＋ ユーザーを招待</button>
+        </div>
+        <table class="tbl"><thead><tr><th>名前</th><th>メールアドレス</th><th>ロール</th><th>登録日</th><th></th></tr></thead>
+        <tbody id="users-tbody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- LOGIN HISTORY -->
+    <div class="pg" id="pg-history">
+      <div class="card">
+        <div class="ct"><div class="pip" style="background:var(--yellow)"></div>ログイン履歴</div>
+        <table class="tbl"><thead><tr><th>日時</th><th>ユーザー</th><th>メールアドレス</th></tr></thead>
+        <tbody id="history-tbody"></tbody></table>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main-wrap -->
+
+<!-- ログイン画面オーバーレイ（全画面） -->
+<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;align-items:center;justify-content:center;">
+  <div style="width:380px;max-width:92vw">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="font-family:var(--disp);font-size:28px;font-weight:800;background:linear-gradient(120deg,var(--acc),var(--acc2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">NEO福岡</div>
+      <div style="font-size:11px;color:var(--t2);margin-top:4px;letter-spacing:.06em">経費管理ダッシュボード</div>
+    </div>
+    <div style="background:var(--s1);border:1px solid var(--b1);border-radius:12px;padding:24px">
+      <div id="login-tabs" style="display:flex;gap:4px;margin-bottom:18px">
+        <button class="tab on" id="tab-login" onclick="switchLoginTab('login')">ログイン</button>
+        <button class="tab" id="tab-signup" onclick="switchLoginTab('signup')">新規登録</button>
+      </div>
+      <div id="login-error" style="display:none;background:rgba(232,64,96,.1);border:1px solid rgba(232,64,96,.3);border-radius:6px;padding:8px 12px;font-size:11px;color:#e84060;margin-bottom:12px"></div>
+      <!-- ログイン -->
+      <div id="form-login">
+        <div class="frow"><div class="fl">メールアドレス</div><input class="fi" id="login-email" type="email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLogin()"></div>
+        <div class="frow" style="margin-top:8px"><div class="fl">パスワード</div><input class="fi" id="login-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+        <button class="btn btn-p" style="width:100%;margin-top:16px;padding:10px" onclick="doLogin()" id="login-submit-btn">ログイン</button>
+      </div>
+      <!-- 新規登録 -->
+      <div id="form-signup" style="display:none">
+        <div class="frow"><div class="fl">表示名</div><input class="fi" id="signup-name" placeholder="山田 太郎"></div>
+        <div class="frow" style="margin-top:8px"><div class="fl">メールアドレス</div><input class="fi" id="signup-email" type="email" placeholder="your@email.com"></div>
+        <div class="frow" style="margin-top:8px"><div class="fl">パスワード（8文字以上）</div><input class="fi" id="signup-pass" type="password" placeholder="••••••••"></div>
+        <button class="btn btn-p" style="width:100%;margin-top:16px;padding:10px" onclick="doSignup()" id="signup-submit-btn">登録申請</button>
+        <p style="font-size:10px;color:var(--t3);margin-top:10px;text-align:center">登録後、管理者の承認が必要です</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ユーザー招待パネル -->
+<div class="ov" id="ov-invite">
+  <div class="panel">
+    <div class="ph"><h2>ユーザーを招待</h2><button class="xbtn" onclick="closeOv('ov-invite')">×</button></div>
+    <div class="pb-body">
+      <div class="frow"><div class="fl">メールアドレス</div><input class="fi" id="inv-email" type="email" placeholder="招待するメールアドレス"></div>
+      <div class="frow" style="margin-top:8px"><div class="fl">表示名</div><input class="fi" id="inv-name" placeholder="山田 太郎"></div>
+      <div class="frow" style="margin-top:8px"><div class="fl">ロール</div>
+        <select class="fi" id="inv-role" style="width:auto">
+          <option value="member">メンバー（閲覧・見積入力）</option>
+          <option value="admin">管理者（全権限）</option>
+        </select>
+      </div>
+      <div class="frow" style="margin-top:8px"><div class="fl">仮パスワード</div><input class="fi" id="inv-pass" type="text" placeholder="初期パスワードを設定"></div>
+      <div style="font-size:10px;color:var(--t2);margin-top:8px">※ 登録後、本人にパスワード変更を促してください</div>
+    </div>
+    <div class="pf">
+      <button class="btn btn-g" onclick="closeOv('ov-invite')">キャンセル</button>
+      <button class="btn btn-p" onclick="doInviteUser()">作成する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PANELS ══ -->
+
+<!-- 予算一括登録 -->
+<div class="ov" id="ov-budget">
+  <div class="panel wide">
+    <div class="ph"><h2>予算を一括登録</h2><button class="xbtn" onclick="closeOv('ov-budget')">×</button></div>
+    <div class="pb-body">
+      <p style="font-size:10px;color:var(--t2);margin-bottom:12px">プログラム全体の予算と、各イベント内の費目別予算を設定できます。</p>
+      <div class="tabs">
+        <button class="tab on" onclick="switchBudgetTab('prog',this)">プログラム単位</button>
+        <button class="tab" onclick="switchBudgetTab('items',this)">費目単位（イベント別）</button>
+      </div>
+      <div id="budget-prog-tab">
+        <table class="btbl"><thead><tr><th>プログラム</th><th>予算（円）</th><th>収入（円）</th></tr></thead><tbody id="bprog-body"></tbody></table>
+      </div>
+      <div id="budget-items-tab" style="display:none">
+        <div style="margin-bottom:10px">
+          <select class="fi" id="budget-evt-sel" onchange="renderBudgetItems()" style="width:auto;padding:5px 10px">
+            <option value="ko">キックオフ</option>
+            <option value="aw">アワード</option>
+            <option value="ye">イヤーエンド</option>
+            <option value="hm">ホームルーム（回次別）</option>
+            <option value="gk">評議会（回次別）</option>
+            <option value="oe">応援カイギ（回次別）</option>
+          </select>
+        </div>
+        <div id="budget-items-content"></div>
+      </div>
+    </div>
+    <div class="pf">
+      <button class="btn btn-g" onclick="closeOv('ov-budget')">閉じる</button>
+      <button class="btn btn-p" onclick="saveBulkBudget()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 回次編集パネル -->
+<div class="ov" id="ov-sess">
+  <div class="panel wide">
+    <div class="ph"><h2 id="sess-title">回次を編集</h2><button class="xbtn" onclick="closeOv('ov-sess')">×</button></div>
+    <div class="pb-body">
+      <div class="fg2" style="margin-bottom:10px">
+        <div class="frow"><div class="fl">タイトル</div><input class="fi" id="s-title" placeholder="例: 第1回 長尾さん"></div>
+        <div class="frow"><div class="fl">開催日</div><input class="fi" id="s-date" type="date"></div>
+      </div>
+      <div class="sec-div">合計金額（費目内訳から自動計算）</div>
+      <div class="fg3" style="margin-bottom:12px">
+        <div class="frow"><div class="fl" style="color:var(--t3)">予算（合計）</div><input class="fi" id="s-budget-total" readonly placeholder="費目合計" style="color:var(--t2)"></div>
+        <div class="frow"><div class="fl" style="color:#5590dd">見積（合計）</div><input class="fi" id="s-est-total" readonly placeholder="費目合計" style="color:var(--blue)"></div>
+        <div class="frow"><div class="fl" style="color:#2ab890">実数（合計）</div><input class="fi" id="s-act-total" readonly placeholder="費目合計" style="color:var(--green)"></div>
+      </div>
+      <div class="sec-div">費目別内訳 <span style="font-weight:400;font-size:9px;color:var(--t3)">（費目ごとに予算・見積・実数を入力）</span></div>
+      <div class="item-hdr">
+        <span></span><span>費目名</span><span style="text-align:right">予算</span><span style="text-align:right">見積</span><span style="text-align:right">実数</span><span></span>
+      </div>
+      <div id="sess-items"></div>
+      <button class="add-btn admin-only" onclick="addSessItem()">＋ 費目を追加</button>
+      <div class="sec-div" style="margin-top:14px">メモ</div>
+      <input class="fi" id="s-memo" placeholder="任意のメモ・備考">
+    </div>
+    <div class="pf" style="justify-content:space-between">
+      <button class="btn btn-red btn-sm admin-only" id="sess-del-btn" onclick="deleteSess()">削除</button>
+      <div style="display:flex;gap:7px">
+        <button class="btn btn-g" onclick="closeOv('ov-sess')">キャンセル</button>
+        <button class="btn btn-p" onclick="saveSess()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- イベント費目編集パネル -->
+<div class="ov" id="ov-evt">
+  <div class="panel wide">
+    <div class="ph"><h2 id="evt-title">費目別明細を編集</h2><button class="xbtn" onclick="closeOv('ov-evt')">×</button></div>
+    <div class="pb-body">
+      <div class="item-hdr">
+        <span></span><span>費目名</span><span style="text-align:right">予算</span><span style="text-align:right">見積</span><span style="text-align:right">実数</span><span></span>
+      </div>
+      <div id="evt-items"></div>
+      <button class="add-btn admin-only" onclick="addEvtItem()">＋ 費目を追加</button>
+    </div>
+    <div class="pf">
+      <button class="btn btn-g" onclick="closeOv('ov-evt')">キャンセル</button>
+      <button class="btn btn-p" onclick="saveEvt()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 収入編集パネル -->
+<div class="ov" id="ov-rev-edit">
+  <div class="panel">
+    <div class="ph"><h2>収入を編集</h2><button class="xbtn" onclick="closeOv('ov-rev-edit')">×</button></div>
+    <div class="pb-body">
+      <div style="display:grid;grid-template-columns:20px 1fr 110px 26px;gap:5px;padding:0 2px;margin-bottom:4px">
+        <span></span>
+        <span style="font-size:8px;font-weight:700;color:var(--t3);letter-spacing:.08em;text-transform:uppercase">項目名</span>
+        <span style="font-size:8px;font-weight:700;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;text-align:right">金額（円）</span>
+        <span></span>
+      </div>
+      <div id="rev-items"></div>
+      <button class="add-btn admin-only" onclick="addRevItem()">＋ 収入項目を追加</button>
+    </div>
+    <div class="pf">
+      <button class="btn btn-g" onclick="closeOv('ov-rev-edit')">キャンセル</button>
+      <button class="btn btn-p" onclick="saveRev()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Excel同期結果 -->
+<div class="ov" id="ov-xl">
+  <div class="panel">
+    <div class="ph"><h2>Excel 読み込み結果</h2><button class="xbtn" onclick="closeOv('ov-xl')">×</button></div>
+    <div class="pb-body" id="xl-result"></div>
+    <div class="pf"><button class="btn btn-p" onclick="closeOv('ov-xl')">閉じる</button></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════
+// DEFAULT FEE ITEMS TEMPLATE (費目テンプレート)
+// ══════════════════════════════════════════════════
+const FEE_TEMPLATE = [
+  {name:'会場費',      budget:0,estimate:0,actual:0},
+  {name:'講師・演者費',budget:0,estimate:0,actual:0},
+  {name:'運営人件費',  budget:0,estimate:0,actual:0},
+  {name:'制作・印刷費',budget:0,estimate:0,actual:0},
+  {name:'備品・消耗品',budget:0,estimate:0,actual:0},
+  {name:'旅費交通費',  budget:0,estimate:0,actual:0},
+  {name:'諸経費',      budget:0,estimate:0,actual:0},
+];
+
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+
+// ══════════════════════════════════════════════════
+// DEFAULT DATA
+// ══════════════════════════════════════════════════
+const DEF = {
+  programs:[
+    {id:'annual',   name:'年間共通',    budget:1650000},
+    {id:'ko',       name:'キックオフ',  budget:1579820},
+    {id:'hm',       name:'ホームルーム',budget:2084500},
+    {id:'aw',       name:'アワード',    budget:5027000},
+    {id:'cityfes',  name:'シティフェス',budget:2700000},
+    {id:'ye',       name:'イヤーエンド',budget:2035000},
+    {id:'gk',       name:'評議会',      budget:712800 },
+    {id:'oe',       name:'応援カイギ',  budget:49500  },
+    {id:'other',    name:'その他',      budget:676500 },
+    {id:'marketing',name:'マーケ関連',  budget:3000000},
+  ],
+  revenues:[
+    {id:'r1',name:'アワード参加費',    amount:900000 },
+    {id:'r2',name:'スタジアムシティ',  amount:1707800},
+    {id:'r3',name:'イヤーエンド参加費',amount:1000000},
+  ],
+  events:{
+    ko:{
+      label:'キックオフ',
+      items:[
+        {id:'k1',name:'会場費',              budget:400000, estimate:662000, actual:346500},
+        {id:'k2',name:'ケータリング・ドリンク',budget:0,      estimate:0,      actual:186200},
+        {id:'k3',name:'制作・パネル',         budget:0,      estimate:200000, actual:37840 },
+        {id:'k4',name:'映像・撮影',           budget:300000, estimate:0,      actual:490000},
+        {id:'k5',name:'運営委託',             budget:0,      estimate:0,      actual:154000},
+        {id:'k6',name:'備品・印刷',           budget:0,      estimate:0,      actual:60955 },
+        {id:'k7',name:'MC・キャスティング',   budget:150000, estimate:165000, actual:230000},
+        {id:'k8',name:'旅費交通費',           budget:100000, estimate:0,      actual:0     },
+        {id:'k9',name:'諸経費',               budget:100000, estimate:0,      actual:120155},
+      ]
+    },
+    aw:{
+      label:'アワード',
+      items:[
+        {id:'a1',name:'会場費（施設・延長）',  budget:500000,  estimate:800000, actual:1000000},
+        {id:'a2',name:'ケータリング',          budget:100000,  estimate:150000, actual:523000 },
+        {id:'a3',name:'審査員・キャスティング',budget:400000,  estimate:400000, actual:200000 },
+        {id:'a4',name:'運営・進行人件費',      budget:0,       estimate:400000, actual:389000 },
+        {id:'a5',name:'制作・施工',            budget:0,       estimate:400000, actual:867504 },
+        {id:'a6',name:'賞金・懇親会',          budget:0,       estimate:0,      actual:760000 },
+        {id:'a7',name:'デザイン費',            budget:0,       estimate:0,      actual:200000 },
+        {id:'a8',name:'その他諸経費',          budget:0,       estimate:0,      actual:23734  },
+      ]
+    },
+    ye:{
+      label:'イヤーエンド',
+      items:[
+        {id:'y1',name:'会場費（当日・前日）', budget:1100000, estimate:625000, actual:625000 },
+        {id:'y2',name:'ケータリング',         budget:0,       estimate:530000, actual:530000 },
+        {id:'y3',name:'備品・受付一式',       budget:0,       estimate:60000,  actual:60000  },
+        {id:'y4',name:'進行・運営人件費',     budget:0,       estimate:350000, actual:350000 },
+        {id:'y5',name:'制作・施工',           budget:0,       estimate:798483, actual:798483 },
+        {id:'y6',name:'懇親会・デザイン・花', budget:0,       estimate:380000, actual:380000 },
+        {id:'y7',name:'演出費',               budget:0,       estimate:0,      actual:0      },
+      ]
+    },
+  },
+  sessions:{
+    hm:[
+      {id:'hm1', title:'HOMEROOM第1回 長尾さん',  date:'2025-07-13', memo:'',
+        items:[{id:uid(),name:'会場費',budget:55000,estimate:55000,actual:50000},{id:uid(),name:'講師・演者費',budget:110000,estimate:110000,actual:135140},{id:uid(),name:'備品・消耗品',budget:15000,estimate:0,actual:6270},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:0},{id:uid(),name:'旅費交通費',budget:60000,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:20000,estimate:0,actual:6270}]},
+      {id:'hm2', title:'HOMEROOM第2回 上田さん',  date:'2025-07-15', memo:'',
+        items:[{id:uid(),name:'会場費',budget:55000,estimate:55000,actual:50000},{id:uid(),name:'講師・演者費',budget:110000,estimate:110000,actual:146750},{id:uid(),name:'備品・消耗品',budget:15000,estimate:0,actual:0},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:0},{id:uid(),name:'旅費交通費',budget:60000,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:20000,estimate:0,actual:12707}]},
+      {id:'hm3', title:'HOMEROOM第3回 加藤さん',  date:'2025-07-22', memo:'',
+        items:[{id:uid(),name:'会場費',budget:0,estimate:0,actual:0},{id:uid(),name:'講師・演者費',budget:110000,estimate:0,actual:0},{id:uid(),name:'備品・消耗品',budget:15000,estimate:0,actual:0},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:0},{id:uid(),name:'旅費交通費',budget:60000,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:20000,estimate:0,actual:22000}]},
+      {id:'hm4', title:'HOMEROOM第4回 平田さん',  date:'2025-07-29', memo:'',
+        items:[{id:uid(),name:'会場費',budget:0,estimate:0,actual:0},{id:uid(),name:'講師・演者費',budget:16500,estimate:0,actual:0},{id:uid(),name:'備品・消耗品',budget:0,estimate:0,actual:0},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:0},{id:uid(),name:'旅費交通費',budget:0,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:0,estimate:0,actual:0}]},
+      {id:'hm5', title:'WS① 街歩き',             date:'2025-08-02', memo:'',
+        items:[{id:uid(),name:'会場費',budget:150000,estimate:0,actual:0},{id:uid(),name:'講師・演者費',budget:0,estimate:0,actual:0},{id:uid(),name:'備品・消耗品',budget:0,estimate:0,actual:0},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:55000},{id:uid(),name:'旅費交通費',budget:0,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:0,estimate:0,actual:0}]},
+      {id:'hm6', title:'HOMEROOM第6回 古川さん',  date:'2025-08-19', memo:'',
+        items:[{id:uid(),name:'会場費',budget:55000,estimate:55000,actual:50000},{id:uid(),name:'講師・演者費',budget:0,estimate:0,actual:0},{id:uid(),name:'備品・消耗品',budget:0,estimate:0,actual:0},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:0},{id:uid(),name:'旅費交通費',budget:0,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:20000,estimate:0,actual:6507}]},
+      {id:'hm7', title:'WS② 企業課題マッチング', date:'2025-09-06', memo:'',
+        items:[{id:uid(),name:'会場費',budget:55000,estimate:55000,actual:50000},{id:uid(),name:'講師・演者費',budget:0,estimate:0,actual:0},{id:uid(),name:'備品・消耗品',budget:0,estimate:0,actual:0},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:0},{id:uid(),name:'旅費交通費',budget:0,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:20000,estimate:0,actual:16103}]},
+      {id:'hm8', title:'HOMEROOM第8回 林さん',    date:'2025-09-16', memo:'',
+        items:[{id:uid(),name:'会場費',budget:55000,estimate:55000,actual:50000},{id:uid(),name:'講師・演者費',budget:0,estimate:0,actual:198500},{id:uid(),name:'備品・消耗品',budget:0,estimate:0,actual:0},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:0},{id:uid(),name:'旅費交通費',budget:0,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:20000,estimate:0,actual:10000}]},
+      {id:'hm9', title:'HOMEROOM第9回 えとみほ',  date:'2025-09-30', memo:'',
+        items:[{id:uid(),name:'会場費',budget:50000,estimate:50000,actual:50000},{id:uid(),name:'講師・演者費',budget:0,estimate:0,actual:110000},{id:uid(),name:'備品・消耗品',budget:0,estimate:0,actual:0},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:0},{id:uid(),name:'旅費交通費',budget:0,estimate:0,actual:38000},{id:uid(),name:'諸経費',budget:0,estimate:0,actual:0}]},
+      {id:'hm10',title:'WS③ 最終ホームルーム',   date:'2025-10-11', memo:'',
+        items:[{id:uid(),name:'会場費',budget:150000,estimate:0,actual:0},{id:uid(),name:'講師・演者費',budget:0,estimate:0,actual:0},{id:uid(),name:'備品・消耗品',budget:0,estimate:0,actual:0},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:44000},{id:uid(),name:'旅費交通費',budget:0,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:0,estimate:0,actual:0}]},
+    ],
+    gk:[
+      {id:'gk1',title:'NEO福岡評議会 第1回',date:'2025-06-20',memo:'',items:[{id:uid(),name:'会場費',budget:55000,estimate:0,actual:55000},{id:uid(),name:'諸経費',budget:5500,estimate:0,actual:5500}]},
+      {id:'gk2',title:'NEO福岡評議会 第2回',date:'2025-07-18',memo:'',items:[{id:uid(),name:'会場費',budget:55000,estimate:0,actual:55000},{id:uid(),name:'諸経費',budget:5500,estimate:0,actual:5500}]},
+      {id:'gk3',title:'NEO福岡評議会 第3回',date:'2025-08-29',memo:'',items:[{id:uid(),name:'会場費',budget:55000,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:5500,estimate:0,actual:0}]},
+      {id:'gk4',title:'NEO福岡評議会 第4回',date:'2025-09-19',memo:'',items:[{id:uid(),name:'会場費',budget:55000,estimate:0,actual:30800},{id:uid(),name:'諸経費',budget:5500,estimate:0,actual:5500}]},
+      {id:'gk5',title:'NEO福岡評議会 第5回',date:'2025-10-17',memo:'',items:[{id:uid(),name:'会場費',budget:88000,estimate:33000,actual:0},{id:uid(),name:'諸経費',budget:5500,estimate:0,actual:0}]},
+      {id:'gk6',title:'NEO福岡評議会 第6回',date:'2025-11-21',memo:'',items:[{id:uid(),name:'会場費',budget:88000,estimate:33000,actual:0},{id:uid(),name:'諸経費',budget:5500,estimate:0,actual:0}]},
+      {id:'gk7',title:'NEO福岡評議会 第7回',date:'2025-12-19',memo:'',items:[{id:uid(),name:'会場費',budget:88000,estimate:33000,actual:0},{id:uid(),name:'諸経費',budget:5500,estimate:0,actual:0}]},
+      {id:'gk8',title:'NEO福岡評議会 第8回',date:'2026-01-16',memo:'',items:[{id:uid(),name:'会場費',budget:88000,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:5500,estimate:0,actual:0}]},
+      {id:'gk9',title:'NEO福岡評議会 第9回',date:'2026-02-20',memo:'',items:[{id:uid(),name:'会場費',budget:91300,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:5500,estimate:0,actual:0}]},
+    ],
+    oe:[
+      {id:'oe1',title:'応援カイギ #1',date:'2025-06-10',memo:'',items:[{id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:5500}]},
+      {id:'oe2',title:'応援カイギ #2',date:'2025-07-08',memo:'',items:[{id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:5500}]},
+      {id:'oe3',title:'応援カイギ #3',date:'2025-08-12',memo:'',items:[{id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:0}]},
+      {id:'oe4',title:'応援カイギ #4',date:'2025-09-09',memo:'',items:[{id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:0}]},
+      {id:'oe5',title:'応援カイギ #5',date:'2025-10-14',memo:'',items:[{id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:0}]},
+      {id:'oe6',title:'応援カイギ #6',date:'2025-11-11',memo:'',items:[{id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:0}]},
+      {id:'oe7',title:'応援カイギ #7',date:'2025-12-09',memo:'',items:[{id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:0}]},
+      {id:'oe8',title:'応援カイギ #8',date:'2026-01-13',memo:'',items:[{id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:0}]},
+      {id:'oe9',title:'応援カイギ #9',date:'2026-02-10',memo:'',items:[{id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:0}]},
+    ],
+  },
+  categories:[
+    {name:'① イベント費',   budget:5478000, actual:2312226},
+    {name:'② 制作・印刷費', budget:8200000, actual:2598763},
+    {name:'③ 外部委託費',   budget:3000000, actual:2025848},
+    {name:'④ 広報費',       budget:1300000, actual:0      },
+    {name:'⑤ その他',       budget:5057700, actual:5052518},
+  ],
+  months:['25/4','25/5','25/6','25/7','25/8','25/9','25/10','25/11','25/12','26/1','26/2','26/3'],
+  monthlyTotal:[0,570540,2066928,474167,560867,2618041,490094,40000,150621,4633778,1398000,4854068],
+};
+
+// ══════════════════════════════════════════════════
+// STATE / STORAGE
+// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════
+// SUPABASE CONFIG — ここにAPIキーを設定してください
+// ══════════════════════════════════════════════════
+const SUPABASE_URL     = 'YOUR_SUPABASE_URL';   // ← 変更してください
+const SUPABASE_ANON_KEY= 'YOUR_SUPABASE_ANON_KEY'; // ← 変更してください
+
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── 現在のログインユーザー ──
+let _currentUser  = null;   // supabase Userオブジェクト
+let _currentRole  = null;   // 'admin' | 'member'
+let _currentName  = '';
+
+// ── ロールチェック ──
+const isAdmin  = () => _currentRole === 'admin';
+const isLogged = () => !!_currentUser;
+
+// ── 権限UIの切り替え ──
+function applyRoleUI() {
+  // 管理者専用ボタンの表示制御
+  const adminEls = document.querySelectorAll('.admin-only');
+  adminEls.forEach(el => el.style.display = isAdmin() ? '' : 'none');
+  // ユーザー管理ナビ
+  const nbUsers = document.getElementById('nb-users');
+  if (nbUsers) nbUsers.style.display = isAdmin() ? '' : 'none';
+  // 予算一括登録ボタン
+  const nbBudget = document.getElementById('nb-budget');
+  if (nbBudget) nbBudget.style.display = isAdmin() ? '' : 'none';
+  // サイドバーユーザー情報
+  const uib = document.getElementById('user-info-bar');
+  const logoutBtn = document.getElementById('logout-btn');
+  if (uib) uib.style.display = _currentUser ? '' : 'none';
+  if (logoutBtn) logoutBtn.style.display = _currentUser ? '' : 'none';
+  if (document.getElementById('user-display-name'))
+    document.getElementById('user-display-name').textContent = _currentName || _currentUser?.email || '';
+  if (document.getElementById('user-role-badge'))
+    document.getElementById('user-role-badge').innerHTML = isAdmin()
+      ? '<span style="font-size:8px;background:rgba(240,82,42,.2);color:#f0522a;padding:1px 6px;border-radius:4px;font-weight:700">管理者</span>'
+      : '<span style="font-size:8px;background:rgba(79,142,247,.15);color:#4f8ef7;padding:1px 6px;border-radius:4px;font-weight:700">メンバー</span>';
+  // Excelアップロードは管理者のみ
+  const xlBtn = document.getElementById('xl-upload-btn');
+  if (xlBtn) xlBtn.style.display = isAdmin() ? '' : 'none';
+}
+
+const SK='neo_v5_sb'; // ローカルフォールバック用
+let S=loadS();
+
+function loadS(){
+  try{const r=localStorage.getItem(SK);if(r)return JSON.parse(r);}catch(e){}
+  return JSON.parse(JSON.stringify(DEF));
+}
+
+// Supabaseからデータ読み込み
+async function loadFromDB() {
+  try {
+    const {data,error} = await _sb.from('dashboard_data').select('data').eq('id',1).single();
+    if (error) throw error;
+    if (data && data.data && Object.keys(data.data).length > 0) {
+      S = data.data;
+      // DEFにないキーを補完
+      if (!S.programs) S.programs = DEF.programs;
+      if (!S.revenues) S.revenues = DEF.revenues;
+      if (!S.sessions) S.sessions = DEF.sessions;
+      if (!S.events)   S.events   = DEF.events;
+      if (!S.categories) S.categories = DEF.categories;
+      if (!S.months)   S.months   = DEF.months;
+      if (!S.monthlyTotal) S.monthlyTotal = DEF.monthlyTotal;
+    }
+    slbl().textContent = 'DB同期済み';
+    sdot().className = 'sdot';
+  } catch(e) {
+    console.warn('DB load failed, using local:', e.message);
+    slbl().textContent = 'ローカルデータ使用中';
+  }
+}
+
+// Supabaseへ保存（adminのみ有効）
+async function save() {
+  // 常にローカルにも保存
+  localStorage.setItem(SK, JSON.stringify(S));
+  if (!isAdmin()) {
+    // memberは見積・実数のみ保存可能（budgetフィールドを除いたパーシャル保存）
+    sdot().className = 'sdot';
+    slbl().textContent = '保存済み (閲覧限定)';
+    return;
+  }
+  try {
+    sdot().className = 'sdot uns';
+    slbl().textContent = '保存中...';
+    const {error} = await _sb.from('dashboard_data')
+      .update({data: S, updated_by: _currentUser.id, updated_at: new Date().toISOString()})
+      .eq('id',1);
+    if (error) throw error;
+    sdot().className = 'sdot';
+    slbl().textContent = '保存済み ' + new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+  } catch(e) {
+    sdot().className = 'sdot uns';
+    slbl().textContent = '保存エラー: ' + e.message;
+  }
+}
+
+// memberが見積・実数のみ保存する関数
+async function saveMemberData() {
+  localStorage.setItem(SK, JSON.stringify(S));
+  if (isAdmin()) { save(); return; }
+  try {
+    // 実績・見積のみ更新（予算には触れない）
+    const {error} = await _sb.from('dashboard_data')
+      .update({data: S, updated_at: new Date().toISOString()})
+      .eq('id',1);
+    if (error) throw error;
+    sdot().className = 'sdot';
+    slbl().textContent = '保存済み ' + new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+  } catch(e) {
+    sdot().className = 'sdot uns';
+    slbl().textContent = '保存エラー';
+  }
+}
+function sdot(){return document.getElementById('sdot');}
+function slbl(){return document.getElementById('slbl');}
+
+// ══════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════
+const n=v=>parseFloat(v)||0;
+const fmt=v=>!v&&v!==0?'—':'¥'+Math.round(v).toLocaleString();
+const fmtN=v=>!v&&v!==0?'0':Math.round(v).toLocaleString();
+const pct=(a,b)=>b>0?(a/b*100).toFixed(0)+'%':'—';
+
+// 回次の合計（items配列から算出）
+const sessSum=(s,f)=>s.items?s.items.reduce((t,i)=>t+n(i[f]),0):n(s[f]||0);
+
+// イベントの合計
+const evtSum=(key,f)=>S.events[key].items.reduce((t,i)=>t+n(i[f]),0);
+
+// プログラム実績（セッション or イベント）
+function progActual(id){
+  if(S.events[id]) return evtSum(id,'actual');
+  const sess=S.sessions[id]||[];
+  return sess.reduce((t,s)=>t+sessSum(s,'actual'),0);
+}
+function progEstimate(id){
+  if(S.events[id]) return evtSum(id,'estimate');
+  const sess=S.sessions[id]||[];
+  return sess.reduce((t,s)=>t+sessSum(s,'estimate'),0);
+}
+
+Chart.defaults.color='#3a4255';
+Chart.defaults.font.family="'JetBrains Mono',monospace";
+Chart.defaults.font.size=10;
+const g0={color:'rgba(28,32,48,.9)',drawBorder:false};
+const _ch={};
+function dc(id){if(_ch[id]){_ch[id].destroy();delete _ch[id];}}
+
+// ══════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════
+const TITLES={ov:'サマリー',prog:'プログラム別',hm:'ホームルーム',gk:'評議会',oe:'応援カイギ',ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',rev:'収入管理',users:'ユーザー管理',history:'ログイン履歴'};
+let _curPg='ov';
+function go(id,btn){
+  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  document.getElementById('pg-'+id).classList.add('on');
+  if(btn)btn.classList.add('on');
+  document.getElementById('pgTitle').textContent=TITLES[id]||id;
+  _curPg=id;
+  renderPg(id);
+}
+function renderPg(id){
+  if(id==='ov')   renderOv();
+  if(id==='prog') renderProg();
+  if(id==='hm')   renderSeries('hm');
+  if(id==='gk')   renderSeries('gk');
+  if(id==='oe')   renderSeries('oe');
+  if(id==='ko')   renderEvt('ko');
+  if(id==='aw')   renderEvt('aw');
+  if(id==='ye')   renderEvt('ye');
+  if(id==='rev')  renderRev();
+}
+
+// ══════════════════════════════════════════════════
+// OVERVIEW
+// ══════════════════════════════════════════════════
+const PAL=['#f0522a','#4f8ef7','#2dd4a0','#f0c040','#9b7fe8','#06b6d4','#ec4899','#84cc16','#ffb347','#14b8a6'];
+
+function renderOv(){
+  const totB=S.programs.reduce((t,p)=>t+n(p.budget),0);
+  const totA=S.programs.reduce((t,p)=>t+progActual(p.id),0);
+  const totE=S.programs.reduce((t,p)=>t+progEstimate(p.id),0);
+  const totR=S.revenues.reduce((t,r)=>t+n(r.amount),0);
+  const diff=totB-totA;
+
+  document.getElementById('ov-kpis').innerHTML=`
+    <div class="kpi r"><div class="kl">総予算</div><div class="kv">${fmtN(totB)}<em>円</em></div><div class="ks">年間承認予算（税別）</div></div>
+    <div class="kpi b"><div class="kl">見積合計</div><div class="kv">${fmtN(totE)}<em>円</em></div><div class="ks">消化率 <strong style="color:var(--blue)">${pct(totE,totB)}</strong></div></div>
+    <div class="kpi g"><div class="kl">実績合計</div><div class="kv">${fmtN(totA)}<em>円</em></div><div class="ks"><span class="${diff>=0?'ok':'ng'}">${diff>=0?'▲ 予算内':'▼ 予算超過'} ${fmtN(Math.abs(diff))}円</span></div></div>
+    <div class="kpi y"><div class="kl">実質収支（収入控除後）</div><div class="kv" style="color:var(--green)">+${fmtN(diff+totR)}<em>円</em></div><div class="ks">収入 ${fmtN(totR)}円 控除後</div></div>`;
+
+  document.getElementById('ov-rev').innerHTML=
+    S.revenues.map(r=>`<div class="rev-row"><div class="rev-name">${r.name}</div><div class="rev-val">${fmt(r.amount)}</div></div>`).join('')+
+    `<div class="rev-row" style="border-top:1px solid var(--acc);margin-top:8px;padding-top:8px"><strong>収入合計</strong><span style="font-family:var(--mono);font-size:13px;color:var(--green);font-weight:700">${fmt(totR)}</span></div>
+    <div class="net-box"><div style="font-size:10px;color:var(--t2)">実質余剰額</div><div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green)">+${fmt(diff+totR)}</div></div>`;
+
+  const bc=['var(--acc)','var(--blue)','var(--purple)','var(--yellow)','var(--green)'];
+  document.getElementById('ov-cats').innerHTML=S.categories.map((c,i)=>{
+    const p=c.budget>0?Math.min(c.actual/c.budget*100,100):0;
+    return`<div class="pb"><div class="pb-top"><span class="n">${c.name}</span><span class="p">${fmtN(c.actual)} / ${fmtN(c.budget)} (${pct(c.actual,c.budget)})</span></div>
+    <div class="pb-track"><div class="pb-fill" style="width:${p}%;background:${c.actual>c.budget?'var(--red)':bc[i]}"></div></div></div>`;
+  }).join('');
+
+  dc('ch-monthly');
+  _ch['ch-monthly']=new Chart(document.getElementById('ch-monthly'),{
+    type:'bar',data:{labels:S.months,datasets:[{label:'月別支出',data:S.monthlyTotal,
+      backgroundColor:S.monthlyTotal.map(v=>v>3000000?'rgba(240,82,42,.65)':'rgba(79,142,247,.5)'),
+      borderColor:S.monthlyTotal.map(v=>v>3000000?'#f0522a':'#4f8ef7'),borderWidth:1,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' ¥'+Math.round(ctx.raw).toLocaleString()}}},
+      scales:{x:{grid:g0,ticks:{maxRotation:0}},y:{grid:g0,ticks:{callback:v=>v>=1000000?(v/1000000).toFixed(1)+'M':v.toLocaleString()}}}}});
+
+  dc('ch-cat');
+  _ch['ch-cat']=new Chart(document.getElementById('ch-cat'),{
+    type:'bar',data:{labels:S.categories.map(c=>c.name),datasets:[
+      {label:'実績',data:S.categories.map(c=>c.actual),backgroundColor:PAL.slice(0,5).map(c=>c+'bb'),borderColor:PAL.slice(0,5),borderWidth:1,borderRadius:3},
+      {label:'予算',data:S.categories.map(c=>c.budget),backgroundColor:'transparent',borderColor:PAL.slice(0,5).map(c=>c+'44'),borderWidth:1.5,borderDash:[4,3],borderRadius:3},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top',labels:{boxWidth:7,padding:8}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ¥${Math.round(ctx.raw).toLocaleString()}`}}},
+      scales:{x:{grid:g0,ticks:{font:{size:9}}},y:{grid:g0,ticks:{callback:v=>(v/1000000).toFixed(1)+'M'}}}}});
+
+  dc('ch-donut');
+  _ch['ch-donut']=new Chart(document.getElementById('ch-donut'),{
+    type:'doughnut',
+    data:{labels:S.programs.map(p=>p.name),datasets:[{data:S.programs.map(p=>n(p.budget)),
+      backgroundColor:PAL.map(c=>c+'cc'),borderColor:PAL,borderWidth:1.5,hoverOffset:5}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{legend:{position:'right',labels:{boxWidth:8,padding:8,font:{size:10}}},
+        tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ¥${Math.round(ctx.raw).toLocaleString()}`}}}}});
+}
+
+// ══════════════════════════════════════════════════
+// PROGRAMS
+// ══════════════════════════════════════════════════
+function renderProg(){
+  document.getElementById('prog-tbody').innerHTML=S.programs.map(p=>{
+    const act=progActual(p.id),est=progEstimate(p.id),diff=n(p.budget)-act;
+    const tag=diff<0?`<span class="tag tg-o">超過</span>`:act===0?`<span class="tag tg-z">未実施</span>`:`<span class="tag tg-g">正常</span>`;
+    return`<tr><td><span style="font-weight:500">${p.name}</span>${tag}</td>
+      <td class="num-dim">${fmtN(p.budget)}</td>
+      <td style="color:#5a95e8">${fmtN(est)}</td>
+      <td>${fmtN(act)}</td>
+      <td class="${diff<0?'ng':'ok'}">${diff<0?'▼':'▲'} ${fmtN(Math.abs(diff))}</td></tr>`;
+  }).join('');
+
+  const sorted=[...S.programs].filter(p=>n(p.budget)>0).map(p=>({...p,act:progActual(p.id),r:Math.round(progActual(p.id)/n(p.budget)*100)})).sort((a,b)=>b.r-a.r);
+  dc('ch-rate');
+  _ch['ch-rate']=new Chart(document.getElementById('ch-rate'),{
+    type:'bar',data:{labels:sorted.map(p=>p.name),datasets:[{label:'消化率（%）',data:sorted.map(p=>p.r),
+      backgroundColor:sorted.map(p=>p.r>100?'rgba(232,64,96,.7)':p.r>70?'rgba(240,192,64,.7)':'rgba(79,142,247,.6)'),
+      borderColor:sorted.map(p=>p.r>100?'var(--red)':p.r>70?'var(--yellow)':'var(--blue)'),borderWidth:1,borderRadius:3}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` 消化率: ${ctx.raw}%`}}},
+      scales:{x:{grid:g0,ticks:{callback:v=>v+'%'},max:Math.max(350,...sorted.map(p=>p.r+20))},y:{grid:{display:false}}}}});
+}
+
+// ══════════════════════════════════════════════════
+// SERIES
+// ══════════════════════════════════════════════════
+function renderSeries(key){
+  const ss=S.sessions[key]||[];
+  const totB=ss.reduce((t,s)=>t+sessSum(s,'budget'),0);
+  const totE=ss.reduce((t,s)=>t+sessSum(s,'estimate'),0);
+  const totA=ss.reduce((t,s)=>t+sessSum(s,'actual'),0);
+  const done=ss.filter(s=>sessSum(s,'actual')>0).length;
+  const colors={hm:'var(--green)',gk:'var(--blue)',oe:'var(--yellow)'};
+  const col=colors[key]||'var(--t1)';
+
+  document.getElementById(`${key}-kpis`).innerHTML=`
+    <div class="sk"><div class="skv" style="color:${col}">${ss.length}</div><div class="skl">総回数</div></div>
+    <div class="sk"><div class="skv">${fmtN(totB)}<span style="font-size:10px;color:var(--t2)">円</span></div><div class="skl">予算合計</div></div>
+    <div class="sk"><div class="skv" style="color:var(--blue)">${fmtN(totE)}<span style="font-size:10px;color:var(--t2)">円</span></div><div class="skl">見積合計</div></div>
+    <div class="sk"><div class="skv" style="color:var(--green)">${fmtN(totA)}<span style="font-size:10px;color:var(--t2)">円</span></div><div class="skl">実績合計</div></div>
+    <div class="sk"><div class="skv">${done}<span style="font-size:11px;color:var(--t2)"> / ${ss.length}</span></div><div class="skl">実績入力済</div></div>`;
+
+  const maxAll=Math.max(...ss.map(s=>Math.max(sessSum(s,'budget'),sessSum(s,'estimate'),sessSum(s,'actual'))),1);
+  document.getElementById(`${key}-grid`).innerHTML=ss.map((s,i)=>{
+    const b=sessSum(s,'budget'),e=sessSum(s,'estimate'),a=sessSum(s,'actual');
+    const bP=Math.round(b/maxAll*100),eP=Math.round(e/maxAll*100),aP=Math.round(a/maxAll*100);
+    const nItems=s.items?s.items.length:0;
+    const wsTag=s.title.includes('WS')?`<span style="font-size:8px;background:rgba(79,142,247,.15);color:#6ba8ff;padding:1px 4px;border-radius:3px;margin-left:4px">WS</span>`:'';
+    return`<div class="sc${nItems>0?' has-items':''}" onclick="openSess('${key}','${s.id}')">
+      <div class="sc-no">No.${String(i+1).padStart(2,'0')}</div>
+      <div class="sc-title">${s.title}${wsTag}</div>
+      <div class="sc-date">${s.date||'日付未設定'}</div>
+      <div class="sc-bars">
+        <div class="sbr"><div class="sbrl" style="color:var(--t3)">予算</div><div class="sbrt"><div class="sbrf" style="width:${bP}%;background:var(--t3)"></div></div><div class="sbrv">${fmtN(b)}</div></div>
+        <div class="sbr"><div class="sbrl" style="color:var(--blue)">見積</div><div class="sbrt"><div class="sbrf" style="width:${eP}%;background:var(--blue)"></div></div><div class="sbrv">${fmtN(e)}</div></div>
+        <div class="sbr"><div class="sbrl" style="color:var(--green)">実数</div><div class="sbrt"><div class="sbrf" style="width:${aP}%;background:var(--green)"></div></div><div class="sbrv">${fmtN(a)}</div></div>
+      </div>
+      <div class="sc-foot">
+        <span class="sc-items-count">${nItems > 0 ? `📋 ${nItems}費目` : '費目未登録'}</span>
+        <span style="font-size:9px;color:${e>=a?'var(--green)':'var(--red)'}">${e>=a?'▲':'▼'} ${fmtN(Math.abs(e-a))}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════
+// EVENT PAGES
+// ══════════════════════════════════════════════════
+function renderEvt(key){
+  const ev=S.events[key];if(!ev)return;
+  const totB=evtSum(key,'budget'),totE=evtSum(key,'estimate'),totA=evtSum(key,'actual');
+  const budgetProg=S.programs.find(p=>p.id===key);
+  const progBudget=budgetProg?n(budgetProg.budget):totB;
+
+  document.getElementById(`${key}-kpis`).innerHTML=`
+    <div class="kpi r"><div class="kl">プログラム予算</div><div class="kv">${fmtN(progBudget)}<em>円</em></div></div>
+    <div class="kpi b"><div class="kl">費目別予算合計</div><div class="kv">${fmtN(totB)}<em>円</em></div><div class="ks">消化率 <strong style="color:var(--blue)">${pct(totB,progBudget)}</strong></div></div>
+    <div class="kpi g"><div class="kl">見積合計</div><div class="kv">${fmtN(totE)}<em>円</em></div><div class="ks">消化率 <strong style="color:var(--green)">${pct(totE,progBudget)}</strong></div></div>
+    <div class="kpi y"><div class="kl">実績合計</div><div class="kv">${fmtN(totA)}<em>円</em></div><div class="ks">差異（見積-実数）<span class="${totE>=totA?'ok':'ng'}"> ${totE>=totA?'+':''}${fmtN(totE-totA)}円</span></div></div>`;
+
+  document.getElementById(`${key}-tbody`).innerHTML=ev.items.map(it=>{
+    const d=n(it.estimate)-n(it.actual);
+    return`<tr><td style="font-weight:500">${it.name}</td>
+      <td class="num-dim">${fmtN(it.budget)}</td>
+      <td style="color:#6ba8ff">${fmtN(it.estimate)}</td>
+      <td style="color:var(--green)">${fmtN(it.actual)}</td>
+      <td class="${d>=0?'ok':'ng'}">${d>=0?'▲':'▼'} ${fmtN(Math.abs(d))}</td></tr>`;
+  }).join('');
+
+  const items=ev.items.filter(i=>n(i.actual)>0);
+  dc('ch-'+key);
+  _ch['ch-'+key]=new Chart(document.getElementById('ch-'+key),{
+    type:'doughnut',
+    data:{labels:items.map(i=>i.name),datasets:[{data:items.map(i=>i.actual),
+      backgroundColor:PAL.slice(0,items.length).map(c=>c+'cc'),borderColor:PAL.slice(0,items.length),borderWidth:1.5,hoverOffset:5}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'58%',
+      plugins:{legend:{position:'right',labels:{boxWidth:7,padding:8,font:{size:10}}},
+        tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ¥${Math.round(ctx.raw).toLocaleString()}`}}}}});
+}
+
+// ══════════════════════════════════════════════════
+// REVENUE
+// ══════════════════════════════════════════════════
+function renderRev(){
+  const totR=S.revenues.reduce((t,r)=>t+n(r.amount),0);
+  const totB=S.programs.reduce((t,p)=>t+n(p.budget),0);
+  const totA=S.programs.reduce((t,p)=>t+progActual(p.id),0);
+  const diff=totB-totA;
+
+  document.getElementById('rev-detail').innerHTML=
+    S.revenues.map(r=>`<div class="rev-row"><div class="rev-name">${r.name}</div><div class="rev-val">${fmt(r.amount)}</div></div>`).join('')+
+    `<div class="rev-row" style="border-top:1px solid var(--b2);margin-top:8px;padding-top:8px"><strong style="font-size:13px">合計</strong><span style="font-family:var(--mono);font-size:14px;color:var(--green);font-weight:700">${fmt(totR)}</span></div>`;
+
+  document.getElementById('net-summary').innerHTML=`
+    <div class="rev-row"><div class="rev-name">総予算</div><div style="font-family:var(--mono)">${fmt(totB)}</div></div>
+    <div class="rev-row"><div class="rev-name">実績合計</div><div style="font-family:var(--mono)">${fmt(totA)}</div></div>
+    <div class="rev-row"><div class="rev-name">予実差額</div><div style="font-family:var(--mono);color:${diff>=0?'var(--green)':'var(--red)'}">${diff>=0?'+':''}${fmt(diff)}</div></div>
+    <div class="rev-row"><div class="rev-name">収入合計</div><div style="font-family:var(--mono);color:var(--green)">${fmt(totR)}</div></div>
+    <div class="net-box"><div style="font-size:10px;color:var(--t2)">実質余剰（予実差額＋収入）</div>
+      <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--green)">+${fmt(diff+totR)}</div></div>`;
+}
+
+// ══════════════════════════════════════════════════
+// PANEL OPEN / CLOSE
+// ══════════════════════════════════════════════════
+function openOv(id){document.getElementById(id).classList.add('open');}
+function closeOv(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+
+// ══════════════════════════════════════════════════
+// SESSION PANEL
+// ══════════════════════════════════════════════════
+let _sCtx={};
+function openSess(key,id){
+  _sCtx={key,id};
+  const map={hm:'ホームルーム',gk:'評議会',oe:'応援カイギ'};
+  const s=id?S.sessions[key].find(x=>x.id===id):null;
+  document.getElementById('sess-title').textContent=(s?'編集：':'追加：')+map[key];
+  document.getElementById('s-title').value=s?s.title:'';
+  document.getElementById('s-date').value=s?s.date:'';
+  document.getElementById('s-memo').value=s?s.memo:'';
+  document.getElementById('sess-del-btn').style.display=s?'':'none';
+  _sCtx.items=s?JSON.parse(JSON.stringify(s.items)):[...FEE_TEMPLATE.slice(0,4).map(t=>({...t,id:uid()}))];
+  renderSessItems();
+  openOv('ov-sess');
+}
+function renderSessItems(){
+  const wrap=document.getElementById('sess-items');
+  wrap.innerHTML=_sCtx.items.map((it,i)=>`
+    <div class="item-row" id="si-${i}">
+      <div class="item-num">${i+1}</div>
+      <input type="text"   value="${it.name}"          placeholder="費目名"  data-i="${i}" data-f="name" oninput="updateSessItem(this)">
+      <input type="number" value="${it.budget||''}"    placeholder="0" data-i="${i}" data-f="budget"   oninput="updateSessItem(this);updateSessTotals()" ${isAdmin()?'':'readonly style="opacity:.4;pointer-events:none"'}>
+      <input type="number" value="${it.estimate||''}"  placeholder="0" data-i="${i}" data-f="estimate" oninput="updateSessItem(this);updateSessTotals()">
+      <input type="number" value="${it.actual||''}"    placeholder="0" data-i="${i}" data-f="actual"   oninput="updateSessItem(this);updateSessTotals()">
+      ${isAdmin()?`<button class="del-btn" onclick="removeSessItem(${i})">×</button>`:`<div style="width:22px"></div>`}
+    </div>`).join('');
+  updateSessTotals();
+}
+function updateSessItem(inp){
+  const i=parseInt(inp.dataset.i),f=inp.dataset.f;
+  _sCtx.items[i][f]=f==='name'?inp.value:parseFloat(inp.value)||0;
+}
+function updateSessTotals(){
+  const b=_sCtx.items.reduce((t,i)=>t+n(i.budget),0);
+  const e=_sCtx.items.reduce((t,i)=>t+n(i.estimate),0);
+  const a=_sCtx.items.reduce((t,i)=>t+n(i.actual),0);
+  document.getElementById('s-budget-total').value=b?fmtN(b):'';
+  document.getElementById('s-est-total').value=e?fmtN(e):'';
+  document.getElementById('s-act-total').value=a?fmtN(a):'';
+}
+function addSessItem(){
+  _sCtx.items.push({id:uid(),name:'',budget:0,estimate:0,actual:0});
+  renderSessItems();
+}
+function removeSessItem(i){
+  _sCtx.items.splice(i,1);
+  renderSessItems();
+}
+function saveSess(){
+  const {key,id}=_sCtx;
+  const obj={
+    id:id||uid(),
+    title:document.getElementById('s-title').value,
+    date:document.getElementById('s-date').value,
+    memo:document.getElementById('s-memo').value,
+    items:_sCtx.items,
+  };
+  if(id){const idx=S.sessions[key].findIndex(x=>x.id===id);S.sessions[key][idx]=obj;}
+  else S.sessions[key].push(obj);
+  saveMemberData();closeOv('ov-sess');renderPg(key);
+}
+function deleteSess(){
+  const {key,id}=_sCtx;
+  S.sessions[key]=S.sessions[key].filter(x=>x.id!==id);
+  save();closeOv('ov-sess');renderPg(key);
+}
+
+// ══════════════════════════════════════════════════
+// EVENT PANEL
+// ══════════════════════════════════════════════════
+let _eCtx={};
+function openEvt(key){
+  _eCtx={key};
+  const labels={ko:'キックオフ',aw:'アワード',ye:'イヤーエンド'};
+  document.getElementById('evt-title').textContent='費目別明細を編集：'+labels[key];
+  _eCtx.items=JSON.parse(JSON.stringify(S.events[key].items));
+  renderEvtItems();openOv('ov-evt');
+}
+function renderEvtItems(){
+  document.getElementById('evt-items').innerHTML=_eCtx.items.map((it,i)=>`
+    <div class="item-row">
+      <div class="item-num">${i+1}</div>
+      <input type="text"   value="${it.name}"         placeholder="費目名" data-i="${i}" data-f="name"     oninput="updateEvtItem(this)">
+      <input type="number" value="${it.budget||''}"   placeholder="0"     data-i="${i}" data-f="budget"   oninput="updateEvtItem(this)">
+      <input type="number" value="${it.estimate||''}" placeholder="0"     data-i="${i}" data-f="estimate" oninput="updateEvtItem(this)">
+      <input type="number" value="${it.actual||''}"   placeholder="0"     data-i="${i}" data-f="actual"   oninput="updateEvtItem(this)">
+      ${isAdmin()?`<button class="del-btn" onclick="removeEvtItem(${i})">×</button>`:`<div style="width:22px"></div>`}
+    </div>`).join('');
+}
+function updateEvtItem(inp){
+  const i=parseInt(inp.dataset.i),f=inp.dataset.f;
+  _eCtx.items[i][f]=f==='name'?inp.value:parseFloat(inp.value)||0;
+}
+function addEvtItem(){_eCtx.items.push({id:uid(),name:'',budget:0,estimate:0,actual:0});renderEvtItems();}
+function removeEvtItem(i){_eCtx.items.splice(i,1);renderEvtItems();}
+function saveEvt(){
+  S.events[_eCtx.key].items=_eCtx.items;
+  save();closeOv('ov-evt');renderPg(_eCtx.key);
+}
+
+// ══════════════════════════════════════════════════
+// BULK BUDGET PANEL
+// ══════════════════════════════════════════════════
+function openBulkBudget(){
+  renderBudgetProg();openOv('ov-budget');
+}
+function renderBudgetProg(){
+  document.getElementById('bprog-body').innerHTML=S.programs.map((p,i)=>`
+    <tr><td>${p.name}</td>
+    <td style="text-align:right"><input type="number" value="${p.budget||''}" placeholder="0" data-pi="${i}" data-f="budget"></td>
+    <td style="text-align:right"><input type="number" value="" placeholder="—" disabled style="opacity:.3;width:90px"></td></tr>`).join('');
+}
+
+let _budgetTab='prog';
+function switchBudgetTab(tab,btn){
+  _budgetTab=tab;
+  document.querySelectorAll('.tabs .tab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('budget-prog-tab').style.display=tab==='prog'?'':'none';
+  document.getElementById('budget-items-tab').style.display=tab==='items'?'':'none';
+  if(tab==='items') renderBudgetItems();
+}
+function renderBudgetItems(){
+  const sel=document.getElementById('budget-evt-sel').value;
+  const div=document.getElementById('budget-items-content');
+  const isSeries=['hm','gk','oe'].includes(sel);
+  if(!isSeries){
+    const ev=S.events[sel];
+    if(!ev){div.innerHTML='';return;}
+    div.innerHTML=`<table class="btbl"><thead><tr><th>費目</th><th>予算</th><th>見積</th><th>実数</th></tr></thead><tbody>`+
+      ev.items.map((it,i)=>`<tr>
+        <td>${it.name}</td>
+        <td style="text-align:right"><input type="number" value="${it.budget||''}" data-ei="${i}" data-f="budget" data-key="${sel}"></td>
+        <td style="text-align:right"><input type="number" value="${it.estimate||''}" data-ei="${i}" data-f="estimate" data-key="${sel}"></td>
+        <td style="text-align:right"><input type="number" value="${it.actual||''}" data-ei="${i}" data-f="actual" data-key="${sel}"></td>
+      </tr>`).join('')+`</tbody></table>`;
+  } else {
+    const ss=S.sessions[sel]||[];
+    div.innerHTML=ss.map((s,si)=>`
+      <div class="btbl-sec">No.${si+1} ${s.title}</div>
+      <table class="btbl" style="margin-bottom:6px"><thead><tr><th>費目</th><th>予算</th><th>見積</th><th>実数</th></tr></thead><tbody>`+
+      (s.items||[]).map((it,ii)=>`<tr>
+        <td>${it.name}</td>
+        <td style="text-align:right"><input type="number" value="${it.budget||''}" data-si="${si}" data-ii="${ii}" data-f="budget" data-skey="${sel}"></td>
+        <td style="text-align:right"><input type="number" value="${it.estimate||''}" data-si="${si}" data-ii="${ii}" data-f="estimate" data-skey="${sel}"></td>
+        <td style="text-align:right"><input type="number" value="${it.actual||''}" data-si="${si}" data-ii="${ii}" data-f="actual" data-skey="${sel}"></td>
+      </tr>`).join('')+`</tbody></table>`).join('');
+  }
+}
+
+function saveBulkBudget(){
+  // プログラム単位
+  document.querySelectorAll('#bprog-body input[data-pi]').forEach(inp=>{
+    S.programs[parseInt(inp.dataset.pi)].budget=parseFloat(inp.value)||0;
+  });
+  // イベント費目
+  document.querySelectorAll('#budget-items-content input[data-ei]').forEach(inp=>{
+    const key=inp.dataset.key,i=parseInt(inp.dataset.ei),f=inp.dataset.f;
+    if(S.events[key])S.events[key].items[i][f]=parseFloat(inp.value)||0;
+  });
+  // シリーズ費目
+  document.querySelectorAll('#budget-items-content input[data-si]').forEach(inp=>{
+    const key=inp.dataset.skey,si=parseInt(inp.dataset.si),ii=parseInt(inp.dataset.ii),f=inp.dataset.f;
+    if(S.sessions[key]?.[si]?.items?.[ii])S.sessions[key][si].items[ii][f]=parseFloat(inp.value)||0;
+  });
+  save();closeOv('ov-budget');renderPg(_curPg);
+}
+
+// ══════════════════════════════════════════════════
+// REVENUE PANEL
+// ══════════════════════════════════════════════════
+let _revItems=[];
+function openRev(){
+  _revItems=JSON.parse(JSON.stringify(S.revenues));
+  renderRevItems();openOv('ov-rev-edit');
+}
+function renderRevItems(){
+  document.getElementById('rev-items').innerHTML=_revItems.map((r,i)=>`
+    <div class="item-row" style="grid-template-columns:20px 1fr 110px 26px">
+      <div class="item-num">${i+1}</div>
+      <input type="text"   value="${r.name}"     placeholder="項目名" data-i="${i}" data-f="name"   oninput="updateRevItem(this)">
+      <input type="number" value="${r.amount||''}" placeholder="0"   data-i="${i}" data-f="amount" oninput="updateRevItem(this)">
+      <button class="del-btn" onclick="removeRevItem(${i})">×</button>
+    </div>`).join('');
+}
+function updateRevItem(inp){const i=parseInt(inp.dataset.i),f=inp.dataset.f;_revItems[i][f]=f==='name'?inp.value:parseFloat(inp.value)||0;}
+function addRevItem(){_revItems.push({id:uid(),name:'',amount:0});renderRevItems();}
+function removeRevItem(i){_revItems.splice(i,1);renderRevItems();}
+function saveRev(){if(!isAdmin()){alert('収入管理は管理者のみ変更できます');return;}S.revenues=_revItems.filter(r=>r.name);save();closeOv('ov-rev-edit');renderRev();}
+
+// ══════════════════════════════════════════════════
+// EXCEL IMPORT
+// ══════════════════════════════════════════════════
+function importXL(ev){
+  const file=ev.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
+      const log=[];
+      // プログラム別経費シートを探す
+      const sched=wb.SheetNames.find(s=>s.includes('プログラム別経費'));
+      if(sched){
+        const ws=wb.Sheets[sched];
+        const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+        const hdr=rows[1]||[];
+        const ci={no:hdr.indexOf('NO.'),date:hdr.indexOf('日程'),tag:hdr.indexOf('タグ'),item:hdr.indexOf('項目'),bgt:hdr.indexOf('予算'),est:hdr.indexOf('見積合計'),act:hdr.indexOf('実数合計')};
+        if(ci.tag>=0){
+          const allEv=[];
+          for(let i=2;i<rows.length;i++){
+            const r=rows[i];if(!r||!r[ci.item]||String(r[ci.item]).trim()===''||String(r[ci.item]).trim()==='合計')continue;
+            allEv.push({tag:String(r[ci.tag]||'').trim(),title:String(r[ci.item]).trim(),
+              date:r[ci.date] instanceof Date?r[ci.date].toISOString().slice(0,10):String(r[ci.date]||'').slice(0,10),
+              budget:parseFloat(r[ci.bgt])||0,estimate:parseFloat(r[ci.est])||0,actual:parseFloat(r[ci.act])||0});
+          }
+          const mapTag={ホームルーム:'hm',評議会:'gk',応援カイギ:'oe'};
+          Object.entries(mapTag).forEach(([tag,key])=>{
+            const filtered=allEv.filter(e=>e.tag===tag);
+            if(filtered.length>0){
+              S.sessions[key]=filtered.map((e,i)=>({
+                id:S.sessions[key]?.[i]?.id||uid(),
+                title:e.title,date:e.date,memo:'',
+                items:S.sessions[key]?.[i]?.items||[{id:uid(),name:'合計',budget:e.budget,estimate:e.estimate,actual:e.actual}],
+              }));
+              log.push(`✅ ${tag}：${filtered.length}回分インポート`);
+            }
+          });
+          // プログラム合計更新
+          const tagToId={'年間共通':'annual','キックオフ':'ko','ホームルーム':'hm','アワード':'aw','シティフェス':'cityfes','イヤーエンド':'ye','評議会':'gk','応援カイギ':'oe','その他':'other','マーケティング':'marketing'};
+          const tagTotals={};
+          allEv.forEach(e=>{if(!tagTotals[e.tag])tagTotals[e.tag]={b:0,e:0,a:0};tagTotals[e.tag].b+=e.budget;tagTotals[e.tag].e+=e.estimate;tagTotals[e.tag].a+=e.actual;});
+          Object.entries(tagTotals).forEach(([tag,v])=>{
+            const id=tagToId[tag]||tag;const p=S.programs.find(p=>p.id===id||p.name===tag);
+            if(p&&v.b>0){p.budget=v.b;log.push(`📊 ${p.name} 予算更新: ¥${fmtN(v.b)}`);}
+          });
+          log.push('');
+        }
+      }
+      // イベント個別シート（キックオフ・アワード・イヤーエンド）
+      const evtSheets=[
+        {key:'ko',pat:'キックオフ'},{key:'aw',pat:'AWARD'},{key:'ye',pat:'YEAR-END'},
+      ];
+      evtSheets.forEach(({key,pat})=>{
+        const sh=wb.SheetNames.find(s=>s.includes(pat));
+        if(!sh)return;
+        const ws=wb.Sheets[sh];
+        const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+        const items=[];
+        rows.forEach(r=>{
+          if(!r||r.length<6)return;
+          const name=r[0]&&String(r[0]).trim();
+          if(!name||name.includes('■')||['項目','合計','小計','調整','協賛','減額','削除','必ず','件名','お見積','見積有','実経費'].some(k=>name.includes(k)))return;
+          const amt=parseFloat(r[5])||parseFloat(r[3])||0;
+          if(name.startsWith('\u3000')&&amt>0)items.push({id:uid(),name:name.trim(),budget:0,estimate:0,actual:amt});
+        });
+        if(items.length>0){
+          const isActual=sh.includes('実');
+          if(isActual){items.forEach(it=>S.events[key].items.forEach(ev=>{if(ev.name===it.name)ev.actual=it.actual;}));}
+          log.push(`✅ ${pat}：${items.length}行インポート`);
+        }
+      });
+      save();
+      document.getElementById('xl-result').innerHTML=`<div style="font-size:12px;color:var(--green);margin-bottom:10px">✅ ${file.name} を読み込みました</div>`+
+        log.map(l=>l?`<div style="font-size:11px;color:var(--t2);padding:3px 0">${l}</div>`:'<hr style="border:none;border-top:1px solid var(--b1);margin:6px 0">').join('');
+      openOv('ov-xl');
+      renderPg(_curPg);
+    }catch(err){
+      document.getElementById('xl-result').innerHTML=`<div style="color:var(--red);font-size:12px">❌ 読み込みエラー: ${err.message}</div>`;
+      openOv('ov-xl');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  ev.target.value='';
+}
+
+// ══════════════════════════════════════════════════
+// LOGIN / AUTH
+// ══════════════════════════════════════════════════
+function switchLoginTab(tab) {
+  document.getElementById('form-login').style.display  = tab==='login'  ? '' : 'none';
+  document.getElementById('form-signup').style.display = tab==='signup' ? '' : 'none';
+  document.getElementById('tab-login').className  = 'tab' + (tab==='login'  ? ' on' : '');
+  document.getElementById('tab-signup').className = 'tab' + (tab==='signup' ? ' on' : '');
+  document.getElementById('login-error').style.display = 'none';
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.style.display = '';
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  if (!email || !pass) { showLoginError('メールアドレスとパスワードを入力してください'); return; }
+  const btn = document.getElementById('login-submit-btn');
+  btn.textContent = 'ログイン中...'; btn.disabled = true;
+  const {data, error} = await _sb.auth.signInWithPassword({email, password: pass});
+  btn.textContent = 'ログイン'; btn.disabled = false;
+  if (error) { showLoginError('ログインに失敗しました: ' + error.message); return; }
+  await onLogin(data.user);
+}
+
+async function doSignup() {
+  const name  = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const pass  = document.getElementById('signup-pass').value;
+  if (!name || !email || !pass) { showLoginError('全項目を入力してください'); return; }
+  if (pass.length < 8) { showLoginError('パスワードは8文字以上で設定してください'); return; }
+  const btn = document.getElementById('signup-submit-btn');
+  btn.textContent = '処理中...'; btn.disabled = true;
+  const {data, error} = await _sb.auth.signUp({
+    email, password: pass,
+    options: { data: { display_name: name } }
+  });
+  btn.textContent = '登録申請'; btn.disabled = false;
+  if (error) { showLoginError('登録に失敗しました: ' + error.message); return; }
+  showLoginError('✅ 登録申請を受け付けました。管理者の承認後にログインできます。');
+}
+
+async function doLogout() {
+  await _sb.auth.signOut();
+  _currentUser = null; _currentRole = null; _currentName = '';
+  document.getElementById('login-screen').style.display = 'flex';
+  applyRoleUI();
+}
+
+async function onLogin(user) {
+  _currentUser = user;
+  // プロフィール取得
+  const {data: prof} = await _sb.from('profiles').select('role, display_name').eq('id', user.id).single();
+  _currentRole = prof?.role || 'member';
+  _currentName = prof?.display_name || user.email;
+  // ログイン履歴を記録
+  await _sb.from('login_history').insert({user_id: user.id, email: user.email});
+  // ログイン画面を閉じる
+  document.getElementById('login-screen').style.display = 'none';
+  applyRoleUI();
+  await loadFromDB();
+  renderOv();
+}
+
+// ══════════════════════════════════════════════════
+// USERS PAGE (admin only)
+// ══════════════════════════════════════════════════
+async function renderUsers() {
+  if (!isAdmin()) {
+    document.getElementById('users-tbody').innerHTML = '<tr><td colspan="5" style="color:var(--t3);text-align:center;padding:20px">管理者のみアクセスできます</td></tr>';
+    return;
+  }
+  const {data: profiles, error} = await _sb.from('profiles').select('*').order('created_at');
+  if (error) { console.error(error); return; }
+  document.getElementById('users-tbody').innerHTML = (profiles||[]).map(p => `
+    <tr>
+      <td style="font-weight:500">${p.display_name || '—'}</td>
+      <td>${p.email}</td>
+      <td>
+        <select onchange="changeRole('${p.id}',this.value)" style="background:var(--s2);border:1px solid var(--b2);border-radius:4px;color:var(--t1);font-size:10px;padding:3px 6px;font-family:var(--mono)">
+          <option value="member" ${p.role==='member'?'selected':''}>メンバー</option>
+          <option value="admin"  ${p.role==='admin' ?'selected':''}>管理者</option>
+        </select>
+      </td>
+      <td>${new Date(p.created_at).toLocaleDateString('ja-JP')}</td>
+      <td><button class="btn btn-xs btn-red" onclick="deleteUser('${p.id}','${p.email}')">削除</button></td>
+    </tr>`).join('');
+}
+
+async function changeRole(userId, newRole) {
+  if (!isAdmin()) return;
+  const {error} = await _sb.from('profiles').update({role: newRole}).eq('id', userId);
+  if (error) alert('更新失敗: ' + error.message);
+}
+
+async function deleteUser(userId, email) {
+  if (!isAdmin()) return;
+  if (!confirm(`${email} を削除しますか？`)) return;
+  // profilesのみ削除（auth.usersの削除はservice_role keyが必要なため管理画面で行う）
+  await _sb.from('profiles').delete().eq('id', userId);
+  renderUsers();
+}
+
+function openInvitePanel() { openOv('ov-invite'); }
+
+async function doInviteUser() {
+  if (!isAdmin()) return;
+  const email = document.getElementById('inv-email').value.trim();
+  const name  = document.getElementById('inv-name').value.trim();
+  const role  = document.getElementById('inv-role').value;
+  const pass  = document.getElementById('inv-pass').value;
+  if (!email || !pass) { alert('メールアドレスとパスワードを入力してください'); return; }
+  // Supabase Admin APIはservice_role keyが必要なため、通常サインアップを利用
+  const {data, error} = await _sb.auth.signUp({
+    email, password: pass,
+    options: { data: { display_name: name } }
+  });
+  if (error) { alert('作成失敗: ' + error.message); return; }
+  // ロールをadminに設定（必要な場合）
+  if (role === 'admin' && data.user) {
+    await _sb.from('profiles').update({role:'admin', display_name: name}).eq('id', data.user.id);
+  }
+  alert(`✅ ${email} を${role==='admin'?'管理者':'メンバー'}として招待しました`);
+  closeOv('ov-invite');
+  renderUsers();
+}
+
+// ══════════════════════════════════════════════════
+// LOGIN HISTORY PAGE
+// ══════════════════════════════════════════════════
+async function renderHistory() {
+  let query = _sb.from('login_history').select('*').order('logged_in_at', {ascending: false}).limit(100);
+  if (!isAdmin()) query = query.eq('user_id', _currentUser?.id);
+  const {data, error} = await query;
+  if (error) { console.error(error); return; }
+  document.getElementById('history-tbody').innerHTML = (data||[]).map(h => `
+    <tr>
+      <td>${new Date(h.logged_in_at).toLocaleString('ja-JP')}</td>
+      <td>${isAdmin() ? (h.email?.split('@')[0] || '—') : '自分'}</td>
+      <td>${h.email || '—'}</td>
+    </tr>`).join('');
+}
+
+// ══════════════════════════════════════════════════
+// OVERRIDE go() TO CHECK PERMISSIONS + LOAD PAGES
+// ══════════════════════════════════════════════════
+const _origGo = go;
+const go = async (id, btn) => {
+  // 管理者専用ページへのアクセス制限
+  if (id === 'users' && !isAdmin()) { alert('管理者のみアクセスできます'); return; }
+  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  const pg = document.getElementById('pg-'+id);
+  if (pg) pg.classList.add('on');
+  if (btn) btn.classList.add('on');
+  document.getElementById('pgTitle').textContent = TITLES[id]||id;
+  _curPg = id;
+  // 非同期ページ
+  if (id === 'users')   { renderUsers(); return; }
+  if (id === 'history') { renderHistory(); return; }
+  renderPg(id);
+};
+
+// ══════════════════════════════════════════════════
+// GUARD: 予算変更を管理者に限定
+// ══════════════════════════════════════════════════
+const _origOpenBulkBudget = openBulkBudget;
+function openBulkBudget() {
+  if (!isAdmin()) { alert('予算の変更は管理者のみ可能です'); return; }
+  _origOpenBulkBudget();
+}
+const _origOpenEvt = openEvt;
+function openEvt(key) {
+  if (!isAdmin()) { alert('費目の編集は管理者のみ可能です'); return; }
+  _origOpenEvt(key);
+}
+// 回次削除はadminのみ、追加もadminのみ
+function openSessGuarded(key, id) {
+  // memberは既存回次の見積・実数のみ編集可。追加・削除はadminのみ
+  openSess(key, id);
+}
+
+// ══════════════════════════════════════════════════
+// INIT — Supabase session check
+// ══════════════════════════════════════════════════
+(async () => {
+  // 設定未完了チェック
+  if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+    document.getElementById('login-screen').innerHTML = `
+      <div style="max-width:500px;padding:24px;text-align:center">
+        <div style="font-family:var(--disp);font-size:22px;font-weight:800;color:var(--acc);margin-bottom:16px">⚙️ 初期設定が必要です</div>
+        <div style="background:var(--s1);border:1px solid var(--b1);border-radius:10px;padding:20px;text-align:left">
+          <p style="font-size:12px;color:var(--t2);margin-bottom:12px">ダッシュボードHTMLファイルの先頭にある以下の2行を設定してください：</p>
+          <pre style="background:var(--s2);border-radius:6px;padding:12px;font-family:var(--mono);font-size:11px;color:#2dd4a0">const SUPABASE_URL = 'https://xxx.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJ...';</pre>
+          <p style="font-size:11px;color:var(--t3);margin-top:12px">設定方法は同梱の「Supabase設定手順.html」を参照してください。</p>
+        </div>
+      </div>`;
+    return;
+  }
+  // 既存セッション確認
+  const {data:{session}} = await _sb.auth.getSession();
+  if (session?.user) {
+    await onLogin(session.user);
+  } else {
+    document.getElementById('login-screen').style.display = 'flex';
+    slbl().textContent = '未ログイン';
+  }
+  // セッション変化を監視
+  _sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_OUT') {
+      document.getElementById('login-screen').style.display = 'flex';
+    }
+  });
+})();
+</script></body></html>
