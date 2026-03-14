@@ -1257,23 +1257,45 @@ async function save() {
   // 常にローカルにも保存
   localStorage.setItem(SK, JSON.stringify(S));
   if (!isAdmin()) {
-    // memberは見積・実数のみ保存可能（budgetフィールドを除いたパーシャル保存）
     sdot().className = 'sdot';
-    slbl().textContent = '保存済み (閲覧限定)';
+    slbl().textContent = '保存済み (ローカル)';
+    return;
+  }
+  if (!_currentUser) {
+    sdot().className = 'sdot uns';
+    slbl().textContent = '未ログイン';
     return;
   }
   try {
     sdot().className = 'sdot uns';
     slbl().textContent = '保存中...';
-    const {error} = await _sb.from('dashboard_data')
-      .upsert({id:1, data: S, updated_by: _currentUser.id, updated_at: new Date().toISOString()},
-              {onConflict: 'id'});
-    if (error) throw error;
+
+    // まずUPDATEを試みる
+    const {data: upData, error: upErr} = await _sb
+      .from('dashboard_data')
+      .update({data: S, updated_by: _currentUser.id, updated_at: new Date().toISOString()})
+      .eq('id', 1)
+      .select();
+
+    if (upErr) throw upErr;
+
+    // UPDATEで行が更新されなかった場合（レコードがない）はINSERT
+    if (!upData || upData.length === 0) {
+      const {error: inErr} = await _sb
+        .from('dashboard_data')
+        .insert({id: 1, data: S, updated_by: _currentUser.id, updated_at: new Date().toISOString()});
+      if (inErr) throw inErr;
+    }
+
     sdot().className = 'sdot';
     slbl().textContent = '保存済み ' + new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+    console.log('[save] OK, revenues:', S.revenues?.length, 'ledger:', S.ledger?.length);
   } catch(e) {
     sdot().className = 'sdot uns';
-    slbl().textContent = '保存エラー: ' + e.message;
+    slbl().textContent = '保存エラー';
+    console.error('[save] Error:', e.message, e);
+    // ローカルには保存済みなのでユーザーに通知
+    alert('⚠️ クラウド保存に失敗しました。\n\nエラー: ' + e.message + '\n\nデータはブラウザに保存されています。');
   }
 }
 
@@ -3924,6 +3946,16 @@ async function importAllSheets(ev) {
         const ekey = ci.event_key || sheetInfo.event_key;
         if (!ekey) continue;
         if (!S.events[ekey]) S.events[ekey] = {label:sname, items:[]};
+        // 既存費目がある場合は上書き確認
+        if (S.events[ekey].items && S.events[ekey].items.length > 0) {
+          const ok = confirm(`【${sname}】に既存の費目(${S.events[ekey].items.length}件)があります。
+
+Excelの内容で上書きしますか？
+
+[OK] 上書き（既存をクリアして再取込）
+[キャンセル] スキップ`);
+          if (!ok) { log.push(`⏭ ${sname}: スキップ（既存データを保持）`); continue; }
+        }
 
         // カテゴリ別に合算してS.eventsに登録
         // ■カテゴリ行 → カテゴリ名として費目に使用
@@ -3952,18 +3984,13 @@ async function importAllSheets(ev) {
         }
 
         // catTotalsをS.events[ekey].itemsに反映
+        // 取込前に既存費目をクリアして再構築（重複防止）
+        S.events[ekey].items = [];
         let updated = 0;
         for (const [catName, vals] of Object.entries(catTotals)) {
           if (!vals.budget && !vals.estimate && !vals.actual) continue;
-          const existing = S.events[ekey].items.findIndex(it => it.name===catName);
-          if (existing>=0) {
-            S.events[ekey].items[existing].budget   = vals.budget;
-            S.events[ekey].items[existing].estimate = vals.estimate;
-            S.events[ekey].items[existing].actual   = vals.actual;
-          } else {
-            S.events[ekey].items.push({id:uid(), name:catName,
-              budget:vals.budget, estimate:vals.estimate, actual:vals.actual});
-          }
+          S.events[ekey].items.push({id:uid(), name:catName,
+            budget:vals.budget, estimate:vals.estimate, actual:vals.actual});
           updated++; totalRows++;
         }
         log.push(`✅ ${sname}: ${updated}カテゴリを更新`);
