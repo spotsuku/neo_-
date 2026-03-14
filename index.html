@@ -303,12 +303,12 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       <span>⬆</span> Excelで同期
     </button>
     <input type="file" id="xlFile" accept=".xlsx,.xls" style="display:none" onchange="importXL(event)">
-    <button class="upload-area" id="csv-upload-btn" style="margin-top:6px;background:rgba(45,212,160,.08);border-color:rgba(45,212,160,.2);color:var(--green)" onclick="document.getElementById('xlImportFile').click()">
-      <span>🤖</span> Excelを一括取込
+    <button class="upload-area" style="margin-top:6px;background:rgba(45,212,160,.08);border-color:rgba(45,212,160,.2);color:var(--green)" onclick="document.getElementById('xlImportFile').click()">
+      <span>📊</span> Excel全シート取込
     </button>
     <input type="file" id="xlImportFile" accept=".xlsx,.xls" style="display:none" onchange="importAllSheets(event)">
-    <button class="upload-area" id="csv-upload-btn2" style="margin-top:4px;background:rgba(45,212,160,.05);border-color:rgba(45,212,160,.15);color:var(--t2);font-size:9px" onclick="document.getElementById('csvFile').click()">
-      <span>📄</span> CSVで取込
+    <button class="upload-area" style="margin-top:4px;background:rgba(79,142,247,.08);border-color:rgba(79,142,247,.25);color:var(--blue)" onclick="document.getElementById('csvFile').click()">
+      <span>🤖</span> AIでCSV解析・取込
     </button>
     <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="aiImportCSV(event)">
     <button onclick="downloadCSVTemplate()" style="display:flex;align-items:center;gap:7px;padding:7px 10px;background:none;border:1px dashed var(--b2);border-radius:7px;cursor:pointer;font-size:10px;color:var(--t2);font-family:var(--sans);width:100%;margin-top:4px;transition:all .15s" onmouseover="this.style.color='var(--t1)'" onmouseout="this.style.color='var(--t2)'">
