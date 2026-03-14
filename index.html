@@ -1419,28 +1419,62 @@ function renderOv(){
     <div class="net-box"><div style="font-size:10px;color:var(--t2)">実質余剰額</div><div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green)">+${fmt(diff+totR)}</div></div>`;
 
   const bc=['var(--acc)','var(--blue)','var(--purple)','var(--yellow)','var(--green)'];
-  document.getElementById('ov-cats').innerHTML=S.categories.map((c,i)=>{
-    const p=c.budget>0?Math.min(c.actual/c.budget*100,100):0;
-    return`<div class="pb"><div class="pb-top"><span class="n">${c.name}</span><span class="p">${fmtN(c.actual)} / ${fmtN(c.budget)} (${pct(c.actual,c.budget)})</span></div>
-    <div class="pb-track"><div class="pb-fill" style="width:${p}%;background:${c.actual>c.budget?'var(--red)':bc[i]}"></div></div></div>`;
+  // 7科目ごとの実績を経費明細から動的集計
+  const CAT7_COLORS = {
+    '① 会場・施設費':         '#0369a1',
+    '② 飲食・ケータリング費': '#b45309',
+    '③ 出演・キャスティング費':'#7c3aed',
+    '④ 制作・印刷費':         '#0f766e',
+    '⑤ 運営・人件費':         '#1d4ed8',
+    '⑥ 備品・設営費':         '#9a3412',
+    '⑦ 広報・その他':         '#4d7c0f',
+  };
+  const cat7Data = ACCOUNTING_CATS.map(cat => {
+    const actual  = (S.ledger||[]).filter(i=>i.cat===cat).reduce((t,i)=>t+n(i.actual),0);
+    const estimate= (S.ledger||[]).filter(i=>i.cat===cat).reduce((t,i)=>t+n(i.estimate),0);
+    return { name:cat, actual, estimate, color:CAT7_COLORS[cat]||'#374151' };
+  });
+
+  document.getElementById('ov-cats').innerHTML = cat7Data.map(c => {
+    const maxVal = Math.max(...cat7Data.map(d=>d.actual), 1);
+    const p = Math.min(Math.round(c.actual / maxVal * 100), 100);
+    return `<div class="pb">
+      <div class="pb-top">
+        <span class="n">${c.name}</span>
+        <span class="p" style="font-family:var(--mono)">${fmtN(c.actual)}円</span>
+      </div>
+      <div class="pb-track"><div class="pb-fill" style="width:${Math.max(p, c.actual>0?2:0)}%;background:${c.color}"></div></div>
+    </div>`;
   }).join('');
 
   dc('ch-monthly');
   _ch['ch-monthly']=new Chart(document.getElementById('ch-monthly'),{
     type:'bar',data:{labels:S.months,datasets:[{label:'月別支出',data:S.monthlyTotal,
-      backgroundColor:S.monthlyTotal.map(v=>v>3000000?'rgba(240,82,42,.65)':'rgba(79,142,247,.5)'),
-      borderColor:S.monthlyTotal.map(v=>v>3000000?'#f0522a':'#4f8ef7'),borderWidth:1,borderRadius:3}]},
+      backgroundColor:S.monthlyTotal.map(v=>v>3000000?'rgba(232,71,10,.65)':'rgba(37,99,235,.5)'),
+      borderColor:S.monthlyTotal.map(v=>v>3000000?'#e8470a':'#2563eb'),borderWidth:1,borderRadius:3}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' ¥'+Math.round(ctx.raw).toLocaleString()}}},
       scales:{x:{grid:g0,ticks:{maxRotation:0}},y:{grid:g0,ticks:{callback:v=>v>=1000000?(v/1000000).toFixed(1)+'M':v.toLocaleString()}}}}});
 
   dc('ch-cat');
   _ch['ch-cat']=new Chart(document.getElementById('ch-cat'),{
-    type:'bar',data:{labels:S.categories.map(c=>c.name),datasets:[
-      {label:'実績',data:S.categories.map(c=>c.actual),backgroundColor:PAL.slice(0,5).map(c=>c+'bb'),borderColor:PAL.slice(0,5),borderWidth:1,borderRadius:3},
-      {label:'予算',data:S.categories.map(c=>c.budget),backgroundColor:'transparent',borderColor:PAL.slice(0,5).map(c=>c+'44'),borderWidth:1.5,borderDash:[4,3],borderRadius:3},
-    ]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top',labels:{boxWidth:7,padding:8}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ¥${Math.round(ctx.raw).toLocaleString()}`}}},
-      scales:{x:{grid:g0,ticks:{font:{size:9}}},y:{grid:g0,ticks:{callback:v=>(v/1000000).toFixed(1)+'M'}}}}});
+    type:'bar',
+    data:{
+      labels: cat7Data.map(c=>c.name.replace(/^. /,'')),
+      datasets:[
+        {label:'実績', data:cat7Data.map(c=>c.actual),
+          backgroundColor:cat7Data.map(c=>c.color+'bb'),
+          borderColor:cat7Data.map(c=>c.color), borderWidth:1, borderRadius:4},
+        {label:'見積', data:cat7Data.map(c=>c.estimate),
+          backgroundColor:'transparent',
+          borderColor:cat7Data.map(c=>c.color+'66'),
+          borderWidth:1.5, borderRadius:4},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,position:'top',labels:{boxWidth:8,padding:10,font:{size:10}}},
+        tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ¥${Math.round(ctx.raw).toLocaleString()}`}}},
+      scales:{x:{grid:g0,ticks:{font:{size:9},maxRotation:30}},
+        y:{grid:g0,ticks:{callback:v=>(v/10000)+'万'}}}}});
 
   dc('ch-donut');
   _ch['ch-donut']=new Chart(document.getElementById('ch-donut'),{
