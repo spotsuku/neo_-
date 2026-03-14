@@ -2481,7 +2481,7 @@ function saveLedger() {
   } else {
     const dupIdx = findDuplicate(S.ledger, obj);
     if (dupIdx >= 0) {
-      const action = await confirmDuplicate(obj, 1);
+      const action = confirmDuplicate(obj, 1);
       if (action === 'skip') { closeOv('ov-ledger'); return; }
       S.ledger[dupIdx] = { ...S.ledger[dupIdx], ...obj, id: S.ledger[dupIdx].id };
     } else {
@@ -2752,7 +2752,7 @@ function confirmAiImport() {
   news.forEach(r => { S.ledger.push({ ...r, id: uid() }); addedCnt++; });
   // 重複ありは確認ダイアログ
   if (dups.length > 0) {
-    const action = await confirmDuplicate(dups[0], dups.length);
+    const action = confirmDuplicate(dups[0], dups.length);
     if (action === 'overwrite') {
       dups.forEach(r => {
         const dupIdx = findDuplicate(S.ledger, r);
@@ -3164,16 +3164,22 @@ function findDuplicate(list, newItem) {
   return list.findIndex(x => isDuplicate(x, newItem));
 }
 
-// 重複確認ダイアログ（複数件対応）
-// returns: 'skip' | 'overwrite' | 'add' | 'cancel'
-async function confirmDuplicate(item, count) {
+// 重複確認ダイアログ（同期版）
+// returns: 'overwrite' | 'skip'
+function confirmDuplicate(item, count) {
   const label = [item.prog, item.fee, item.content].filter(Boolean).join(' / ');
   const msg = count > 1
-    ? `${count}件の重複が見つかりました。\n\n例: 「${label}」\n\nどのように処理しますか？`
-    : `「${label}」は既に登録されています。\n\nどのように処理しますか？`;
-  // confirmはOK=上書き/キャンセル=スキップとして使用
-  const choice = window.confirm(msg + '\n\n[OK] 上書き更新\n[キャンセル] スキップ（既存を保持）');
-  return choice ? 'overwrite' : 'skip';
+    ? `${count}件の重複が見つかりました。
+
+例: 「${label}」
+
+[OK] 上書き更新
+[キャンセル] スキップ（既存を保持）`
+    : `「${label}」は既に登録されています。
+
+[OK] 上書き更新
+[キャンセル] スキップ（既存を保持）`;
+  return window.confirm(msg) ? 'overwrite' : 'skip';
 }
 function logChange(type, description, before, after) {
   if (!S.changelog) S.changelog = [];
@@ -3287,7 +3293,7 @@ function saveMkt() {
   } else {
     const dupIdx = S.mktItems.findIndex(x => x.name === obj.name && x.cat === obj.cat);
     if (dupIdx >= 0) {
-      const _mktAction = await confirmDuplicate(obj, 1);
+      const _mktAction = confirmDuplicate(obj, 1);
       if (_mktAction === 'skip') { closeOv('ov-mkt'); return; }
       S.mktItems[dupIdx] = { ...S.mktItems[dupIdx], ...obj, id: S.mktItems[dupIdx].id };
       logChange('mkt', `マーケ費用上書き: ${name}`, before, JSON.stringify(obj));
@@ -3418,7 +3424,7 @@ function saveProd() {
   } else {
     const dupIdx = S.prodItems.findIndex(x => x.name === obj.name && x.cat === obj.cat);
     if (dupIdx >= 0) {
-      const _mktAction = await confirmDuplicate(obj, 1);
+      const _mktAction = confirmDuplicate(obj, 1);
       if (_mktAction === 'skip') { closeOv('ov-mkt'); return; }
       S.prodItems[dupIdx] = { ...S.prodItems[dupIdx], ...obj, id: S.prodItems[dupIdx].id };
       logChange('prod', `製作物上書き: ${name}`, before, JSON.stringify(obj));
@@ -3590,7 +3596,7 @@ async function importAllSheets(ev) {
         xlNews.forEach(r => { S.ledger.push(r); added++; totalRows++; });
         let xlSkipped = 0;
         if (xlDups.length > 0) {
-          const action = await confirmDuplicate(xlDups[0], xlDups.length);
+          const action = confirmDuplicate(xlDups[0], xlDups.length);
           if (action === 'overwrite') {
             xlDups.forEach(r => {
               const di = findDuplicate(S.ledger, r);
