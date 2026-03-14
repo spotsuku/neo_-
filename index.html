@@ -2479,7 +2479,14 @@ function saveLedger() {
     const idx = S.ledger.findIndex(x=>x.id===_ledCtx.id);
     if (idx>=0) S.ledger[idx] = obj;
   } else {
-    S.ledger.push(obj);
+    const dupIdx = findDuplicate(S.ledger, obj);
+    if (dupIdx >= 0) {
+      const action = await confirmDuplicate(obj, 1);
+      if (action === 'skip') { closeOv('ov-ledger'); return; }
+      S.ledger[dupIdx] = { ...S.ledger[dupIdx], ...obj, id: S.ledger[dupIdx].id };
+    } else {
+      S.ledger.push(obj);
+    }
   }
   save();
   closeOv('ov-ledger');
@@ -2737,7 +2744,27 @@ function confirmAiImport() {
   if (!checked.length) { alert('取り込む行がありません'); return; }
 
   if (!S.ledger) S.ledger = [];
-  checked.forEach(r => S.ledger.push({ ...r, id: uid() }));
+  // 重複チェック：プログラム名＋費目名＋内容＋実数が全て一致
+  const dups = checked.filter(r => findDuplicate(S.ledger, r) >= 0);
+  const news = checked.filter(r => findDuplicate(S.ledger, r) < 0);
+  let addedCnt = 0, updatedCnt = 0, skippedCnt = 0;
+  // 重複なしはそのまま追加
+  news.forEach(r => { S.ledger.push({ ...r, id: uid() }); addedCnt++; });
+  // 重複ありは確認ダイアログ
+  if (dups.length > 0) {
+    const action = await confirmDuplicate(dups[0], dups.length);
+    if (action === 'overwrite') {
+      dups.forEach(r => {
+        const dupIdx = findDuplicate(S.ledger, r);
+        S.ledger[dupIdx] = { ...S.ledger[dupIdx], ...r, id: S.ledger[dupIdx].id };
+        updatedCnt++;
+      });
+    } else {
+      skippedCnt = dups.length;
+    }
+  }
+  const msg = `✅ 取込完了：新規${addedCnt}件追加 / 上書き${updatedCnt}件 / スキップ${skippedCnt}件`;
+  document.getElementById('xl-result').innerHTML = `<div style="font-size:13px;font-weight:700;color:var(--green)">${msg}</div>`;
   save();
   closeOv('ov-ai-csv');
 
@@ -3119,6 +3146,35 @@ if (!S.changelog) S.changelog = [];
 if (!S.mktItems)  S.mktItems  = [];
 if (!S.prodItems) S.prodItems = [];
 
+
+// ══════════════════════════════════════════════════
+// 重複チェック共通関数
+// 判定基準：プログラム名＋費目名＋内容＋実数 が全て一致
+// ══════════════════════════════════════════════════
+function isDuplicate(existing, newItem) {
+  return (
+    (existing.prog    || '') === (newItem.prog    || '') &&
+    (existing.fee     || '') === (newItem.fee     || '') &&
+    (existing.content || '') === (newItem.content || '') &&
+    n(existing.actual)       === n(newItem.actual)
+  );
+}
+
+function findDuplicate(list, newItem) {
+  return list.findIndex(x => isDuplicate(x, newItem));
+}
+
+// 重複確認ダイアログ（複数件対応）
+// returns: 'skip' | 'overwrite' | 'add' | 'cancel'
+async function confirmDuplicate(item, count) {
+  const label = [item.prog, item.fee, item.content].filter(Boolean).join(' / ');
+  const msg = count > 1
+    ? `${count}件の重複が見つかりました。\n\n例: 「${label}」\n\nどのように処理しますか？`
+    : `「${label}」は既に登録されています。\n\nどのように処理しますか？`;
+  // confirmはOK=上書き/キャンセル=スキップとして使用
+  const choice = window.confirm(msg + '\n\n[OK] 上書き更新\n[キャンセル] スキップ（既存を保持）');
+  return choice ? 'overwrite' : 'skip';
+}
 function logChange(type, description, before, after) {
   if (!S.changelog) S.changelog = [];
   S.changelog.unshift({
@@ -3229,8 +3285,16 @@ function saveMkt() {
     S.mktItems[idx] = obj;
     logChange('mkt', `マーケ費用編集: ${name}`, before, JSON.stringify(obj));
   } else {
-    S.mktItems.push(obj);
-    logChange('mkt', `マーケ費用追加: ${name}`, null, `予算${fmtN(obj.budget)} 見積${fmtN(obj.estimate)} 実績${fmtN(obj.actual)}`);
+    const dupIdx = S.mktItems.findIndex(x => x.name === obj.name && x.cat === obj.cat);
+    if (dupIdx >= 0) {
+      const _mktAction = await confirmDuplicate(obj, 1);
+      if (_mktAction === 'skip') { closeOv('ov-mkt'); return; }
+      S.mktItems[dupIdx] = { ...S.mktItems[dupIdx], ...obj, id: S.mktItems[dupIdx].id };
+      logChange('mkt', `マーケ費用上書き: ${name}`, before, JSON.stringify(obj));
+    } else {
+      S.mktItems.push(obj);
+      logChange('mkt', `マーケ費用追加: ${name}`, null, `予算${fmtN(obj.budget)} 見積${fmtN(obj.estimate)} 実績${fmtN(obj.actual)}`);
+    }
   }
   save(); closeOv('ov-mkt'); renderMkt();
 }
@@ -3352,8 +3416,16 @@ function saveProd() {
     S.prodItems[idx] = obj;
     logChange('prod', `製作物編集: ${name}`, before, JSON.stringify(obj));
   } else {
-    S.prodItems.push(obj);
-    logChange('prod', `製作物追加: ${name}`, null, `予算${fmtN(obj.budget)} 実績${fmtN(obj.actual)}`);
+    const dupIdx = S.prodItems.findIndex(x => x.name === obj.name && x.cat === obj.cat);
+    if (dupIdx >= 0) {
+      const _mktAction = await confirmDuplicate(obj, 1);
+      if (_mktAction === 'skip') { closeOv('ov-mkt'); return; }
+      S.prodItems[dupIdx] = { ...S.prodItems[dupIdx], ...obj, id: S.prodItems[dupIdx].id };
+      logChange('prod', `製作物上書き: ${name}`, before, JSON.stringify(obj));
+    } else {
+      S.prodItems.push(obj);
+      logChange('prod', `製作物追加: ${name}`, null, `予算${fmtN(obj.budget)} 実績${fmtN(obj.actual)}`);
+    }
   }
   save(); closeOv('ov-prod'); renderProd();
 }
@@ -3490,6 +3562,7 @@ async function importAllSheets(ev) {
         };
         if (!S.ledger) S.ledger = [];
         let added = 0;
+        const xlDupCandidates = [];
         for (let i=hdrRow+1; i<rows.length; i++) {
           const r = rows[i]; if (!r) continue;
           const prog = String(r[ci.prog]||'').trim();
@@ -3509,10 +3582,24 @@ async function importAllSheets(ev) {
             status:'', memo:'',
           };
           if (!obj.actual && !obj.estimate && !obj.budget) continue;
-          S.ledger.push(obj);
-          added++; totalRows++;
+          xlDupCandidates.push(obj);
         }
-        log.push(`✅ 経費入力: ${added}件を経費明細に取込`);
+        // 重複チェック一括処理
+        const xlDups = xlDupCandidates.filter(r => findDuplicate(S.ledger, r) >= 0);
+        const xlNews = xlDupCandidates.filter(r => findDuplicate(S.ledger, r) < 0);
+        xlNews.forEach(r => { S.ledger.push(r); added++; totalRows++; });
+        let xlSkipped = 0;
+        if (xlDups.length > 0) {
+          const action = await confirmDuplicate(xlDups[0], xlDups.length);
+          if (action === 'overwrite') {
+            xlDups.forEach(r => {
+              const di = findDuplicate(S.ledger, r);
+              S.ledger[di] = {...S.ledger[di],...r,id:S.ledger[di].id};
+              totalRows++;
+            });
+          } else { xlSkipped = xlDups.length; }
+        }
+        log.push(`✅ 経費入力: 新規${added}件 / 上書き${xlDups.length - xlSkipped}件 / スキップ${xlSkipped}件`);
       }
     }
 
