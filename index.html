@@ -1004,9 +1004,9 @@ const DEF = {
     {id:'marketing',name:'マーケ関連',  budget:3000000},
   ],
   revenues:[
-    {id:'r1',name:'アワード参加費',    amount:900000 },
-    {id:'r2',name:'スタジアムシティ',  amount:1707800},
-    {id:'r3',name:'イヤーエンド参加費',amount:1000000},
+    {id:'r1',name:'アワード参加費',    amount:900000,  prog:'アワード',    type:'参加費'},
+    {id:'r2',name:'スタジアムシティ',  amount:1707800, prog:'シティフェス', type:'協賛・協力金'},
+    {id:'r3',name:'イヤーエンド参加費',amount:1000000, prog:'イヤーエンド', type:'参加費'},
   ],
   events:{
     ko:{
@@ -1280,17 +1280,7 @@ function go(id,btn){
   if(id==='history'){renderHistory();return;}
   renderPg(id);
 }
-function renderPg(id){
-  if(id==='ov')   renderOv();
-  if(id==='prog') renderProg();
-  if(id==='hm')   renderSeries('hm');
-  if(id==='gk')   renderSeries('gk');
-  if(id==='oe')   renderSeries('oe');
-  if(id==='ko')   renderEvt('ko');
-  if(id==='aw')   renderEvt('aw');
-  if(id==='ye')   renderEvt('ye');
-  if(id==='rev')  renderRev();
-}
+// renderPg は下部に統合
 
 // ══════════════════════════════════════════════════
 // OVERVIEW
@@ -1460,9 +1450,36 @@ function renderRev(){
   const totA=S.programs.reduce((t,p)=>t+progActual(p.id),0);
   const diff=totB-totA;
 
-  document.getElementById('rev-detail').innerHTML=
-    S.revenues.map(r=>`<div class="rev-row"><div class="rev-name">${r.name}</div><div class="rev-val">${fmt(r.amount)}</div></div>`).join('')+
-    `<div class="rev-row" style="border-top:1px solid var(--b2);margin-top:8px;padding-top:8px"><strong style="font-size:13px">合計</strong><span style="font-family:var(--mono);font-size:14px;color:var(--green);font-weight:700">${fmt(totR)}</span></div>`;
+  // プログラム別にグルーピング
+  const byProg={};
+  S.revenues.forEach(r=>{
+    const key=r.prog||'その他';
+    if(!byProg[key]) byProg[key]=[];
+    byProg[key].push(r);
+  });
+  const TYPE_COLORS={'参加費':'var(--green)','協賛・協力金':'var(--blue)','補助金':'var(--yellow)','その他':'var(--t2)'};
+
+  let html='';
+  Object.entries(byProg).forEach(([prog,items])=>{
+    const subtotal=items.reduce((t,r)=>t+n(r.amount),0);
+    html+=`<div style="font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;padding:10px 0 4px;border-bottom:1px solid var(--b1);margin-bottom:4px">${prog}</div>`;
+    items.forEach(r=>{
+      const tc=TYPE_COLORS[r.type||'']||'var(--t2)';
+      html+=`<div class="rev-row" style="padding:6px 0">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:9px;font-weight:700;color:${tc};background:rgba(255,255,255,.06);padding:1px 5px;border-radius:3px">${r.type||'収入'}</span>
+          <span class="rev-name">${r.name}</span>
+        </div>
+        <div class="rev-val">${fmt(r.amount)}</div>
+      </div>`;
+    });
+    html+=`<div style="text-align:right;font-size:10px;font-family:var(--mono);color:var(--green);padding:2px 0 8px">小計 ${fmt(subtotal)}</div>`;
+  });
+  html+=`<div class="rev-row" style="border-top:2px solid var(--b2);margin-top:6px;padding-top:10px">
+    <strong style="font-size:13px">収入合計</strong>
+    <span style="font-family:var(--mono);font-size:16px;color:var(--green);font-weight:700">${fmt(totR)}</span>
+  </div>`;
+  document.getElementById('rev-detail').innerHTML=html;
 
   document.getElementById('net-summary').innerHTML=`
     <div class="rev-row"><div class="rev-name">総予算</div><div style="font-family:var(--mono)">${fmt(totB)}</div></div>
@@ -1579,8 +1596,12 @@ function updateEvtItem(inp){
 function addEvtItem(){_eCtx.items.push({id:uid(),name:'',budget:0,estimate:0,actual:0});renderEvtItems();}
 function removeEvtItem(i){_eCtx.items.splice(i,1);renderEvtItems();}
 function saveEvt(){
-  S.events[_eCtx.key].items=_eCtx.items;
-  save();closeOv('ov-evt');renderPg(_eCtx.key);
+  const key=_eCtx.key;
+  const labels={ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',md:'マッチデイ'};
+  const before=JSON.stringify(S.events[key]?.items);
+  S.events[key].items=_eCtx.items;
+  logChange('event',`費目編集: ${labels[key]||key}`,before,null);
+  save();closeOv('ov-evt');renderPg(key);
 }
 
 // ══════════════════════════════════════════════════
@@ -1647,6 +1668,7 @@ function renderBudgetItems(){
 }
 
 function saveBulkBudget(){
+  const before=JSON.stringify(S.programs.map(p=>({name:p.name,budget:p.budget})));
   // プログラム単位（管理者のみ）
   if(isAdmin()){
     document.querySelectorAll('#bprog-body input[data-pi]').forEach(inp=>{
@@ -1675,16 +1697,24 @@ function openRev(){
   renderRevItems();openOv('ov-rev-edit');
 }
 function renderRevItems(){
+  const progs=[''].concat(S.programs.map(p=>p.name));
+  const types=['参加費','協賛・協力金','補助金','その他'];
   document.getElementById('rev-items').innerHTML=_revItems.map((r,i)=>`
-    <div class="item-row" style="grid-template-columns:20px 1fr 110px 26px">
+    <div class="item-row" style="grid-template-columns:20px 1fr 120px 90px 110px 26px;margin-bottom:6px">
       <div class="item-num">${i+1}</div>
-      <input type="text"   value="${r.name}"     placeholder="項目名" data-i="${i}" data-f="name"   oninput="updateRevItem(this)">
-      <input type="number" value="${r.amount||''}" placeholder="0"   data-i="${i}" data-f="amount" oninput="updateRevItem(this)">
+      <input type="text" value="${r.name||''}" placeholder="収入名" data-i="${i}" data-f="name" oninput="updateRevItem(this)" style="padding:5px 7px;background:var(--s2);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--mono);outline:none;width:100%">
+      <select data-i="${i}" data-f="prog" onchange="updateRevItem(this)" style="padding:5px 7px;background:var(--s2);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:10px;outline:none;width:100%">
+        ${progs.map(p=>`<option value="${p}"${r.prog===p?' selected':''}>${p||'—プログラム—'}</option>`).join('')}
+      </select>
+      <select data-i="${i}" data-f="type" onchange="updateRevItem(this)" style="padding:5px 7px;background:var(--s2);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:10px;outline:none;width:100%">
+        ${types.map(t=>`<option${r.type===t?' selected':''}>${t}</option>`).join('')}
+      </select>
+      <input type="number" value="${r.amount||''}" placeholder="0" data-i="${i}" data-f="amount" oninput="updateRevItem(this)" style="padding:5px 7px;background:var(--s2);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--mono);outline:none;text-align:right;width:100%">
       <button class="del-btn" onclick="removeRevItem(${i})">×</button>
     </div>`).join('');
 }
 function updateRevItem(inp){const i=parseInt(inp.dataset.i),f=inp.dataset.f;_revItems[i][f]=f==='name'?inp.value:parseFloat(inp.value)||0;}
-function addRevItem(){_revItems.push({id:uid(),name:'',amount:0});renderRevItems();}
+function addRevItem(){_revItems.push({id:uid(),name:'',amount:0,prog:'',type:'参加費'});renderRevItems();}
 function removeRevItem(i){_revItems.splice(i,1);renderRevItems();}
 function saveRev(){if(!isAdmin()){alert('収入管理は管理者のみ変更できます');return;}S.revenues=_revItems.filter(r=>r.name);save();closeOv('ov-rev-edit');renderRev();}
 
@@ -2337,11 +2367,7 @@ function deleteLedgerById(id) {
 
 // TITLES・renderPg に ledger を追加（既存のgoを上書き）
 TITLES['ledger'] = '経費明細登録';
-const _origRenderPg = renderPg;
-function renderPg(id) {
-  if (id === 'ledger') { renderLedger(); return; }
-  _origRenderPg(id);
-}
+// renderPg は統合版に統合
 
 // ══════════════════════════════════════════════════
 // AI CSV 解析・取込
@@ -2680,21 +2706,7 @@ function resetDefaults() {
   renderDefaultsItems();
 }
 
-function saveDefaults() {
-  if (!S.defaults) S.defaults = {};
-  S.defaults.hm = _defItems.hm;
-  S.defaults.gk = _defItems.gk;
-  S.defaults.oe = _defItems.oe;
-  save();
-  closeOv('ov-defaults');
-
-  // サイドバーバッジで通知
-  const btn = document.getElementById('nb-defaults');
-  if (btn) {
-    btn.style.color = 'var(--green)';
-    setTimeout(() => btn.style.color = '', 2000);
-  }
-}
+// saveDefaults（旧版）削除済み
 
 // ── openSess を上書き：新規追加時にデフォルト費目を適用 ──
 const _origOpenSess = openSess;
@@ -2824,7 +2836,6 @@ function openSeriesDefaults() {
 }
 
 // saveDefaults を上書き（全7キー保存）
-const _origSaveDefaults = saveDefaults;
 function saveDefaults() {
   if (!S.defaults) S.defaults = {};
   ['hm','gk','oe','ko','aw','ye','md'].forEach(k => {
@@ -2880,15 +2891,31 @@ function applyDefaultsToEvent() {
   alert(`✅ デフォルト費目を適用しました（${added}件追加・既存${defaults.length-added}件の予算を更新）`);
 }
 
+
+// ══════════════════════════════════════════════════
+// RENDERPG 統合版（全ページ対応）
+// ══════════════════════════════════════════════════
+function renderPg(id){
+  if(id==='ov')        renderOv();
+  else if(id==='prog') renderProg();
+  else if(id==='hm')   renderSeries('hm');
+  else if(id==='gk')   renderSeries('gk');
+  else if(id==='oe')   renderSeries('oe');
+  else if(id==='ko')   renderEvt('ko');
+  else if(id==='aw')   renderEvt('aw');
+  else if(id==='ye')   renderEvt('ye');
+  else if(id==='md')   renderEvt('md');
+  else if(id==='rev')  renderRev();
+  else if(id==='ledger')    renderLedger();
+  else if(id==='mkt')       renderMkt();
+  else if(id==='prod')      renderProd();
+  else if(id==='changelog') renderChangelog();
+}
 // マッチデイ用のナビボタンとページがなければ動的追加
 (function initMatchday() {
   TITLES['md'] = 'マッチデイ';
   // renderPg に md を追加
-  const _rp = renderPg;
-  function renderPg(id) {
-    if (id === 'md') { renderEvt('md'); return; }
-    _rp(id);
-  }
+  // renderPg md対応は統合済み
   // サイドバーに「マッチデイ」ボタンを追加（大規模イベントセクション）
   const yeBtn = [...document.querySelectorAll('.nb')].find(b => b.textContent.includes('イヤーエンド'));
   if (yeBtn && !document.getElementById('nb-md')) {
@@ -2945,8 +2972,7 @@ function logChange(type, description, before, after) {
 }
 
 // save()をラップして変更履歴対応版に
-const _origSave = save;
-function save() { _origSave(); }
+// save() はログ機能追加のためラッパー不要（元のsave()をそのまま使用）
 
 // ══════════════════════════════════════════════════
 // TITLES 追加
@@ -2956,13 +2982,7 @@ TITLES['prod']      = '製作物管理';
 TITLES['changelog'] = '変更履歴';
 
 // renderPg に追加
-const _rp2 = renderPg;
-function renderPg(id) {
-  if (id === 'mkt')       { renderMkt();       return; }
-  if (id === 'prod')      { renderProd();      return; }
-  if (id === 'changelog') { renderChangelog(); return; }
-  _rp2(id);
-}
+// renderPg統合済み
 
 // ══════════════════════════════════════════════════
 // マーケ費用管理
@@ -3251,29 +3271,9 @@ function clearChangelog() {
 }
 
 // 既存の saveSess / saveEvt / saveBulkBudget / saveLedger に変更履歴を追加
-const _origSaveSessForLog = saveSess;
-function saveSess() {
-  const {key, id} = _sCtx;
-  const before = id ? JSON.stringify(S.sessions[key].find(x=>x.id===id)) : null;
-  _origSaveSessForLog();
-  const title = document.getElementById('s-title')?.value || '';
-  logChange('session', `${id?'編集':'追加'}: ${title}`, before, null);
-  save();
-}
+// saveSessのログ記録は元関数に組み込み済み
 
-const _origSaveEvtForLog = saveEvt;
-function saveEvt() {
-  const key = _eCtx.key;
-  const before = JSON.stringify(S.events[key]?.items);
-  _origSaveEvtForLog();
-  logChange('event', `費目編集: ${key==='ko'?'キックオフ':key==='aw'?'アワード':key==='ye'?'イヤーエンド':'マッチデイ'}`, before, null);
-  save();
-}
+// saveEvtのログ記録は元関数に組み込み済み
 
-const _origSaveBulkBudgetForLog = saveBulkBudget;
-function saveBulkBudget() {
-  const before = JSON.stringify(S.programs.map(p=>({name:p.name,budget:p.budget})));
-  _origSaveBulkBudgetForLog();
-  logChange('budget', '予算一括変更', before, null);
-}
+// saveBulkBudgetのログ記録は元関数に組み込み済み
 </script></body></html>
