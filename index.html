@@ -3526,8 +3526,7 @@ async function importAllSheets(ev) {
   const file = ev.target.files[0]; if (!file) return;
   ev.target.value = '';
 
-  // ローディング表示
-  document.getElementById('ai-csv-title').textContent = '📊 Excelを解析中...';
+  document.getElementById('ai-csv-title').textContent = '🤖 ExcelをAI解析中...';
   document.getElementById('ai-csv-loading').style.display = '';
   document.getElementById('ai-csv-result').style.display = 'none';
   document.getElementById('ai-csv-error').style.display = 'none';
@@ -3541,249 +3540,313 @@ async function importAllSheets(ev) {
     const log = [];
     let totalRows = 0;
 
-    document.getElementById('ai-csv-status').textContent = 'シートを解析中...';
+    const parseNum = v => {
+      const n = parseFloat(String(v||'').replace(/[,¥￥円\s\-]/g,''));
+      return isNaN(n) ? 0 : n;
+    };
+    const cleanStr = v => String(v||'').replace(/^\u3000/,'').trim();
 
-    // ── 経費入力シート ──────────────────────────────
-    if (wb.SheetNames.includes('経費入力')) {
-      const ws = wb.Sheets['経費入力'];
+    // ── 全シートをサンプリングしてAIに送る ──────────────
+    document.getElementById('ai-csv-status').textContent = 'シート構造を読み取り中...';
+
+    // 各シートのヘッダー＋3行をサンプルとして収集
+    const sheetSamples = {};
+    for (const sname of wb.SheetNames) {
+      const ws = wb.Sheets[sname];
       const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
-      // ヘッダー行を探す（「プログラム名」が含まれる行）
-      let hdrRow = -1;
-      for (let i=0;i<Math.min(8,rows.length);i++) {
-        if (rows[i] && rows[i].some(v => String(v||'').includes('プログラム名'))) { hdrRow=i; break; }
+      // 空でない最初の6行を取得
+      const nonEmpty = rows.filter(r => r && r.some(v => v !== null && v !== '' && v !== '-')).slice(0,6);
+      if (nonEmpty.length > 0) {
+        sheetSamples[sname] = nonEmpty.map(r =>
+          r.map(v => v === null ? '' : String(v).slice(0,20)).join('	')
+        ).join('
+');
       }
-      if (hdrRow >= 0) {
-        const hdrs = rows[hdrRow].map(v => String(v||'').trim());
-        const ci = {
-          prog:    hdrs.findIndex(h => h.includes('プログラム名')),
-          fee:     hdrs.findIndex(h => h.includes('費目名') && !h.includes('カテゴリ')),
-          cat:     hdrs.findIndex(h => h.includes('カテゴリ')),
-          content: hdrs.findIndex(h => h.includes('内容')),
-          price:   hdrs.findIndex(h => h.includes('単価')),
-          qty:     hdrs.findIndex(h => h === '数量' || h === '数量（円）'),
-          unit:    hdrs.findIndex(h => h === '単位'),
-          estimate:hdrs.findIndex(h => h.includes('見積金額')),
-          actual:  hdrs.findIndex(h => h.includes('実数金額') || h.includes('実績金額')),
-          budget:  hdrs.findIndex(h => h === '予算（円）' || h === '予算'),
-        };
+    }
+
+    // AIにシート種別を判定させる
+    document.getElementById('ai-csv-status').textContent = 'AIがシート構造を解析中...';
+
+    const aiPrompt = `以下はNEO福岡の経費管理Excelファイルの各シートのサンプルデータです。
+各シートがどのカテゴリのデータか判定し、ヘッダー行の列インデックス（0始まり）を特定してください。
+
+${Object.entries(sheetSamples).map(([name, sample]) =>
+  `【シート名: ${name}】
+${sample}`
+).join('
+
+')}
+
+以下のJSONのみで返答してください（説明不要）:
+{
+  "sheets": {
+    "シート名": {
+      "type": "expense_input|event_detail|production|marketing|summary|schedule|master|unknown",
+      "header_row": 0,
+      "columns": {
+        "program": 列番号または-1,
+        "fee": 列番号または-1,
+        "category": 列番号または-1,
+        "content": 列番号または-1,
+        "price": 列番号または-1,
+        "qty": 列番号または-1,
+        "unit": 列番号または-1,
+        "budget": 列番号または-1,
+        "estimate": 列番号または-1,
+        "actual": 列番号または-1,
+        "name": 列番号または-1,
+        "memo": 列番号または-1
+      },
+      "event_key": "ko|aw|ye|hm|gk|oe|null（イベント詳細シートの場合のみ）"
+    }
+  }
+}`;
+
+    // Edge Function経由でAI解析
+    let aiResult = null;
+    try {
+      const res = await fetch(SUPABASE_URL + '/functions/v1/ai-csv-analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ prompt: aiPrompt }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const text = data.content?.find(b => b.type==='text')?.text || '';
+        const match = text.match(/\{[\s\S]*\}/);
+        if (match) aiResult = JSON.parse(match[0]);
+      }
+    } catch(e) {
+      console.warn('AI解析失敗、ルールベースにフォールバック:', e.message);
+    }
+
+    // AIが失敗した場合はルールベースでシート種別を推測
+    if (!aiResult) {
+      aiResult = { sheets: {} };
+      for (const sname of wb.SheetNames) {
+        const ws = wb.Sheets[sname];
+        const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+        let type = 'unknown', hdrRow = 0, cols = {};
+        // ヘッダー行を探してシート種別を判定
+        for (let i=0; i<Math.min(6,rows.length); i++) {
+          const row = (rows[i]||[]).map(v => String(v||''));
+          if (row.some(v => v.includes('プログラム名'))) {
+            type = 'expense_input'; hdrRow = i;
+            cols = {
+              program: row.findIndex(v=>v.includes('プログラム名')),
+              fee:     row.findIndex(v=>v.includes('費目名')&&!v.includes('カテゴリ')),
+              category:row.findIndex(v=>v.includes('カテゴリ')),
+              content: row.findIndex(v=>v.includes('内容')),
+              price:   row.findIndex(v=>v.includes('単価')),
+              qty:     row.findIndex(v=>v==='数量'),
+              unit:    row.findIndex(v=>v==='単位'),
+              estimate:row.findIndex(v=>v.includes('見積金額')),
+              actual:  row.findIndex(v=>v.includes('実数金額')||v.includes('実績金額')),
+              budget:  row.findIndex(v=>v.includes('予算（円）')||v==='予算'),
+            };
+            break;
+          } else if (row.some(v=>v==='品目'||v.includes('品目・アイテム'))) {
+            type = sname.includes('マーケ') ? 'marketing' : 'production';
+            hdrRow = i;
+            cols = {
+              name:    row.findIndex(v=>v.includes('品目')&&!v.includes('No')),
+              content: row.findIndex(v=>v.includes('仕様')||v.includes('内容')),
+              price:   row.findIndex(v=>v.includes('単価')),
+              qty:     row.findIndex(v=>v==='数量'),
+              unit:    row.findIndex(v=>v==='単位'),
+              budget:  row.findIndex(v=>v.includes('予算')),
+              estimate:row.findIndex(v=>v.includes('見積')),
+              actual:  row.findIndex(v=>v.includes('実数')||v.includes('実績')),
+            };
+            const evtMap={'キックオフ':'ko','アワード':'aw','イヤーエンド':'ye'};
+            for(const[k,v] of Object.entries(evtMap)){if(sname.includes(k)){type='event_detail';cols.event_key=v;break;}}
+            break;
+          } else if (row.some(v=>v==='品目'&&!v.includes('品目・'))) {
+            type = 'event_detail'; hdrRow = i;
+            const evtMap={'キックオフ':'ko','アワード':'aw','イヤーエンド':'ye'};
+            let ekey = null;
+            for(const[k,v] of Object.entries(evtMap)){if(sname.includes(k)){ekey=v;break;}}
+            cols = {
+              name:    0,
+              budget:  row.findIndex(v=>v.includes('予算')),
+              estimate:row.findIndex(v=>v.includes('見積')),
+              actual:  row.findIndex(v=>v.includes('実数')||v.includes('実績')),
+              event_key: ekey,
+            };
+            break;
+          }
+        }
+        aiResult.sheets[sname] = { type, header_row: hdrRow, columns: cols };
+      }
+    }
+
+    // ── AIの解析結果を使ってデータを取込 ──────────────
+    document.getElementById('ai-csv-status').textContent = 'データを取込中...';
+
+    for (const sname of wb.SheetNames) {
+      const sheetInfo = aiResult.sheets?.[sname];
+      if (!sheetInfo || sheetInfo.type === 'unknown' || sheetInfo.type === 'summary' || sheetInfo.type === 'master' || sheetInfo.type === 'schedule') continue;
+
+      const ws = wb.Sheets[sname];
+      const allRows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+      const ci = sheetInfo.columns || {};
+      const hdrRow = sheetInfo.header_row || 0;
+      const type = sheetInfo.type;
+
+      // ── 経費入力シート → 経費明細 ──
+      if (type === 'expense_input') {
         if (!S.ledger) S.ledger = [];
         let added = 0;
-        const xlDupCandidates = [];
-        for (let i=hdrRow+1; i<rows.length; i++) {
-          const r = rows[i]; if (!r) continue;
-          const prog = String(r[ci.prog]||'').trim();
-          const fee  = String(r[ci.fee] ||'').trim();
-          if (!prog || !fee || fee === '費目名') continue;
-          const parseNum = v => { const n=parseFloat(String(v||'').replace(/[,¥]/g,'')); return isNaN(n)?0:n; };
+        const candidates = [];
+        for (let i=hdrRow+1; i<allRows.length; i++) {
+          const r = allRows[i]; if (!r) continue;
+          const prog = cleanStr(r[ci.program]);
+          const fee  = cleanStr(r[ci.fee]);
+          if (!prog || !fee || ['費目名','プログラム名'].includes(fee)) continue;
           const obj = {
             id: uid(), prog, fee,
-            cat:      ci.cat>=0     ? String(r[ci.cat]||'').trim()     : detectCat(fee),
-            content:  ci.content>=0 ? String(r[ci.content]||'').trim() : '',
-            price:    ci.price>=0   ? parseNum(r[ci.price])   : 0,
-            qty:      ci.qty>=0     ? parseNum(r[ci.qty])||1  : 1,
-            unit:     ci.unit>=0    ? String(r[ci.unit]||'式').trim() : '式',
-            estimate: ci.estimate>=0? parseNum(r[ci.estimate]) : 0,
-            actual:   ci.actual>=0  ? parseNum(r[ci.actual])  : 0,
-            budget:   ci.budget>=0  ? parseNum(r[ci.budget])  : 0,
+            cat:      ci.category>=0 ? cleanStr(r[ci.category]) || detectCat(fee) : detectCat(fee),
+            content:  ci.content>=0  ? cleanStr(r[ci.content])  : '',
+            price:    ci.price>=0    ? parseNum(r[ci.price])     : 0,
+            qty:      ci.qty>=0      ? parseNum(r[ci.qty])||1    : 1,
+            unit:     ci.unit>=0     ? cleanStr(r[ci.unit])||'式': '式',
+            estimate: ci.estimate>=0 ? parseNum(r[ci.estimate])  : 0,
+            actual:   ci.actual>=0   ? parseNum(r[ci.actual])    : 0,
+            budget:   ci.budget>=0   ? parseNum(r[ci.budget])    : 0,
             status:'', memo:'',
           };
           if (!obj.actual && !obj.estimate && !obj.budget) continue;
-          xlDupCandidates.push(obj);
+          candidates.push(obj);
         }
-        // 重複チェック一括処理
-        const xlDups = xlDupCandidates.filter(r => findDuplicate(S.ledger, r) >= 0);
-        const xlNews = xlDupCandidates.filter(r => findDuplicate(S.ledger, r) < 0);
-        xlNews.forEach(r => { S.ledger.push(r); added++; totalRows++; });
-        let xlSkipped = 0;
-        if (xlDups.length > 0) {
-          const action = confirmDuplicate(xlDups[0], xlDups.length);
+        const dups = candidates.filter(r => findDuplicate(S.ledger, r) >= 0);
+        const news = candidates.filter(r => findDuplicate(S.ledger, r) < 0);
+        news.forEach(r => { S.ledger.push(r); added++; totalRows++; });
+        if (dups.length > 0) {
+          const action = confirmDuplicate(dups[0], dups.length);
           if (action === 'overwrite') {
-            xlDups.forEach(r => {
-              const di = findDuplicate(S.ledger, r);
-              S.ledger[di] = {...S.ledger[di],...r,id:S.ledger[di].id};
-              totalRows++;
-            });
-          } else { xlSkipped = xlDups.length; }
-        }
-        log.push(`✅ 経費入力: 新規${added}件 / 上書き${xlDups.length - xlSkipped}件 / スキップ${xlSkipped}件`);
-      }
-    }
-
-    // ── 製作物シート共通処理 ──────────────────────────
-    const PROD_SHEETS = {
-      '年間共通製作物一覧': { cat_prefix:'年間共通' },
-      'マーケ関連製作物':   { cat_prefix:'マーケ関連' },
-    };
-
-    for (const [sheetName, conf] of Object.entries(PROD_SHEETS)) {
-      if (!wb.SheetNames.includes(sheetName)) continue;
-      const ws = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
-      // ヘッダー行（「品目・アイテム名」を含む行）
-      let hdrRow = -1;
-      for (let i=0;i<Math.min(6,rows.length);i++) {
-        if (rows[i] && rows[i].some(v => String(v||'').includes('品目'))) { hdrRow=i; break; }
-      }
-      if (hdrRow < 0) continue;
-      const hdrs = rows[hdrRow].map(v => String(v||'').trim());
-      const ci = {
-        no:       hdrs.findIndex(h => h==='No.' || h==='No'),
-        name:     hdrs.findIndex(h => h.includes('品目') && !h.includes('No')),
-        content:  hdrs.findIndex(h => h.includes('仕様') || h.includes('内容')),
-        price:    hdrs.findIndex(h => h.includes('単価')),
-        qty:      hdrs.findIndex(h => h==='数量'),
-        unit:     hdrs.findIndex(h => h==='単位'),
-        budget:   hdrs.findIndex(h => h.includes('予算')),
-        estimate: hdrs.findIndex(h => h.includes('見積')),
-        actual:   hdrs.findIndex(h => h.includes('実数') || h.includes('実績')),
-        memo:     hdrs.findIndex(h => h.includes('備考')),
-      };
-      if (!S.prodItems) S.prodItems = [];
-      let currentCat = conf.cat_prefix;
-      let added = 0;
-      const parseNum = v => { const n=parseFloat(String(v||'').replace(/[,¥]/g,'')); return isNaN(n)?0:n; };
-      for (let i=hdrRow+1; i<rows.length; i++) {
-        const r = rows[i]; if (!r) continue;
-        // カテゴリ行（■で始まる）
-        const nameVal = String(r[ci.name>=0?ci.name:1]||'').trim();
-        if (nameVal.startsWith('■')) { currentCat = nameVal.replace('■','').trim(); continue; }
-        if (!nameVal || nameVal==='-') continue;
-        const cleanName = nameVal.replace(/^\u3000/,'').trim();
-        if (!cleanName || cleanName==='-') continue;
-        const obj = {
-          id: uid(),
-          cat: currentCat,
-          name: cleanName,
-          content:  ci.content>=0  ? String(r[ci.content]||'').replace('-','').trim()  : '',
-          price:    ci.price>=0    ? parseNum(r[ci.price])    : 0,
-          qty:      ci.qty>=0      ? parseNum(r[ci.qty])||1   : 1,
-          unit:     ci.unit>=0     ? String(r[ci.unit]||'個').trim() : '個',
-          budget:   ci.budget>=0   ? parseNum(r[ci.budget])   : 0,
-          estimate: ci.estimate>=0 ? parseNum(r[ci.estimate]) : 0,
-          actual:   ci.actual>=0   ? parseNum(r[ci.actual])   : 0,
-          status:'', memo: ci.memo>=0 ? String(r[ci.memo]||'').replace('-','').trim() : '',
-        };
-        if (!obj.name) continue;
-        // 既存に同名があれば更新、なければ追加
-        const existing = S.prodItems.findIndex(p => p.name===obj.name && p.cat===obj.cat);
-        if (existing>=0) S.prodItems[existing]={...S.prodItems[existing],...obj,id:S.prodItems[existing].id};
-        else { S.prodItems.push(obj); added++; }
-        totalRows++;
-      }
-      log.push(`✅ ${sheetName}: ${added}件を製作物管理に取込`);
-    }
-
-    // ── イベントシート（キックオフ・アワード・イヤーエンド）──
-    const EVT_SHEETS = { 'キックオフ':'ko', 'アワード':'aw', 'イヤーエンド':'ye' };
-    for (const [sheetName, key] of Object.entries(EVT_SHEETS)) {
-      if (!wb.SheetNames.includes(sheetName)) continue;
-      const ws = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
-      // ヘッダー行（「品目」を含む行）
-      let hdrRow=-1;
-      for (let i=0;i<Math.min(6,rows.length);i++) {
-        if (rows[i] && rows[i].some(v=>String(v||'').trim()==='品目')) {hdrRow=i;break;}
-      }
-      if (hdrRow<0) continue;
-      const hdrs=rows[hdrRow].map(v=>String(v||'').trim());
-      const ciB=hdrs.findIndex(h=>h.includes('予算'));
-      const ciE=hdrs.findIndex(h=>h.includes('見積'));
-      const ciA=hdrs.findIndex(h=>h.includes('実数'));
-      const parseNum=v=>{const n=parseFloat(String(v||'').replace(/[,¥]/g,''));return isNaN(n)?0:n;};
-      let currentCat='';
-      let updated=0;
-      for (let i=hdrRow+1;i<rows.length;i++) {
-        const r=rows[i];if(!r)continue;
-        const nameVal=String(r[0]||'').trim();
-        if(nameVal.startsWith('■')){currentCat=nameVal.replace('■','').trim();continue;}
-        const cleanName=nameVal.replace(/^\u3000/,'').trim();
-        if(!cleanName||cleanName==='-')continue;
-        const bgt=ciB>=0?parseNum(r[ciB]):0;
-        const est=ciE>=0?parseNum(r[ciE]):0;
-        const act=ciA>=0?parseNum(r[ciA]):0;
-        if(!bgt&&!est&&!act)continue;
-        if(!S.events[key])S.events[key]={label:sheetName,items:[]};
-        const existing=S.events[key].items.findIndex(it=>it.name===cleanName);
-        if(existing>=0){
-          const it=S.events[key].items[existing];
-          if(bgt)it.budget=bgt; if(est)it.estimate=est; if(act)it.actual=act;
-        } else {
-          S.events[key].items.push({id:uid(),name:cleanName,budget:bgt,estimate:est,actual:act});
-        }
-        updated++;totalRows++;
-      }
-      log.push(`✅ ${sheetName}: ${updated}件の費目を更新`);
-    }
-
-    // ── マーケ関連製作物 → マーケ費用管理にも反映 ──
-    if (wb.SheetNames.includes('マーケ関連製作物')) {
-      const ws=wb.Sheets['マーケ関連製作物'];
-      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
-      let hdrRow=-1;
-      for(let i=0;i<6;i++){if(rows[i]&&rows[i].some(v=>String(v||'').includes('品目'))){hdrRow=i;break;}}
-      if(hdrRow>=0){
-        const hdrs=rows[hdrRow].map(v=>String(v||'').trim());
-        const ciN=hdrs.findIndex(h=>h.includes('品目')&&!h.includes('No'));
-        const ciE=hdrs.findIndex(h=>h.includes('見積'));
-        const ciA=hdrs.findIndex(h=>h.includes('実数')||h.includes('実績'));
-        const ciB=hdrs.findIndex(h=>h.includes('予算'));
-        const parseNum=v=>{const n=parseFloat(String(v||'').replace(/[,¥]/g,''));return isNaN(n)?0:n;};
-        let cat='マーケ関連';let added=0;
-        if(!S.mktItems)S.mktItems=[];
-        for(let i=hdrRow+1;i<rows.length;i++){
-          const r=rows[i];if(!r)continue;
-          const nameVal=String(r[ciN>=0?ciN:1]||'').trim();
-          if(nameVal.startsWith('■')){cat=nameVal.replace('■','').trim();continue;}
-          const cleanName=nameVal.replace(/^\u3000/,'').trim();
-          if(!cleanName||cleanName==='-')continue;
-          const est=ciE>=0?parseNum(r[ciE]):0;
-          const act=ciA>=0?parseNum(r[ciA]):0;
-          if(!est&&!act)continue;
-          // detectCatでカテゴリを「動画/LP/チラシ...」に変換
-          const mktCat = cat.includes('動画')?'動画':cat.includes('WEB')||cat.includes('LP')?'LP':
-            cat.includes('チラシ')?'チラシ':cat.includes('ポスター')?'ポスター':
-            cat.includes('パンフ')?'パンフ':'その他';
-          const existing=S.mktItems.findIndex(m=>m.name===cleanName);
-          if(existing>=0){
-            if(est)S.mktItems[existing].estimate=est;
-            if(act)S.mktItems[existing].actual=act;
-          } else {
-            S.mktItems.push({id:uid(),cat:mktCat,name:cleanName,content:'',
-              price:0,qty:1,unit:'式',budget:ciB>=0?parseNum(r[ciB]):0,
-              estimate:est,actual:act,status:'',memo:''});
-            added++;
+            dups.forEach(r => { const di=findDuplicate(S.ledger,r); S.ledger[di]={...S.ledger[di],...r,id:S.ledger[di].id}; totalRows++; });
           }
         }
-        if(added>0)log.push(`  └ マーケ費用管理にも${added}件追加`);
+        log.push(`✅ ${sname}: 新規${added}件を経費明細に取込`);
+      }
+
+      // ── イベント詳細シート（キックオフ/アワード/イヤーエンド） → S.events ──
+      else if (type === 'event_detail') {
+        const ekey = ci.event_key || sheetInfo.event_key;
+        if (!ekey) continue;
+        if (!S.events[ekey]) S.events[ekey] = {label:sname, items:[]};
+        let updated = 0, currentCat = '';
+        for (let i=hdrRow+1; i<allRows.length; i++) {
+          const r = allRows[i]; if (!r) continue;
+          const nameVal = cleanStr(r[0]);
+          if (!nameVal || nameVal==='-') continue;
+          if (nameVal.startsWith('■')) { currentCat = nameVal.replace('■','').trim(); continue; }
+          const bgt = parseNum(r[ci.budget>=0?ci.budget:5]);
+          const est = parseNum(r[ci.estimate>=0?ci.estimate:6]);
+          const act = parseNum(r[ci.actual>=0?ci.actual:7]);
+          if (!bgt && !est && !act) continue;
+          const existing = S.events[ekey].items.findIndex(it => it.name===nameVal);
+          if (existing>=0) {
+            if(bgt)S.events[ekey].items[existing].budget=bgt;
+            if(est)S.events[ekey].items[existing].estimate=est;
+            if(act)S.events[ekey].items[existing].actual=act;
+          } else {
+            S.events[ekey].items.push({id:uid(),name:nameVal,budget:bgt,estimate:est,actual:act});
+          }
+          updated++; totalRows++;
+        }
+        log.push(`✅ ${sname}: ${updated}件の費目を更新`);
+      }
+
+      // ── 製作物シート → S.prodItems ──
+      else if (type === 'production') {
+        if (!S.prodItems) S.prodItems = [];
+        let added = 0, currentCat = sname;
+        for (let i=hdrRow+1; i<allRows.length; i++) {
+          const r = allRows[i]; if (!r) continue;
+          const nameVal = cleanStr(r[ci.name>=0?ci.name:1]);
+          if (!nameVal || nameVal==='-') continue;
+          if (nameVal.startsWith('■')) { currentCat = nameVal.replace('■','').trim(); continue; }
+          const obj = {
+            id: uid(), cat: currentCat, name: nameVal,
+            content:  ci.content>=0  ? cleanStr(r[ci.content])  : '',
+            price:    ci.price>=0    ? parseNum(r[ci.price])     : 0,
+            qty:      ci.qty>=0      ? parseNum(r[ci.qty])||1    : 1,
+            unit:     ci.unit>=0     ? cleanStr(r[ci.unit])||'個': '個',
+            budget:   ci.budget>=0   ? parseNum(r[ci.budget])    : 0,
+            estimate: ci.estimate>=0 ? parseNum(r[ci.estimate])  : 0,
+            actual:   ci.actual>=0   ? parseNum(r[ci.actual])    : 0,
+            status:'', memo: ci.memo>=0 ? cleanStr(r[ci.memo]) : '',
+          };
+          if (!obj.actual && !obj.estimate && !obj.budget && !obj.price) continue;
+          const di = S.prodItems.findIndex(p=>p.name===obj.name&&p.cat===obj.cat);
+          if (di>=0) { S.prodItems[di]={...S.prodItems[di],...obj,id:S.prodItems[di].id}; }
+          else { S.prodItems.push(obj); added++; }
+          totalRows++;
+        }
+        log.push(`✅ ${sname}: ${added}件を製作物管理に取込`);
+      }
+
+      // ── マーケシート → S.mktItems ──
+      else if (type === 'marketing') {
+        if (!S.mktItems) S.mktItems = [];
+        let added = 0, currentCat = 'その他';
+        const MKT_CAT_MAP = {'動画':'動画','ムービー':'動画','WEB':'LP','LP':'LP','チラシ':'チラシ','ポスター':'ポスター','パンフ':'パンフ','学内':'ポスター','バナー':'ポスター','広告':'広告出稿'};
+        for (let i=hdrRow+1; i<allRows.length; i++) {
+          const r = allRows[i]; if (!r) continue;
+          const nameVal = cleanStr(r[ci.name>=0?ci.name:1]);
+          if (!nameVal || nameVal==='-') continue;
+          if (nameVal.startsWith('■')) {
+            currentCat = nameVal.replace('■','').trim();
+            for(const[k,v] of Object.entries(MKT_CAT_MAP)){if(currentCat.includes(k)){currentCat=v;break;}}
+            continue;
+          }
+          const est = ci.estimate>=0 ? parseNum(r[ci.estimate]) : 0;
+          const act = ci.actual>=0   ? parseNum(r[ci.actual])   : 0;
+          if (!est && !act) continue;
+          let mktCat = currentCat;
+          for(const[k,v] of Object.entries(MKT_CAT_MAP)){if(nameVal.includes(k)){mktCat=v;break;}}
+          const obj = {id:uid(),cat:mktCat,name:nameVal,content:'',price:0,qty:1,unit:'式',
+            budget:ci.budget>=0?parseNum(r[ci.budget]):0, estimate:est, actual:act, status:'',memo:''};
+          const di = S.mktItems.findIndex(m=>m.name===obj.name);
+          if (di>=0) { S.mktItems[di]={...S.mktItems[di],...obj,id:S.mktItems[di].id}; }
+          else { S.mktItems.push(obj); added++; }
+          totalRows++;
+        }
+        log.push(`✅ ${sname}: ${added}件をマーケ費用管理に取込`);
       }
     }
 
     save();
-    logChange('other','Excel一括取込',null,`${totalRows}件`);
+    logChange('other', 'Excel一括取込(AI解析)', null, `${totalRows}件`);
 
     // 結果表示
-    document.getElementById('ai-csv-loading').style.display='none';
-    document.getElementById('ai-csv-result').style.display='';
-    document.getElementById('ai-csv-title').textContent='✅ Excel取込完了';
-    document.getElementById('ai-csv-summary').innerHTML=`
+    document.getElementById('ai-csv-loading').style.display = 'none';
+    document.getElementById('ai-csv-result').style.display = '';
+    document.getElementById('ai-csv-title').textContent = '✅ Excel取込完了';
+    document.getElementById('ai-csv-summary').innerHTML = `
       <div style="background:var(--s2);border:1px solid var(--green);border-radius:8px;padding:14px 18px">
-        <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:10px">✅ ${file.name} を取込みました</div>
-        <div style="font-size:11px;color:var(--t2);margin-bottom:8px">合計 ${totalRows}件のデータを処理</div>
-        ${log.map(l=>`<div style="font-size:11px;color:var(--t2);padding:3px 0;border-bottom:1px solid var(--b1)">${l}</div>`).join('')}
+        <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:10px">✅ ${file.name} の取込が完了しました</div>
+        <div style="font-size:11px;color:var(--t2);margin-bottom:10px">合計 <strong>${totalRows}件</strong> のデータを処理</div>
+        ${log.map(l=>`<div style="font-size:11px;padding:5px 0;border-bottom:1px solid var(--b1);color:var(--t1)">${l}</div>`).join('')}
       </div>`;
-    document.getElementById('ai-csv-table').style.display='none';
-    document.getElementById('ai-csv-import-btn').style.display='none';
-    document.getElementById('ai-csv-count').textContent='';
-    // 閉じるボタンに変更
-    document.querySelector('#ai-csv-footer .btn-g').textContent='閉じる';
+    const tbl = document.getElementById('ai-csv-table');
+    if (tbl) tbl.style.display = 'none';
+    document.getElementById('ai-csv-import-btn').style.display = 'none';
+    document.querySelector('#ai-csv-footer .btn-g').textContent = '閉じる';
     renderPg(_curPg);
 
   } catch(err) {
-    document.getElementById('ai-csv-loading').style.display='none';
-    document.getElementById('ai-csv-error').style.display='';
-    document.getElementById('ai-csv-error').textContent='❌ 取込エラー: '+err.message;
-    document.getElementById('ai-csv-title').textContent='❌ 取込エラー';
+    document.getElementById('ai-csv-loading').style.display = 'none';
+    document.getElementById('ai-csv-error').style.display = '';
+    document.getElementById('ai-csv-error').textContent = '❌ 取込エラー: ' + err.message;
+    document.getElementById('ai-csv-title').textContent = '❌ 取込エラー';
     console.error(err);
   }
 }
+
+
 </script></body></html>
