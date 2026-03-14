@@ -2149,6 +2149,97 @@ function importCSV(ev) {
   ev.target.value = '';
 }
 
+
+// ══════════════════════════════════════════════════
+// ルールベース CSV 自動解析（CORSを回避）
+// ══════════════════════════════════════════════════
+function ruleBasedCsvParse(lines) {
+  const headers = parseCSVLine(lines[0]).map(h => h.trim());
+
+  // フィールドマッピングルール（ヘッダー名→フィールド名）
+  const FIELD_RULES = {
+    program:  ['プログラム','program','タグ','分類','カテゴリ'],
+    fee:      ['費目','費目名','費目名（入力）','科目','項目'],
+    content:  ['内容','品目','内容・品目','概要','詳細','description','content'],
+    price:    ['単価','price','unit_price','単価（円）'],
+    qty:      ['数量','qty','quantity','個数','枚数'],
+    unit:     ['単位','unit'],
+    estimate: ['見積','見積金額','見積（円）','見積額','estimate','見積金額（円）'],
+    actual:   ['実績','実数','実績金額','実数金額','実数（円）','actual','実績（円）','実績金額（円）'],
+    status:   ['支払状況','支払','status','精算','支払いステータス'],
+    memo:     ['備考','メモ','memo','note','notes','備考欄'],
+  };
+
+  // ヘッダーを解析してマッピングを決定
+  const mapping = {};
+  headers.forEach(h => {
+    const hLower = h.toLowerCase();
+    for (const [field, keywords] of Object.entries(FIELD_RULES)) {
+      if (keywords.some(k => h.includes(k) || hLower.includes(k.toLowerCase()))) {
+        if (!Object.values(mapping).includes(field)) {
+          mapping[h] = field;
+          break;
+        }
+      }
+    }
+    if (!mapping[h]) mapping[h] = null;
+  });
+
+  // プログラム名マッピング
+  const PROG_MAP = {
+    'キックオフ':'キックオフ（第一期）','ホームルーム':'ホームルーム（第一期）',
+    'アワード':'NEO AWARD（第一期）','イヤーエンド':'NEO YEAR END（第一期）',
+    '評議会':'評議会（第一期）','応援カイギ':'応援カイギ（第一期）',
+    '年間共通':'年間共通（第一期）','その他':'その他（第一期）',
+    'マーケ':'マーケ関連（第一期）','シティフェス':'シティフェス（第一期）',
+  };
+
+  // データ行を解析
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const cols = parseCSVLine(lines[i]);
+    const row = { program:'', fee:'', content:'', price:0, qty:1, unit:'式', estimate:0, actual:0, status:'', memo:'' };
+
+    headers.forEach((h, idx) => {
+      const field = mapping[h];
+      if (!field || cols[idx] === undefined) return;
+      const val = String(cols[idx] || '').trim();
+      if (!val || val === '-') return;
+
+      if (['price','qty','estimate','actual'].includes(field)) {
+        row[field] = parseFloat(val.replace(/[,¥￥円 ]/g, '')) || 0;
+      } else if (field === 'program') {
+        // プログラム名を正規化
+        let prog = val;
+        for (const [k,v] of Object.entries(PROG_MAP)) {
+          if (val.includes(k)) { prog = v; break; }
+        }
+        row[field] = prog;
+      } else {
+        row[field] = val;
+      }
+    });
+
+    // 空行スキップ
+    if (!row.fee && !row.actual && !row.estimate) continue;
+
+    row.cat = detectCat(row.fee || '');
+    row.id = uid();
+    rows.push(row);
+  }
+
+  // マッピング説明
+  const mappedFields = Object.entries(mapping)
+    .filter(([,v]) => v)
+    .map(([k,v]) => `${k}→${v}`);
+
+  return {
+    mapping,
+    rows,
+    summary: `${rows.length}件を検出（${mappedFields.length}列をマッピング: ${mappedFields.slice(0,4).join(', ')}${mappedFields.length>4?'...':''}）`
+  };
+}
 function parseCSVLine(line) {
   const result = [];
   let cur = '', inQ = false;
@@ -2381,7 +2472,7 @@ async function aiImportCSV(ev) {
   ev.target.value = '';
 
   // モーダルを開いてローディング表示
-  document.getElementById('ai-csv-title').textContent = '🤖 AIがCSVを解析中...';
+  document.getElementById('ai-csv-title').textContent = '🤖 CSVを自動解析中...';
   document.getElementById('ai-csv-loading').style.display = '';
   document.getElementById('ai-csv-result').style.display = 'none';
   document.getElementById('ai-csv-error').style.display = 'none';
@@ -2407,7 +2498,7 @@ async function aiImportCSV(ev) {
   const sampleLines = lines.slice(0, Math.min(6, lines.length));
   const sampleText = sampleLines.join('\n');
 
-  document.getElementById('ai-csv-status').textContent = 'Claude AIが列を解析しています...';
+  document.getElementById('ai-csv-status').textContent = '列の自動解析中...';
 
   // プログラム名一覧
   const progNames = S.programs.map(p => p.name).join('、');
@@ -2449,63 +2540,18 @@ ${sampleText}
 }`;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
+    // CORSの制限によりブラウザから直接Anthropic APIを呼べないため
+    // ルールベース自動解析を実行
+    document.getElementById('ai-csv-status').textContent = '列を自動解析しています...';
+    await new Promise(r => setTimeout(r, 500)); // UI更新のため少し待つ
 
-    const data = await res.json();
-    const rawText = data.content?.find(b => b.type === 'text')?.text || '';
-
-    // JSONを抽出してパース
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('AIの応答からJSONを抽出できませんでした');
-
-    let parsed;
-    try { parsed = JSON.parse(jsonMatch[0]); }
-    catch(e) { throw new Error('JSONのパースに失敗しました: ' + e.message); }
-
-    // 全データ行も処理（サンプル以降の行）
-    if (lines.length > 6) {
-      document.getElementById('ai-csv-status').textContent = '残りのデータを処理中...';
-      const headers = parseCSVLine(lines[0]);
-      const mappingEntries = Object.entries(parsed.mapping);
-
-      for (let i = 6; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
-        const cols = parseCSVLine(lines[i]);
-        const row = { program:'', fee:'', content:'', price:0, qty:1, unit:'式', estimate:0, actual:0, status:'', memo:'' };
-        headers.forEach((h, idx) => {
-          const field = parsed.mapping[h];
-          if (!field || !cols[idx]) return;
-          const val = cols[idx].trim();
-          if (['price','qty','estimate','actual'].includes(field)) {
-            row[field] = parseFloat(val.replace(/[,¥￥円]/g, '')) || 0;
-          } else {
-            row[field] = val;
-          }
-        });
-        parsed.rows.push(row);
-      }
-    }
-
-    // カテゴリ自動付与
-    parsed.rows = parsed.rows.map(r => ({
-      ...r,
-      cat: detectCat(r.fee || ''),
-      id: uid(),
-    }));
+    const parsed = ruleBasedCsvParse(lines);
 
     _aiCsvParsed = parsed.rows;
     showAiCsvResult(parsed);
 
   } catch(err) {
-    showAiCsvError('AI解析エラー: ' + err.message);
+    showAiCsvError('解析エラー: ' + err.message);
   }
 }
 
