@@ -387,7 +387,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 
     <!-- KICKOFF -->
     <div class="pg" id="pg-ko">
-      <div class="g4" id="ko-kpis"></div>
+      <div class="g5" id="ko-kpis"></div>
       <div class="g2">
         <div class="card"><div class="ct"><div class="pip"></div>費目別明細<button class="btn btn-xs btn-g" style="margin-left:auto" onclick="openEvt('ko')" class="btn btn-xs btn-g admin-only">✏️ 編集</button></div><table class="tbl"><thead><tr><th>費目</th><th>予算</th><th>見積</th><th>実数</th><th>差異</th></tr></thead><tbody id="ko-tbody"></tbody></table></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--acc)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-ko"></canvas></div></div>
@@ -396,7 +396,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 
     <!-- AWARD -->
     <div class="pg" id="pg-aw">
-      <div class="g4" id="aw-kpis"></div>
+      <div class="g5" id="aw-kpis"></div>
       <div class="g2">
         <div class="card"><div class="ct"><div class="pip"></div>費目別明細<button class="btn btn-xs btn-g" style="margin-left:auto" onclick="openEvt('aw')" class="btn btn-xs btn-g admin-only">✏️ 編集</button></div><table class="tbl"><thead><tr><th>費目</th><th>予算</th><th>見積</th><th>実数</th><th>差異</th></tr></thead><tbody id="aw-tbody"></tbody></table></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-aw"></canvas></div></div>
@@ -405,7 +405,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 
     <!-- YEAREND -->
     <div class="pg" id="pg-ye">
-      <div class="g4" id="ye-kpis"></div>
+      <div class="g5" id="ye-kpis"></div>
       <div class="g2">
         <div class="card"><div class="ct"><div class="pip"></div>費目別明細<button class="btn btn-xs btn-g" style="margin-left:auto" onclick="openEvt('ye')" class="btn btn-xs btn-g admin-only">✏️ 編集</button></div><table class="tbl"><thead><tr><th>費目</th><th>予算</th><th>見積</th><th>実数</th><th>差異</th></tr></thead><tbody id="ye-tbody"></tbody></table></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--purple)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-ye"></canvas></div></div>
@@ -1517,11 +1517,49 @@ function renderEvt(key){
   const budgetProg=S.programs.find(p=>p.id===key);
   const progBudget=budgetProg?n(budgetProg.budget):totB;
 
+  // このイベントに紐づく収入を計算
+  const EVT_PROG_KEYS = {
+    ko: ['キックオフ'],
+    aw: ['アワード','AWARD'],
+    ye: ['イヤーエンド','YEAR END','YearEnd'],
+    md: ['マッチデイ','マッチ'],
+  };
+  const evtKeywords = EVT_PROG_KEYS[key] || [];
+  const evtRev = S.revenues
+    .filter(r => r.prog && evtKeywords.some(kw => r.prog.includes(kw)))
+    .reduce((t,r) => t + n(r.amount), 0);
+  const arari = evtRev - totA;
+
+  // KPIコンテナを5列グリッドに
+  const kpiEl = document.getElementById(`${key}-kpis`);
+  if (kpiEl) kpiEl.style.gridTemplateColumns = 'repeat(5,1fr)';
+
   document.getElementById(`${key}-kpis`).innerHTML=`
-    <div class="kpi r"><div class="kl">プログラム予算</div><div class="kv">${fmtN(progBudget)}<em>円</em></div></div>
-    <div class="kpi b"><div class="kl">費目別予算合計</div><div class="kv">${fmtN(totB)}<em>円</em></div><div class="ks">消化率 <strong style="color:var(--blue)">${pct(totB,progBudget)}</strong></div></div>
-    <div class="kpi g"><div class="kl">見積合計</div><div class="kv">${fmtN(totE)}<em>円</em></div><div class="ks">消化率 <strong style="color:var(--green)">${pct(totE,progBudget)}</strong></div></div>
-    <div class="kpi y"><div class="kl">実績合計</div><div class="kv">${fmtN(totA)}<em>円</em></div><div class="ks">差異（見積-実数）<span class="${totE>=totA?'ok':'ng'}"> ${totE>=totA?'+':''}${fmtN(totE-totA)}円</span></div></div>`;
+    <div class="kpi p">
+      <div class="kl">収入</div>
+      <div class="kv" style="color:var(--purple)">${fmtN(evtRev)}<em>円</em></div>
+      <div class="ks">参加費・協賛 合計</div>
+    </div>
+    <div class="kpi r">
+      <div class="kl">総予算</div>
+      <div class="kv">${fmtN(progBudget)}<em>円</em></div>
+      <div class="ks">承認予算額</div>
+    </div>
+    <div class="kpi b">
+      <div class="kl">見積合計</div>
+      <div class="kv">${fmtN(totE)}<em>円</em></div>
+      <div class="ks">消化率 <strong style="color:var(--blue)">${pct(totE,progBudget)}</strong></div>
+    </div>
+    <div class="kpi y">
+      <div class="kl">実績合計</div>
+      <div class="kv">${fmtN(totA)}<em>円</em></div>
+      <div class="ks">差異 <span class="${totE>=totA?'ok':'ng'}">${totE>=totA?'▲':'▼'} ${fmtN(Math.abs(totE-totA))}円</span></div>
+    </div>
+    <div class="kpi g">
+      <div class="kl">粗利（収入－実績）</div>
+      <div class="kv" style="color:${arari>=0?'var(--green)':'var(--red)'}">${arari>=0?'+':''}${fmtN(arari)}<em>円</em></div>
+      <div class="ks">${arari>=0?'✅ 黒字':'⚠️ 赤字'}</div>
+    </div>`;
 
   document.getElementById(`${key}-tbody`).innerHTML=ev.items.map(it=>{
     const d=n(it.estimate)-n(it.actual);
