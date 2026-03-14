@@ -3566,40 +3566,19 @@ async function importAllSheets(ev) {
     // AIにシート種別を判定させる
     document.getElementById('ai-csv-status').textContent = 'AIがシート構造を解析中...';
 
-    const aiPrompt = `以下はNEO福岡の経費管理Excelファイルの各シートのサンプルデータです。
-各シートがどのカテゴリのデータか判定し、ヘッダー行の列インデックス（0始まり）を特定してください。
-
-${Object.entries(sheetSamples).map(([name, sample]) =>
-  `【シート名: ${name}】
-${sample}`
-).join('
-
-')}
-
-以下のJSONのみで返答してください（説明不要）:
-{
-  "sheets": {
-    "シート名": {
-      "type": "expense_input|event_detail|production|marketing|summary|schedule|master|unknown",
-      "header_row": 0,
-      "columns": {
-        "program": 列番号または-1,
-        "fee": 列番号または-1,
-        "category": 列番号または-1,
-        "content": 列番号または-1,
-        "price": 列番号または-1,
-        "qty": 列番号または-1,
-        "unit": 列番号または-1,
-        "budget": 列番号または-1,
-        "estimate": 列番号または-1,
-        "actual": 列番号または-1,
-        "name": 列番号または-1,
-        "memo": 列番号または-1
-      },
-      "event_key": "ko|aw|ye|hm|gk|oe|null（イベント詳細シートの場合のみ）"
-    }
-  }
-}`;
+    const sheetSampleText = Object.entries(sheetSamples)
+      .map(([name, sample]) => '【シート名: ' + name + '】\n' + sample)
+      .join('\n\n');
+    const aiPrompt = 'NEO福岡の経費管理Excelファイルの各シートのサンプルです。\n' +
+      '各シートのカテゴリとヘッダー列インデックス（0始まり）を特定してください。\n\n' +
+      sheetSampleText + '\n\n' +
+      '以下のJSONのみで返答（説明不要）:\n' +
+      '{\n  "sheets": {\n    "シート名": {\n' +
+      '      "type": "expense_input|event_detail|production|marketing|summary|schedule|master|unknown",\n' +
+      '      "header_row": 0,\n' +
+      '      "columns": {"program":-1,"fee":-1,"category":-1,"content":-1,"price":-1,"qty":-1,"unit":-1,"budget":-1,"estimate":-1,"actual":-1,"name":-1,"memo":-1},\n' +
+      '      "event_key": "ko|aw|ye|null"\n' +
+      '    }\n  }\n}';
 
     // Edge Function経由でAI解析
     let aiResult = null;
