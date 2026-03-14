@@ -1586,6 +1586,12 @@ function openEvt(key){
   _eCtx.items=JSON.parse(JSON.stringify(S.events[key].items));
   renderEvtItems();openOv('ov-evt');
 }
+
+function clearEvtItems() {
+  if (!confirm('全費目をクリアしますか？（保存するまで元に戻せます）')) return;
+  _eCtx.items = [];
+  renderEvtItems();
+}
 function renderEvtItems(){
   document.getElementById('evt-items').innerHTML=_eCtx.items.map((it,i)=>`
     <div class="item-row">
@@ -3716,27 +3722,49 @@ async function importAllSheets(ev) {
         const ekey = ci.event_key || sheetInfo.event_key;
         if (!ekey) continue;
         if (!S.events[ekey]) S.events[ekey] = {label:sname, items:[]};
-        let updated = 0, currentCat = '';
+
+        // カテゴリ別に合算してS.eventsに登録
+        // ■カテゴリ行 → カテゴリ名として費目に使用
+        // 明細行 → そのカテゴリに合算
+        let currentCat = '';
+        const catTotals = {}; // {catName: {budget, estimate, actual}}
         for (let i=hdrRow+1; i<allRows.length; i++) {
           const r = allRows[i]; if (!r) continue;
           const nameVal = cleanStr(r[0]);
           if (!nameVal || nameVal==='-') continue;
-          if (nameVal.startsWith('■')) { currentCat = nameVal.replace('■','').trim(); continue; }
+          // ■で始まる行 or インデントなしの行 → カテゴリ
+          if (nameVal.startsWith('■')) {
+            currentCat = nameVal.replace('■','').trim();
+            continue;
+          }
+          // インデントありの行 → 明細（カテゴリに合算）
           const bgt = parseNum(r[ci.budget>=0?ci.budget:5]);
           const est = parseNum(r[ci.estimate>=0?ci.estimate:6]);
           const act = parseNum(r[ci.actual>=0?ci.actual:7]);
           if (!bgt && !est && !act) continue;
-          const existing = S.events[ekey].items.findIndex(it => it.name===nameVal);
+          if (!currentCat) currentCat = nameVal; // カテゴリ未設定なら費目名をそのまま使用
+          if (!catTotals[currentCat]) catTotals[currentCat] = {budget:0, estimate:0, actual:0};
+          catTotals[currentCat].budget   += bgt;
+          catTotals[currentCat].estimate += est;
+          catTotals[currentCat].actual   += act;
+        }
+
+        // catTotalsをS.events[ekey].itemsに反映
+        let updated = 0;
+        for (const [catName, vals] of Object.entries(catTotals)) {
+          if (!vals.budget && !vals.estimate && !vals.actual) continue;
+          const existing = S.events[ekey].items.findIndex(it => it.name===catName);
           if (existing>=0) {
-            if(bgt)S.events[ekey].items[existing].budget=bgt;
-            if(est)S.events[ekey].items[existing].estimate=est;
-            if(act)S.events[ekey].items[existing].actual=act;
+            S.events[ekey].items[existing].budget   = vals.budget;
+            S.events[ekey].items[existing].estimate = vals.estimate;
+            S.events[ekey].items[existing].actual   = vals.actual;
           } else {
-            S.events[ekey].items.push({id:uid(),name:nameVal,budget:bgt,estimate:est,actual:act});
+            S.events[ekey].items.push({id:uid(), name:catName,
+              budget:vals.budget, estimate:vals.estimate, actual:vals.actual});
           }
           updated++; totalRows++;
         }
-        log.push(`✅ ${sname}: ${updated}件の費目を更新`);
+        log.push(`✅ ${sname}: ${updated}カテゴリを更新`);
       }
 
       // ── 製作物シート → S.prodItems ──
