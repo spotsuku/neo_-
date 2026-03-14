@@ -82,6 +82,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 .g31{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px;}
 .g13{display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:12px;}
 .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px;}
 
 /* ── CARDS ── */
 .card{background:var(--s1);border:1px solid var(--b1);border-radius:12px;padding:18px 20px;
@@ -346,7 +347,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 
     <!-- OVERVIEW -->
     <div class="pg on" id="pg-ov">
-      <div class="g4" id="ov-kpis"></div>
+      <div class="g5" id="ov-kpis"></div>
       <div class="g31">
         <div class="card"><div class="ct"><div class="pip"></div>月別支出推移（実績）</div><div class="ch"><canvas id="ch-monthly"></canvas></div></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--green)"></div>収入内訳</div><div id="ov-rev"></div></div>
@@ -1306,17 +1307,22 @@ function go(id,btn){
 const PAL=['#f0522a','#4f8ef7','#2dd4a0','#f0c040','#9b7fe8','#06b6d4','#ec4899','#84cc16','#ffb347','#14b8a6'];
 
 function renderOv(){
+  // KPI欄を5列に
+  const kpiEl=document.getElementById('ov-kpis');
+  if(kpiEl) kpiEl.style.gridTemplateColumns='repeat(5,1fr)';
   const totB=S.programs.reduce((t,p)=>t+n(p.budget),0);
   const totA=S.programs.reduce((t,p)=>t+progActual(p.id),0);
   const totE=S.programs.reduce((t,p)=>t+progEstimate(p.id),0);
   const totR=S.revenues.reduce((t,r)=>t+n(r.amount),0);
   const diff=totB-totA;
 
+  const arari = totR - totA;
   document.getElementById('ov-kpis').innerHTML=`
+    <div class="kpi p"><div class="kl">収入</div><div class="kv" style="color:var(--purple)">${fmtN(totR)}<em>円</em></div><div class="ks">参加費・協賛・補助金 合計</div></div>
     <div class="kpi r"><div class="kl">総予算</div><div class="kv">${fmtN(totB)}<em>円</em></div><div class="ks">年間承認予算（税別）</div></div>
     <div class="kpi b"><div class="kl">見積合計</div><div class="kv">${fmtN(totE)}<em>円</em></div><div class="ks">消化率 <strong style="color:var(--blue)">${pct(totE,totB)}</strong></div></div>
-    <div class="kpi g"><div class="kl">実績合計</div><div class="kv">${fmtN(totA)}<em>円</em></div><div class="ks"><span class="${diff>=0?'ok':'ng'}">${diff>=0?'▲ 予算内':'▼ 予算超過'} ${fmtN(Math.abs(diff))}円</span></div></div>
-    <div class="kpi y"><div class="kl">実質収支（収入控除後）</div><div class="kv" style="color:var(--green)">+${fmtN(diff+totR)}<em>円</em></div><div class="ks">収入 ${fmtN(totR)}円 控除後</div></div>`;
+    <div class="kpi y"><div class="kl">実績合計</div><div class="kv">${fmtN(totA)}<em>円</em></div><div class="ks"><span class="${diff>=0?'ok':'ng'}">${diff>=0?'▲ 予算内':'▼ 予算超過'} ${fmtN(Math.abs(diff))}円</span></div></div>
+    <div class="kpi g"><div class="kl">粗利（収入－実績）</div><div class="kv" style="color:${arari>=0?'var(--green)':'var(--red)'}">${arari>=0?'+':''}${fmtN(arari)}<em>円</em></div><div class="ks">${arari>=0?'黒字':'赤字'}（収入${fmtN(totR)}円 - 実績${fmtN(totA)}円）</div></div>`;
 
   document.getElementById('ov-rev').innerHTML=
     S.revenues.map(r=>`<div class="rev-row"><div class="rev-name">${r.name}</div><div class="rev-val">${fmt(r.amount)}</div></div>`).join('')+
@@ -1394,12 +1400,19 @@ function renderSeries(key){
   const colors={hm:'var(--green)',gk:'var(--blue)',oe:'var(--yellow)'};
   const col=colors[key]||'var(--t1)';
 
+  // このシリーズに紐づく収入を集計
+  const seriesProgName = {hm:'ホームルーム',gk:'評議会',oe:'応援カイギ'}[key]||'';
+  const seriesRev = S.revenues
+    .filter(r => r.prog && (r.prog.includes(seriesProgName)||String(r.prog).includes(key)))
+    .reduce((t,r)=>t+n(r.amount),0);
+  const arari = seriesRev - totA;
   document.getElementById(`${key}-kpis`).innerHTML=`
-    <div class="sk"><div class="skv" style="color:${col}">${ss.length}</div><div class="skl">総回数</div></div>
-    <div class="sk"><div class="skv">${fmtN(totB)}<span style="font-size:10px;color:var(--t2)">円</span></div><div class="skl">予算合計</div></div>
+    <div class="sk"><div class="skv" style="color:var(--purple)">${fmtN(seriesRev)}<span style="font-size:10px;color:var(--t2)">円</span></div><div class="skl">収入</div></div>
+    <div class="sk"><div class="skv">${fmtN(totB)}<span style="font-size:10px;color:var(--t2)">円</span></div><div class="skl">総予算</div></div>
     <div class="sk"><div class="skv" style="color:var(--blue)">${fmtN(totE)}<span style="font-size:10px;color:var(--t2)">円</span></div><div class="skl">見積合計</div></div>
-    <div class="sk"><div class="skv" style="color:var(--green)">${fmtN(totA)}<span style="font-size:10px;color:var(--t2)">円</span></div><div class="skl">実績合計</div></div>
-    <div class="sk"><div class="skv">${done}<span style="font-size:11px;color:var(--t2)"> / ${ss.length}</span></div><div class="skl">実績入力済</div></div>`;
+    <div class="sk"><div class="skv" style="color:var(--yellow)">${fmtN(totA)}<span style="font-size:10px;color:var(--t2)">円</span></div><div class="skl">実績合計</div></div>
+    <div class="sk"><div class="skv" style="color:${arari>=0?'var(--green)':'var(--red)'}">${arari>=0?'+':''}${fmtN(arari)}<span style="font-size:10px;color:var(--t2)">円</span></div><div class="skl">粗利（収入－実績）</div></div>
+    <div class="sk"><div class="skv" style="color:${col}">${done}<span style="font-size:11px;color:var(--t2)"> / ${ss.length}</span></div><div class="skl">実績入力済</div></div>`;
 
   const maxAll=Math.max(...ss.map(s=>Math.max(sessSum(s,'budget'),sessSum(s,'estimate'),sessSum(s,'actual'))),1);
   document.getElementById(`${key}-grid`).innerHTML=ss.map((s,i)=>{
