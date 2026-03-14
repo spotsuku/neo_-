@@ -448,7 +448,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
               <option>④ 制作・印刷費</option>
               <option>⑤ 運営・人件費</option>
               <option>⑥ 備品・設営費</option>
-              <option>⑦ 広報・その他</option>
+              <option>⑦ 広報費</option>
+              <option>⑧ その他</option>
             </select>
             <button class="btn btn-sm btn-p" onclick="openLedgerEdit(null)">＋ 明細を追加</button>
           </div>
@@ -920,7 +921,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <button class="tab" onclick="switchCatTab('④ 制作・印刷費',this)">④ 制作</button>
         <button class="tab" onclick="switchCatTab('⑤ 運営・人件費',this)">⑤ 運営</button>
         <button class="tab" onclick="switchCatTab('⑥ 備品・設営費',this)">⑥ 備品</button>
-        <button class="tab" onclick="switchCatTab('⑦ 広報・その他',this)">⑦ 広報</button>
+        <button class="tab" onclick="switchCatTab('⑦ 広報費',this)">⑦ 広報費</button>
+        <button class="tab" onclick="switchCatTab('⑧ その他',this)">⑧ その他</button>
       </div>
       <div id="cat-master-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:120px;padding:10px 0"></div>
       <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
@@ -1007,7 +1009,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
             <option>④ 制作・印刷費</option>
             <option>⑤ 運営・人件費</option>
             <option>⑥ 備品・設営費</option>
-            <option>⑦ 広報・その他</option>
+            <option>⑦ 広報費</option>
+            <option>⑧ その他</option>
           </select>
         </div>
         <div class="frow"><div class="fl">内容・品目</div><input class="fi" id="led-content" placeholder="例: イベント当日施設利用料"></div>
@@ -1427,7 +1430,8 @@ function renderOv(){
     '④ 制作・印刷費':         '#0f766e',
     '⑤ 運営・人件費':         '#1d4ed8',
     '⑥ 備品・設営費':         '#9a3412',
-    '⑦ 広報・その他':         '#4d7c0f',
+    '⑦ 広報費':               '#be185d',
+    '⑧ その他':               '#4b5563',
   };
   const cat7Data = ACCOUNTING_CATS.map(cat => {
     const actual  = (S.ledger||[]).filter(i=>i.cat===cat).reduce((t,i)=>t+n(i.actual),0);
@@ -1728,15 +1732,28 @@ function openSess(key,id){
 }
 function renderSessItems(){
   const wrap=document.getElementById('sess-items');
+  const catOpts = ACCOUNTING_CATS.map(cat =>
+    `<option value="${cat}">${cat}</option>`
+  ).join('');
   wrap.innerHTML=_sCtx.items.map((it,i)=>`
-    <div class="item-row" id="si-${i}">
+    <div class="item-row" id="si-${i}" style="grid-template-columns:20px 1fr 90px 90px 90px 26px">
       <div class="item-num">${i+1}</div>
-      <input type="text"   value="${it.name}"          placeholder="費目名"  data-i="${i}" data-f="name" oninput="updateSessItem(this)">
+      <select data-i="${i}" data-f="name" onchange="updateSessItem(this)"
+        style="padding:5px 7px;background:var(--s1);border:1.5px solid var(--b2);border-radius:6px;
+               color:var(--t1);font-size:11px;font-family:var(--sans);outline:none;width:100%">
+        <option value="">-- 会計科目を選択 --</option>
+        ${catOpts}
+      </select>
       <input type="number" value="${it.budget||''}"    placeholder="0" data-i="${i}" data-f="budget"   oninput="updateSessItem(this);updateSessTotals()" ${isAdmin()?'':'readonly style="opacity:.4;pointer-events:none"'}>
       <input type="number" value="${it.estimate||''}"  placeholder="0" data-i="${i}" data-f="estimate" oninput="updateSessItem(this);updateSessTotals()">
       <input type="number" value="${it.actual||''}"    placeholder="0" data-i="${i}" data-f="actual"   oninput="updateSessItem(this);updateSessTotals()">
       ${isAdmin()?`<button class="del-btn" onclick="removeSessItem(${i})">×</button>`:`<div style="width:22px"></div>`}
     </div>`).join('');
+  // selectの選択値をセット
+  _sCtx.items.forEach((it, i) => {
+    const sel = wrap.querySelector(`[data-i="${i}"][data-f="name"]`);
+    if (sel && it.name) sel.value = it.name;
+  });
   updateSessTotals();
 }
 function updateSessItem(inp){
@@ -1752,7 +1769,9 @@ function updateSessTotals(){
   document.getElementById('s-act-total').value=a?fmtN(a):'';
 }
 function addSessItem(){
-  _sCtx.items.push({id:uid(),name:'',budget:0,estimate:0,actual:0});
+  const used = new Set(_sCtx.items.map(it=>it.name));
+  const next = ACCOUNTING_CATS.find(c=>!used.has(c)) || '';
+  _sCtx.items.push({id:uid(),name:next,budget:0,estimate:0,actual:0});
   renderSessItems();
 }
 function removeSessItem(i){
@@ -1797,21 +1816,44 @@ function clearEvtItems() {
   renderEvtItems();
 }
 function renderEvtItems(){
+  const catOpts = ACCOUNTING_CATS.map(cat =>
+    `<option value="${cat}">${cat}</option>`
+  ).join('');
   document.getElementById('evt-items').innerHTML=_eCtx.items.map((it,i)=>`
-    <div class="item-row">
+    <div class="item-row" style="grid-template-columns:20px 1fr 100px 100px 100px 26px">
       <div class="item-num">${i+1}</div>
-      <input type="text"   value="${it.name}"         placeholder="費目名" data-i="${i}" data-f="name"     oninput="updateEvtItem(this)">
-      <input type="number" value="${it.budget||''}"   placeholder="0"     data-i="${i}" data-f="budget"   oninput="updateEvtItem(this)">
-      <input type="number" value="${it.estimate||''}" placeholder="0"     data-i="${i}" data-f="estimate" oninput="updateEvtItem(this)">
-      <input type="number" value="${it.actual||''}"   placeholder="0"     data-i="${i}" data-f="actual"   oninput="updateEvtItem(this)">
+      <select data-i="${i}" data-f="name" onchange="updateEvtItem(this)"
+        style="padding:5px 7px;background:var(--s1);border:1.5px solid var(--b2);border-radius:6px;
+               color:var(--t1);font-size:11px;font-family:var(--sans);outline:none;width:100%">
+        <option value="">-- 会計科目を選択 --</option>
+        ${catOpts}
+        <option value="${it.name}"${!ACCOUNTING_CATS.includes(it.name)&&it.name?' selected':''} style="display:${!ACCOUNTING_CATS.includes(it.name)&&it.name?'':'none'}">${it.name}</option>
+      </select>
+      <input type="number" value="${it.budget||''}"   placeholder="0" data-i="${i}" data-f="budget"   oninput="updateEvtItem(this)">
+      <input type="number" value="${it.estimate||''}" placeholder="0" data-i="${i}" data-f="estimate" oninput="updateEvtItem(this)">
+      <input type="number" value="${it.actual||''}"   placeholder="0" data-i="${i}" data-f="actual"   oninput="updateEvtItem(this)">
       ${isAdmin()?`<button class="del-btn" onclick="removeEvtItem(${i})">×</button>`:`<div style="width:22px"></div>`}
-    </div>`).join('');
+    </div>`).map((html, i) => {
+      // 現在の選択値をセット
+      return html;
+    }).join('');
+  // selectの選択値を正しくセット
+  _eCtx.items.forEach((it, i) => {
+    const sel = document.querySelector(`[data-i="${i}"][data-f="name"]`);
+    if (sel && it.name) sel.value = it.name;
+  });
 }
 function updateEvtItem(inp){
   const i=parseInt(inp.dataset.i),f=inp.dataset.f;
   _eCtx.items[i][f]=f==='name'?inp.value:parseFloat(inp.value)||0;
 }
-function addEvtItem(){_eCtx.items.push({id:uid(),name:'',budget:0,estimate:0,actual:0});renderEvtItems();}
+function addEvtItem(){
+  // まだ追加されていない科目を自動選択
+  const used = new Set(_eCtx.items.map(it=>it.name));
+  const next = ACCOUNTING_CATS.find(c=>!used.has(c)) || '';
+  _eCtx.items.push({id:uid(),name:next,budget:0,estimate:0,actual:0});
+  renderEvtItems();
+}
 function removeEvtItem(i){_eCtx.items.splice(i,1);renderEvtItems();}
 function saveEvt(){
   const key=_eCtx.key;
@@ -2530,7 +2572,8 @@ const ACCOUNTING_CATS = [
   '④ 制作・印刷費',
   '⑤ 運営・人件費',
   '⑥ 備品・設営費',
-  '⑦ 広報・その他',
+  '⑦ 広報費',
+  '⑧ その他',
 ];
 
 // 科目ごとの内訳費目（表示・入力のサジェスト用）
@@ -2629,7 +2672,8 @@ const CAT_COLORS = {
   '④ 制作・印刷費':         {fg:'0f766e', bg:'ccfbf1'},
   '⑤ 運営・人件費':         {fg:'1d4ed8', bg:'dbeafe'},
   '⑥ 備品・設営費':         {fg:'9a3412', bg:'ffedd5'},
-  '⑦ 広報・その他':         {fg:'4d7c0f', bg:'ecfccb'},
+  '⑦ 広報費':               {fg:'be185d', bg:'fce7f3'},
+  '⑧ その他':               {fg:'4b5563', bg:'f3f4f6'},
 };
 
 
