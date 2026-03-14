@@ -3558,9 +3558,8 @@ async function importAllSheets(ev) {
       const nonEmpty = rows.filter(r => r && r.some(v => v !== null && v !== '' && v !== '-')).slice(0,6);
       if (nonEmpty.length > 0) {
         sheetSamples[sname] = nonEmpty.map(r =>
-          r.map(v => v === null ? '' : String(v).slice(0,20)).join('	')
-        ).join('
-');
+          r.map(v => v === null ? '' : String(v).slice(0,20)).join('\t')
+        ).join('\n');
       }
     }
 
