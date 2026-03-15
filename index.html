@@ -311,10 +311,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
   <button class="nb" id="nb-users" onclick="go('users',this)" style="display:none"><span class="ic">👥</span>ユーザー管理</button>
   <button class="nb" onclick="go('history',this)"><span class="ic">🕐</span>ログイン履歴</button>
   <div class="sb-foot">
-    <button class="upload-area" id="xl-upload-btn" onclick="document.getElementById('xlFile').click()">
-      <span>⬆</span> Excelで同期
-    </button>
-    <input type="file" id="xlFile" accept=".xlsx,.xls" style="display:none" onchange="importXL(event)">
+
     <button class="upload-area" style="margin-top:6px;background:rgba(45,212,160,.08);border-color:rgba(45,212,160,.2);color:var(--green)" onclick="document.getElementById('xlImportFile').click()">
       <span>📊</span> Excel全シート取込
     </button>
@@ -323,9 +320,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       <span>🤖</span> AIでCSV解析・取込
     </button>
     <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="aiImportCSV(event)">
-    <button onclick="downloadCSVTemplate()" style="display:flex;align-items:center;gap:7px;padding:7px 10px;background:none;border:1px dashed var(--b2);border-radius:7px;cursor:pointer;font-size:10px;color:var(--t2);font-family:var(--sans);width:100%;margin-top:4px;transition:all .15s" onmouseover="this.style.color='var(--t1)'" onmouseout="this.style.color='var(--t2)'">
-      <span>⬇</span> CSVテンプレートDL
-    </button>
+
     <div id="user-info-bar" style="display:none;background:var(--s2);border:1px solid var(--b1);border-radius:7px;padding:8px 10px;margin:6px 0">
       <div style="font-size:9px;color:var(--t3);letter-spacing:.06em;margin-bottom:3px">ログイン中</div>
       <div id="user-display-name" style="font-size:11px;font-weight:700;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
@@ -369,64 +364,238 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 
     <!-- HOMEROOM -->
     <div class="pg" id="pg-hm">
-      <div style="margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div><div style="font-family:var(--disp);font-size:15px;font-weight:700">ホームルーム</div><div style="font-size:10px;color:var(--t2)">講座・ワークショップシリーズ</div></div>
+      <!-- タイトル行 -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div>
+          <div style="font-family:var(--disp);font-size:15px;font-weight:700">ホームルーム</div>
+          <div style="font-size:10px;color:var(--t2)">講座・ワークショップシリーズ</div>
+        </div>
         <button class="btn btn-sm btn-g admin-only" onclick="openSess('hm',null)">＋ 追加</button>
       </div>
-      <div class="g5" id="hm-kpis"></div>
-    </div>
+      <!-- KPIカード（5列） -->
+      <div class="g5" id="hm-kpis" style="margin-bottom:14px"></div>
+      <!-- 回次グリッド -->
       <div class="sg" id="hm-grid"></div>
     </div>
 
     <!-- GIKAI -->
     <div class="pg" id="pg-gk">
-      <div style="margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div><div style="font-family:var(--disp);font-size:15px;font-weight:700">NEO福岡評議会</div><div style="font-size:10px;color:var(--t2)">意思決定会議シリーズ</div></div>
+      <!-- タイトル行 -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div>
+          <div style="font-family:var(--disp);font-size:15px;font-weight:700">NEO福岡評議会</div>
+          <div style="font-size:10px;color:var(--t2)">意思決定会議シリーズ</div>
+        </div>
         <button class="btn btn-sm btn-g admin-only" onclick="openSess('gk',null)">＋ 追加</button>
       </div>
-      <div class="g5" id="gk-kpis"></div>
-    </div>
+      <!-- KPIカード（5列） -->
+      <div class="g5" id="gk-kpis" style="margin-bottom:14px"></div>
+      <!-- 回次グリッド -->
       <div class="sg" id="gk-grid"></div>
     </div>
 
     <!-- OEN -->
     <div class="pg" id="pg-oe">
-      <div style="margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div><div style="font-family:var(--disp);font-size:15px;font-weight:700">応援カイギ</div><div style="font-size:10px;color:var(--t2)">毎月開催の応援・交流会</div></div>
+      <!-- タイトル行 -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div>
+          <div style="font-family:var(--disp);font-size:15px;font-weight:700">応援カイギ</div>
+          <div style="font-size:10px;color:var(--t2)">毎月開催の応援・交流会</div>
+        </div>
         <button class="btn btn-sm btn-g admin-only" onclick="openSess('oe',null)">＋ 追加</button>
       </div>
-      <div class="g5" id="oe-kpis"></div>
-    </div>
+      <!-- KPIカード（5列） -->
+      <div class="g5" id="oe-kpis" style="margin-bottom:14px"></div>
+      <!-- 回次グリッド -->
       <div class="sg" id="oe-grid"></div>
     </div>
 
     <!-- KICKOFF -->
     <div class="pg" id="pg-ko">
-      <div class="g5" id="ko-kpis"></div>
-      <div class="g2">
-        <div class="card"><div class="ct"><div class="pip"></div>費目別明細<button class="btn btn-xs btn-g" style="margin-left:auto" onclick="openEvt('ko')" class="btn btn-xs btn-g admin-only">✏️ 編集</button></div><table class="tbl"><thead><tr><th>費目</th><th>予算</th><th>見積</th><th>実数</th><th>差異</th></tr></thead><tbody id="ko-tbody"></tbody></table></div>
-        <div class="card"><div class="ct"><div class="pip" style="background:var(--acc)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-ko"></canvas></div></div>
+      <!-- ① KPIサマリー（上部） -->
+      <div class="g5" id="ko-kpis" style="margin-bottom:14px"></div>
+      <!-- ② 会計科目別集計 + チャート -->
+      <div class="g2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="ct">
+            <div class="pip"></div>会計科目別集計
+            <button class="btn btn-xs btn-g" style="margin-left:auto" onclick="openEvt('ko')" class="btn btn-xs btn-g admin-only">✏️ 編集</button>
+          </div>
+          <table class="tbl"><thead><tr>
+              <th>会計科目</th>
+              <th style="text-align:right">予算（円）</th>
+              <th style="text-align:right">見積（円）</th>
+              <th style="text-align:right">実数（円）</th>
+              <th style="text-align:right">差異</th>
+            </tr></thead><tbody id="ko-tbody"></tbody></table>
+        </div>
+        <div class="card">
+          <div class="ct"><div class="pip" style="background:var(--acc)"></div>実数内訳</div>
+          <div class="ch-t"><canvas id="ch-ko"></canvas></div>
+        </div>
+      </div>
+      <!-- ③ 見積入力テーブル（下部） -->
+      <div class="card">
+        <div class="ct">
+          <div class="pip" style="background:var(--blue)"></div>
+          見積明細入力
+          <span style="font-size:9px;font-weight:400;color:var(--t2);margin-left:8px">品目名と金額を入力 → AIが会計科目に自動振り分け → 上の集計に反映</span>
+          <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+            <button class="btn btn-xs btn-g" onclick="addEstimateRow('ko')">＋ 行を追加</button>
+            <button class="btn btn-xs" onclick="aiClassifyEstimates('ko')"
+              style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">
+              🤖 AIで振り分け
+            </button>
+            <button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('ko')">✅ 集計に反映</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl" id="ko-est-table">
+            <thead><tr>
+              <th style="width:28px"></th>
+              <th>品目名・内容</th>
+              <th style="width:170px">会計科目</th>
+              <th style="text-align:right;width:110px">
+                予算（円）
+                <span style="font-size:8px;font-weight:400;color:var(--t3);display:block">管理者のみ</span>
+              </th>
+              <th style="text-align:right;width:110px">見積金額（円）</th>
+              <th style="text-align:right;width:110px">実績金額（円）</th>
+              <th style="width:28px"></th>
+            </tr></thead>
+            <tbody id="ko-est-tbody"></tbody>
+          </table>
+        </div>
+        <div id="ko-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">
+          「＋ 行を追加」で見積明細を入力できます
+        </div>
+        <div id="ko-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div>
       </div>
     </div>
 
     <!-- AWARD -->
     <div class="pg" id="pg-aw">
-      <div class="g5" id="aw-kpis"></div>
-      <div class="g2">
-        <div class="card"><div class="ct"><div class="pip"></div>費目別明細<button class="btn btn-xs btn-g" style="margin-left:auto" onclick="openEvt('aw')" class="btn btn-xs btn-g admin-only">✏️ 編集</button></div><table class="tbl"><thead><tr><th>費目</th><th>予算</th><th>見積</th><th>実数</th><th>差異</th></tr></thead><tbody id="aw-tbody"></tbody></table></div>
-        <div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-aw"></canvas></div></div>
+      <!-- ① KPIサマリー（上部） -->
+      <div class="g5" id="aw-kpis" style="margin-bottom:14px"></div>
+      <!-- ② 会計科目別集計 + チャート -->
+      <div class="g2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="ct">
+            <div class="pip"></div>会計科目別集計
+            <button class="btn btn-xs btn-g" style="margin-left:auto" onclick="openEvt('aw')" class="btn btn-xs btn-g admin-only">✏️ 編集</button>
+          </div>
+          <table class="tbl"><thead><tr>
+              <th>会計科目</th>
+              <th style="text-align:right">予算（円）</th>
+              <th style="text-align:right">見積（円）</th>
+              <th style="text-align:right">実数（円）</th>
+              <th style="text-align:right">差異</th>
+            </tr></thead><tbody id="aw-tbody"></tbody></table>
+        </div>
+        <div class="card">
+          <div class="ct"><div class="pip" style="background:var(--yellow)"></div>実数内訳</div>
+          <div class="ch-t"><canvas id="ch-aw"></canvas></div>
+        </div>
+      </div>
+      <!-- ③ 見積入力テーブル（下部） -->
+      <div class="card">
+        <div class="ct">
+          <div class="pip" style="background:var(--blue)"></div>
+          見積明細入力
+          <span style="font-size:9px;font-weight:400;color:var(--t2);margin-left:8px">品目名と金額を入力 → AIが会計科目に自動振り分け → 上の集計に反映</span>
+          <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+            <button class="btn btn-xs btn-g" onclick="addEstimateRow('aw')">＋ 行を追加</button>
+            <button class="btn btn-xs" onclick="aiClassifyEstimates('aw')"
+              style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">
+              🤖 AIで振り分け
+            </button>
+            <button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('aw')">✅ 集計に反映</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl" id="aw-est-table">
+            <thead><tr>
+              <th style="width:28px"></th>
+              <th>品目名・内容</th>
+              <th style="width:170px">会計科目</th>
+              <th style="text-align:right;width:110px">
+                予算（円）
+                <span style="font-size:8px;font-weight:400;color:var(--t3);display:block">管理者のみ</span>
+              </th>
+              <th style="text-align:right;width:110px">見積金額（円）</th>
+              <th style="text-align:right;width:110px">実績金額（円）</th>
+              <th style="width:28px"></th>
+            </tr></thead>
+            <tbody id="aw-est-tbody"></tbody>
+          </table>
+        </div>
+        <div id="aw-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">
+          「＋ 行を追加」で見積明細を入力できます
+        </div>
+        <div id="aw-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div>
       </div>
     </div>
 
     <!-- YEAREND -->
     <div class="pg" id="pg-ye">
-      <div class="g5" id="ye-kpis"></div>
-      <div class="g2">
-        <div class="card"><div class="ct"><div class="pip"></div>費目別明細<button class="btn btn-xs btn-g" style="margin-left:auto" onclick="openEvt('ye')" class="btn btn-xs btn-g admin-only">✏️ 編集</button></div><table class="tbl"><thead><tr><th>費目</th><th>予算</th><th>見積</th><th>実数</th><th>差異</th></tr></thead><tbody id="ye-tbody"></tbody></table></div>
-        <div class="card"><div class="ct"><div class="pip" style="background:var(--purple)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-ye"></canvas></div></div>
+      <!-- ① KPIサマリー（上部） -->
+      <div class="g5" id="ye-kpis" style="margin-bottom:14px"></div>
+      <!-- ② 会計科目別集計 + チャート -->
+      <div class="g2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="ct">
+            <div class="pip"></div>会計科目別集計
+            <button class="btn btn-xs btn-g" style="margin-left:auto" onclick="openEvt('ye')" class="btn btn-xs btn-g admin-only">✏️ 編集</button>
+          </div>
+          <table class="tbl"><thead><tr>
+              <th>会計科目</th>
+              <th style="text-align:right">予算（円）</th>
+              <th style="text-align:right">見積（円）</th>
+              <th style="text-align:right">実数（円）</th>
+              <th style="text-align:right">差異</th>
+            </tr></thead><tbody id="ye-tbody"></tbody></table>
+        </div>
+        <div class="card">
+          <div class="ct"><div class="pip" style="background:var(--purple)"></div>実数内訳</div>
+          <div class="ch-t"><canvas id="ch-ye"></canvas></div>
+        </div>
+      </div>
+      <!-- ③ 見積入力テーブル（下部） -->
+      <div class="card">
+        <div class="ct">
+          <div class="pip" style="background:var(--blue)"></div>
+          見積明細入力
+          <span style="font-size:9px;font-weight:400;color:var(--t2);margin-left:8px">品目名と金額を入力 → AIが会計科目に自動振り分け → 上の集計に反映</span>
+          <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+            <button class="btn btn-xs btn-g" onclick="addEstimateRow('ye')">＋ 行を追加</button>
+            <button class="btn btn-xs" onclick="aiClassifyEstimates('ye')"
+              style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">
+              🤖 AIで振り分け
+            </button>
+            <button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('ye')">✅ 集計に反映</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl" id="ye-est-table">
+            <thead><tr>
+              <th style="width:28px"></th>
+              <th>品目名・内容</th>
+              <th style="width:170px">会計科目</th>
+              <th style="text-align:right;width:110px">
+                予算（円）
+                <span style="font-size:8px;font-weight:400;color:var(--t3);display:block">管理者のみ</span>
+              </th>
+              <th style="text-align:right;width:110px">見積金額（円）</th>
+              <th style="text-align:right;width:110px">実績金額（円）</th>
+              <th style="width:28px"></th>
+            </tr></thead>
+            <tbody id="ye-est-tbody"></tbody>
+          </table>
+        </div>
+        <div id="ye-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">
+          「＋ 行を追加」で見積明細を入力できます
+        </div>
+        <div id="ye-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div>
       </div>
     </div>
 
@@ -485,69 +654,71 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 
     <!-- マーケ費用管理 -->
     <div class="pg" id="pg-mkt">
-      <div class="card" style="margin-bottom:12px">
+      <div class="card">
         <div class="ct">
           <div class="pip" style="background:var(--purple)"></div>マーケ費用管理
-          <div style="margin-left:auto;display:flex;gap:7px">
-            <select id="mkt-filter-cat" class="fi" style="width:140px;padding:4px 8px;font-size:10px" onchange="renderMkt()">
-              <option value="">すべてのカテゴリ</option>
+          <div style="margin-left:auto;display:flex;gap:7px;align-items:center">
+            <select id="mkt-filter-cat" class="fi" style="width:120px;padding:4px 8px;font-size:10px" onchange="renderMkt()">
+              <option value="">すべて</option>
               <option>動画</option><option>LP</option><option>チラシ</option>
               <option>ポスター</option><option>パンフ</option><option>広告出稿</option><option>その他</option>
             </select>
-            <button class="btn btn-sm btn-p" onclick="openMktEdit(null)">＋ 追加</button>
+            <button class="btn btn-sm btn-p" onclick="addMktRow()">＋ 行を追加</button>
+            <button class="btn btn-sm btn-g" onclick="saveMktInline()" style="font-weight:700">💾 保存</button>
           </div>
         </div>
-        <div id="mkt-summary" style="display:flex;gap:10px;padding:10px 0 14px;border-bottom:1px solid var(--b1);margin-bottom:12px;flex-wrap:wrap"></div>
+        <div id="mkt-summary" style="display:flex;gap:10px;padding:10px 0 14px;border-bottom:1px solid var(--b1);margin-bottom:10px;flex-wrap:wrap"></div>
         <div style="overflow-x:auto">
-          <table class="tbl" style="min-width:860px">
+          <table class="tbl" id="mkt-inline-table" style="min-width:820px">
             <thead><tr>
-              <th>カテゴリ</th><th>品目名</th><th>内容・仕様</th>
-              <th style="text-align:right">予算（円）</th>
-              <th style="text-align:right">見積（円）</th>
-              <th style="text-align:right">実績（円）</th>
-              <th>支払</th><th>備考</th><th style="width:32px"></th>
+              <th style="width:28px"></th>
+              <th style="width:110px">カテゴリ</th>
+              <th>品目名</th>
+              <th style="width:160px">内容・仕様</th>
+              <th style="text-align:right;width:110px">予算（円）</th>
+              <th style="text-align:right;width:110px">見積（円）</th>
+              <th style="text-align:right;width:110px">実績（円）</th>
+              <th style="width:80px">支払</th>
+              <th style="width:28px"></th>
             </tr></thead>
             <tbody id="mkt-tbody"></tbody>
           </table>
         </div>
-        <div id="mkt-empty" style="text-align:center;padding:32px;color:var(--t3);font-size:12px;display:none">まだデータがありません</div>
+        <div id="mkt-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」でマーケ費用を入力できます</div>
       </div>
     </div>
 
     <!-- 製作物管理 -->
     <div class="pg" id="pg-prod">
-      <div class="card" style="margin-bottom:12px">
-        <div class="ct">
-          <div class="pip" style="background:var(--acc2)"></div>製作物管理
-          <div style="margin-left:auto;display:flex;gap:7px">
-            <select id="prod-filter-cat" class="fi" style="width:160px;padding:4px 8px;font-size:10px" onchange="renderProd()">
-              <option value="">すべてのカテゴリ</option>
-              <option>グッズ</option><option>年間共通イベント製作物</option>
-              <option>キックオフ制作物</option><option>アワード制作物</option>
-              <option>イヤーエンド制作物</option><option>その他</option>
-            </select>
-            <button class="btn btn-sm btn-p" onclick="openProdEdit(null)">＋ 追加</button>
-          </div>
-        </div>
-        <div id="prod-summary" style="display:flex;gap:10px;padding:10px 0 14px;border-bottom:1px solid var(--b1);margin-bottom:12px;flex-wrap:wrap"></div>
-        <div style="overflow-x:auto">
-          <table class="tbl" style="min-width:900px">
-            <thead><tr>
-              <th>カテゴリ</th><th>品目名</th><th>仕様・内容</th>
-              <th style="text-align:right">単価</th><th style="text-align:right">数量</th><th>単位</th>
-              <th style="text-align:right">予算（円）</th>
-              <th style="text-align:right">見積（円）</th>
-              <th style="text-align:right">実績（円）</th>
-              <th>支払</th><th>備考</th><th style="width:32px"></th>
-            </tr></thead>
-            <tbody id="prod-tbody"></tbody>
-          </table>
-        </div>
-        <div id="prod-empty" style="text-align:center;padding:32px;color:var(--t3);font-size:12px;display:none">まだデータがありません</div>
+      <!-- フィルター行 -->
+      <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+        <select id="prod-filter-cat" class="fi" style="width:150px;padding:6px 10px;font-size:11px" onchange="renderProd()">
+          <option value="">すべてのカテゴリ</option>
+          <option>グッズ</option>
+          <option>イベント装飾</option>
+          <option>その他</option>
+        </select>
+        <select id="prod-filter-stock" class="fi" style="width:130px;padding:6px 10px;font-size:11px" onchange="renderProd()">
+          <option value="">在庫：すべて</option>
+          <option value="low">⚠️ 在庫少</option>
+          <option value="out">❌ 在庫なし</option>
+          <option value="ok">✅ 在庫あり</option>
+        </select>
+      </div>
+      <!-- KPIサマリー -->
+      <div class="g5" id="prod-kpis" style="margin-bottom:14px"></div>
+
+      <!-- セクション別テーブル -->
+      <div id="prod-sections"></div>
+
+      <!-- 行追加ボタン（フッター） -->
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn btn-sm btn-p" onclick="addProdRow()">＋ 行を追加</button>
+        <button class="btn btn-sm btn-g" onclick="saveProdInline()" style="font-weight:700">💾 保存</button>
       </div>
     </div>
 
-    <!-- 変更履歴 -->
+    <!-- 変更履歴 -->    <!-- 変更履歴 -->
     <div class="pg" id="pg-changelog">
       <div class="card">
         <div class="ct">
@@ -796,11 +967,10 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <span style="font-size:9px;color:var(--t3);margin-left:8px">※既存の費目は保持され、新しい費目が追加されます</span>
       </div>
       <div id="defaults-content">
-        <div class="item-hdr">
-          <span></span><span>費目名</span>
-          <span style="text-align:right">デフォルト予算（円）</span>
-          <span style="text-align:right">デフォルト見積（円）</span>
-          <span style="text-align:right">デフォルト実数（円）</span>
+        <div style="display:grid;grid-template-columns:20px 1fr 110px 26px;gap:5px;padding:0 4px;margin-bottom:4px">
+          <span></span>
+          <span style="font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase">会計科目（①〜⑧）</span>
+          <span style="font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;text-align:right">デフォルト予算（円）</span>
           <span></span>
         </div>
         <div id="defaults-items"></div>
@@ -867,18 +1037,29 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <div class="frow"><div class="fl">カテゴリ</div>
           <select class="fi" id="prod-cat">
             <option>グッズ</option><option>年間共通イベント製作物</option>
+            <option>シティフェス制作物</option>
             <option>キックオフ制作物</option><option>アワード制作物</option>
             <option>イヤーエンド制作物</option><option>その他</option>
           </select>
         </div>
         <div class="frow"><div class="fl">品目名</div><input class="fi" id="prod-name" placeholder="例: トートバッグ"></div>
       </div>
-      <div class="frow" style="margin-bottom:8px"><div class="fl">仕様・内容</div><input class="fi" id="prod-content" placeholder="例: ナチュラル色 34枚"></div>
+      <div class="frow" style="margin-bottom:8px"><div class="fl">仕様・内容</div><input class="fi" id="prod-content" placeholder="例: ナチュラル色・ロゴ入り"></div>
       <div class="fg4" style="margin-bottom:8px">
         <div class="frow"><div class="fl">単価（円）</div><input class="fi" id="prod-price" type="number" placeholder="0" oninput="calcProdTotal()"></div>
-        <div class="frow"><div class="fl">数量</div><input class="fi" id="prod-qty" type="number" placeholder="1" value="1" oninput="calcProdTotal()"></div>
+        <div class="frow"><div class="fl">製作数</div><input class="fi" id="prod-qty" type="number" placeholder="1" value="1" oninput="calcProdTotal();calcStock()"></div>
         <div class="frow"><div class="fl">単位</div><input class="fi" id="prod-unit" placeholder="個"></div>
         <div class="frow"><div class="fl">合計（自動）</div><input class="fi" id="prod-total" readonly style="color:var(--t2);opacity:.7"></div>
+      </div>
+      <div style="background:rgba(37,99,235,.05);border:1.5px solid rgba(37,99,235,.15);border-radius:8px;padding:12px 14px;margin-bottom:10px">
+        <div style="font-size:10px;font-weight:700;color:var(--blue);margin-bottom:8px;letter-spacing:.05em">📦 在庫管理</div>
+        <div class="fg4">
+          <div class="frow"><div class="fl">製作数（初期）</div><input class="fi" id="prod-stock-init" type="number" placeholder="0" oninput="calcStock()"></div>
+          <div class="frow"><div class="fl">配布済数</div><input class="fi" id="prod-stock-used" type="number" placeholder="0" oninput="calcStock()"></div>
+          <div class="frow"><div class="fl">在庫数（自動）</div><input class="fi" id="prod-stock-remain" readonly style="font-weight:700"></div>
+          <div class="frow"><div class="fl">在庫アラート数</div><input class="fi" id="prod-stock-alert" type="number" placeholder="例: 5"></div>
+        </div>
+        <div style="font-size:9px;color:var(--t2);margin-top:6px">在庫数 ＝ 製作数 − 配布済数 ／ アラート数以下になると⚠️表示</div>
       </div>
       <div class="fg3" style="margin-bottom:8px">
         <div class="frow"><div class="fl">予算（円）</div><input class="fi" id="prod-budget" type="number" placeholder="0"></div>
@@ -889,7 +1070,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <div class="frow"><div class="fl">支払状況</div>
           <select class="fi" id="prod-status"><option value="">未設定</option><option value="済">済</option><option value="未">未</option><option value="一部">一部</option></select>
         </div>
-        <div class="frow"><div class="fl">備考</div><input class="fi" id="prod-memo" placeholder="任意メモ"></div>
+        <div class="frow"><div class="fl">備考・配布先メモ</div><input class="fi" id="prod-memo" placeholder="例: 参加者配布用、社内配布 等"></div>
       </div>
     </div>
     <div class="pf" style="justify-content:space-between">
@@ -943,6 +1124,38 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <button class="btn btn-g" onclick="closeOv('ov-cat-master')">キャンセル</button>
         <button class="btn btn-p" onclick="saveCatMaster()">保存する</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 年度管理モーダル -->
+<div class="ov" id="ov-fiscal-year">
+  <div class="panel" style="width:520px">
+    <div class="ph">
+      <h2>📅 年度管理</h2>
+      <button class="xbtn" onclick="closeOv('ov-fiscal-year')">×</button>
+    </div>
+    <div class="pb-body">
+      <p style="font-size:11px;color:var(--t2);margin-bottom:16px">
+        年度ごとにデータを分けて管理できます。切り替えると該当年度のデータが表示されます。
+      </p>
+
+      <div style="font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">利用可能な年度</div>
+      <div id="fy-list" style="margin-bottom:20px"></div>
+
+      <div style="border-top:1px solid var(--b1);padding-top:16px" class="admin-only">
+        <div style="font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">新年度を作成（管理者のみ）</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="new-fy-input" type="number" class="fi" placeholder="例: 2026"
+            style="width:120px" min="2024" max="2040" value="2026">
+          <span style="font-size:11px;color:var(--t2)">年度（4月〜翌3月）</span>
+          <button class="btn btn-p btn-sm" onclick="createNewFiscalYear()">＋ 新年度作成</button>
+        </div>
+        <div style="font-size:10px;color:var(--t3);margin-top:6px">※ 新年度は空のデータで開始されます。既存データはコピーされません。</div>
+      </div>
+    </div>
+    <div class="pf">
+      <button class="btn btn-g" onclick="closeOv('ov-fiscal-year')">閉じる</button>
     </div>
   </div>
 </div>
@@ -1237,18 +1450,34 @@ function applyRoleUI() {
   if (xlBtn) xlBtn.style.display = isAdmin() ? '' : 'none';
 }
 
-const SK='neo_v5_sb'; // ローカルフォールバック用
-let S=loadS();
+// ══════════════════════════════════════════════════
+// 年度管理
+// ══════════════════════════════════════════════════
+// 年度ID: 2025 = 2025年度(2025/4〜2026/3)
+let _currentFiscalYear = parseInt(localStorage.getItem('neo_fiscal_year') || '2025');
+
+function getFiscalYearLabel(fy) {
+  return `${fy}年度（${fy}/4〜${fy+1}/3）`;
+}
+
+function getFiscalYearDbId(fy) {
+  // DBのid: 2025年度=1, 2026年度=2, ...
+  return fy - 2024;
+}
+
+const SK = `neo_v5_${_currentFiscalYear}`; // ローカルストレージキー（年度別）
+let S = loadS();
 
 function loadS(){
-  try{const r=localStorage.getItem(SK);if(r)return JSON.parse(r);}catch(e){}
+  try{const r=localStorage.getItem(`neo_v5_${_currentFiscalYear}`);if(r)return JSON.parse(r);}catch(e){}
   return JSON.parse(JSON.stringify(DEF));
 }
 
 // Supabaseからデータ読み込み
 async function loadFromDB() {
   try {
-    const {data, error} = await _sb.from('dashboard_data').select('data').eq('id',1).maybeSingle();
+    const dbId = getFiscalYearDbId(_currentFiscalYear);
+    const {data, error} = await _sb.from('dashboard_data').select('data').eq('id',dbId).maybeSingle();
     if (error && error.code !== 'PGRST116') throw error;
     if (data?.data && Object.keys(data.data).length > 0) {
       S = data.data;
@@ -1292,19 +1521,20 @@ async function save() {
     slbl().textContent = '保存中...';
 
     // まずUPDATEを試みる
+    const dbId = getFiscalYearDbId(_currentFiscalYear);
     const {data: upData, error: upErr} = await _sb
       .from('dashboard_data')
       .update({data: S, updated_by: _currentUser.id, updated_at: new Date().toISOString()})
-      .eq('id', 1)
+      .eq('id', dbId)
       .select();
 
     if (upErr) throw upErr;
 
-    // UPDATEで行が更新されなかった場合（レコードがない）はINSERT
+    // UPDATEで行が更新されなかった場合はINSERT
     if (!upData || upData.length === 0) {
       const {error: inErr} = await _sb
         .from('dashboard_data')
-        .insert({id: 1, data: S, updated_by: _currentUser.id, updated_at: new Date().toISOString()});
+        .insert({id: dbId, data: S, updated_by: _currentUser.id, updated_at: new Date().toISOString()});
       if (inErr) throw inErr;
     }
 
@@ -1339,6 +1569,93 @@ async function saveMemberData() {
 }
 function sdot(){return document.getElementById('sdot');}
 function slbl(){return document.getElementById('slbl');}
+
+
+// ══════════════════════════════════════════════════
+// 年度切り替え
+// ══════════════════════════════════════════════════
+async function switchFiscalYear(fy) {
+  fy = parseInt(fy);
+  if (fy === _currentFiscalYear) return;
+
+  if (!confirm(`${getFiscalYearLabel(fy)}に切り替えます。\n現在のデータは自動保存されます。`)) return;
+
+  // 現在のデータを保存
+  await save();
+
+  // 年度を切り替え
+  _currentFiscalYear = fy;
+  localStorage.setItem('neo_fiscal_year', fy);
+
+  // 新しい年度のデータを読み込む
+  S = loadS(); // まずローカルから
+  await loadFromDB(); // DBから上書き
+
+  // UIを更新
+  updateFiscalYearUI();
+  renderPg(_curPg || 'ov');
+  go('ov', document.querySelector('.nb'));
+}
+
+async function createNewFiscalYear() {
+  if (!isAdmin()) { alert('年度作成は管理者のみ可能です'); return; }
+  const fy = parseInt(document.getElementById('new-fy-input').value);
+  if (!fy || fy < 2024 || fy > 2040) { alert('正しい年度を入力してください'); return; }
+
+  if (!confirm(`${getFiscalYearLabel(fy)}を新規作成します。\n空のデータで開始しますか？`)) return;
+
+  _currentFiscalYear = fy;
+  localStorage.setItem('neo_fiscal_year', fy);
+  S = JSON.parse(JSON.stringify(DEF)); // 初期データ
+  S.fiscalYear = fy;
+  await save();
+  updateFiscalYearUI();
+  closeOv('ov-fiscal-year');
+  renderPg('ov');
+  go('ov', document.querySelector('.nb'));
+  alert(`✅ ${getFiscalYearLabel(fy)}を作成しました`);
+}
+
+function updateFiscalYearUI() {
+  // トップバーの年度表示を更新
+  const el = document.getElementById('fiscal-year-label');
+  if (el) el.textContent = getFiscalYearLabel(_currentFiscalYear);
+
+  // サイドバーの年度セレクタを更新
+  const sel = document.getElementById('fy-selector');
+  if (sel) sel.value = _currentFiscalYear;
+
+  // ローカルストレージのキーも更新
+  // （切り替え時にloadSが新しいキーを参照するよう_currentFiscalYearは更新済み）
+}
+
+async function loadAvailableFiscalYears() {
+  try {
+    const {data} = await _sb.from('dashboard_data').select('id').order('id');
+    return (data||[]).map(r => r.id + 2024);
+  } catch(e) {
+    return [_currentFiscalYear];
+  }
+}
+
+async function openFiscalYearManager() {
+  const years = await loadAvailableFiscalYears();
+  const listEl = document.getElementById('fy-list');
+  if (listEl) {
+    listEl.innerHTML = years.map(fy => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;
+        border-radius:8px;margin-bottom:6px;cursor:pointer;
+        background:${fy===_currentFiscalYear?'rgba(37,99,235,.08)':'var(--s2)'};
+        border:1.5px solid ${fy===_currentFiscalYear?'var(--blue)':'var(--b1)'}">
+        <div>
+          <div style="font-weight:700;font-size:13px;color:${fy===_currentFiscalYear?'var(--blue)':'var(--t1)'}">${getFiscalYearLabel(fy)}</div>
+          ${fy===_currentFiscalYear?'<div style="font-size:10px;color:var(--blue)">✅ 現在表示中</div>':''}
+        </div>
+        ${fy!==_currentFiscalYear?`<button class="btn btn-sm btn-p" onclick="switchFiscalYear(${fy});closeOv('ov-fiscal-year')">切り替え</button>`:''}
+      </div>`).join('');
+  }
+  openOv('ov-fiscal-year');
+}
 
 // ══════════════════════════════════════════════════
 // HELPERS
@@ -1421,33 +1738,29 @@ function renderOv(){
     `<div class="rev-row" style="border-top:1px solid var(--acc);margin-top:8px;padding-top:8px"><strong>収入合計</strong><span style="font-family:var(--mono);font-size:13px;color:var(--green);font-weight:700">${fmt(totR)}</span></div>
     <div class="net-box"><div style="font-size:10px;color:var(--t2)">実質余剰額</div><div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green)">+${fmt(diff+totR)}</div></div>`;
 
-  const bc=['var(--acc)','var(--blue)','var(--purple)','var(--yellow)','var(--green)'];
-  // 7科目ごとの実績を経費明細から動的集計
-  const CAT7_COLORS = {
-    '① 会場・施設費':         '#0369a1',
-    '② 飲食・ケータリング費': '#b45309',
-    '③ 出演・キャスティング費':'#7c3aed',
-    '④ 制作・印刷費':         '#0f766e',
-    '⑤ 運営・人件費':         '#1d4ed8',
-    '⑥ 備品・設営費':         '#9a3412',
-    '⑦ 広報費':               '#be185d',
-    '⑧ その他':               '#4b5563',
+  // 8科目集計（全ソース：ledger + events + sessions）
+  const CAT8_COLORS = {
+    '① 会場・施設費':'#0369a1','② 飲食・ケータリング費':'#b45309',
+    '③ 出演・キャスティング費':'#7c3aed','④ 制作・印刷費':'#0f766e',
+    '⑤ 運営・人件費':'#1d4ed8','⑥ 備品・設営費':'#9a3412',
+    '⑦ 広報費':'#be185d','⑧ その他':'#4b5563',
   };
-  const cat7Data = ACCOUNTING_CATS.map(cat => {
-    const actual  = (S.ledger||[]).filter(i=>i.cat===cat).reduce((t,i)=>t+n(i.actual),0);
-    const estimate= (S.ledger||[]).filter(i=>i.cat===cat).reduce((t,i)=>t+n(i.estimate),0);
-    return { name:cat, actual, estimate, color:CAT7_COLORS[cat]||'#374151' };
-  });
+  const totals8 = calcCat8Totals();
+  const maxActual8 = Math.max(...ACCOUNTING_CATS.map(cat=>totals8[cat]?.actual||0), 1);
 
-  document.getElementById('ov-cats').innerHTML = cat7Data.map(c => {
-    const maxVal = Math.max(...cat7Data.map(d=>d.actual), 1);
-    const p = Math.min(Math.round(c.actual / maxVal * 100), 100);
+  document.getElementById('ov-cats').innerHTML = ACCOUNTING_CATS.map(cat => {
+    const t = totals8[cat] || {estimate:0, actual:0};
+    const p = Math.min(Math.round(t.actual / maxActual8 * 100), 100);
+    const col = CAT8_COLORS[cat] || '#374151';
     return `<div class="pb">
       <div class="pb-top">
-        <span class="n">${c.name}</span>
-        <span class="p" style="font-family:var(--mono)">${fmtN(c.actual)}円</span>
+        <span class="n">${cat}</span>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--t2)">
+          実績 <strong style="color:${col}">${fmtN(t.actual)}円</strong>
+          ${t.estimate ? ` ／ 見積 ${fmtN(t.estimate)}円` : ''}
+        </span>
       </div>
-      <div class="pb-track"><div class="pb-fill" style="width:${Math.max(p, c.actual>0?2:0)}%;background:${c.color}"></div></div>
+      <div class="pb-track"><div class="pb-fill" style="width:${Math.max(p, t.actual>0?2:0)}%;background:${col}"></div></div>
     </div>`;
   }).join('');
 
@@ -1463,14 +1776,15 @@ function renderOv(){
   _ch['ch-cat']=new Chart(document.getElementById('ch-cat'),{
     type:'bar',
     data:{
-      labels: cat7Data.map(c=>c.name.replace(/^. /,'')),
+      labels: ACCOUNTING_CATS.map(c=>c.replace(/^. /,'')),
       datasets:[
-        {label:'実績', data:cat7Data.map(c=>c.actual),
-          backgroundColor:cat7Data.map(c=>c.color+'bb'),
-          borderColor:cat7Data.map(c=>c.color), borderWidth:1, borderRadius:4},
-        {label:'見積', data:cat7Data.map(c=>c.estimate),
+        {label:'実績', data:ACCOUNTING_CATS.map(cat=>totals8[cat]?.actual||0),
+          backgroundColor:ACCOUNTING_CATS.map(cat=>(CAT8_COLORS[cat]||'#374151')+'bb'),
+          borderColor:ACCOUNTING_CATS.map(cat=>CAT8_COLORS[cat]||'#374151'),
+          borderWidth:1, borderRadius:4},
+        {label:'見積', data:ACCOUNTING_CATS.map(cat=>totals8[cat]?.estimate||0),
           backgroundColor:'transparent',
-          borderColor:cat7Data.map(c=>c.color+'66'),
+          borderColor:ACCOUNTING_CATS.map(cat=>(CAT8_COLORS[cat]||'#374151')+'55'),
           borderWidth:1.5, borderRadius:4},
       ]
     },
@@ -1478,7 +1792,7 @@ function renderOv(){
       plugins:{legend:{display:true,position:'top',labels:{boxWidth:8,padding:10,font:{size:10}}},
         tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ¥${Math.round(ctx.raw).toLocaleString()}`}}},
       scales:{x:{grid:g0,ticks:{font:{size:9},maxRotation:30}},
-        y:{grid:g0,ticks:{callback:v=>(v/10000)+'万'}}}}});
+        y:{grid:g0,ticks:{callback:v=>v>=10000?(v/10000)+'万':v}}}}});
 
   dc('ch-donut');
   _ch['ch-donut']=new Chart(document.getElementById('ch-donut'),{
@@ -1637,13 +1951,67 @@ function renderEvt(key){
       <div class="ks">${arari>=0?'✅ 黒字':'⚠️ 赤字'}</div>
     </div>`;
 
-  document.getElementById(`${key}-tbody`).innerHTML=ev.items.map(it=>{
-    const d=n(it.estimate)-n(it.actual);
-    return`<tr><td style="font-weight:500">${it.name}</td>
-      <td class="num-dim">${fmtN(it.budget)}</td>
-      <td style="color:#6ba8ff">${fmtN(it.estimate)}</td>
-      <td style="color:var(--green)">${fmtN(it.actual)}</td>
-      <td class="${d>=0?'ok':'ng'}">${d>=0?'▲':'▼'} ${fmtN(Math.abs(d))}</td></tr>`;
+  // 経費明細から該当イベントのデータを取得
+  const EVT_PROG_NAMES = {
+    ko:['キックオフ'], aw:['アワード','AWARD'], ye:['イヤーエンド','YEAR END'], md:['マッチデイ']
+  };
+  const evtProgNames = EVT_PROG_NAMES[key] || [];
+  const ledgerForEvt = (S.ledger||[]).filter(item =>
+    evtProgNames.some(kw => (item.prog||'').includes(kw))
+  );
+  // 見積テーブルのデータも含める
+  const estForEvt = (S.estimates?.[key] || []).filter(r => r.name);
+
+  // 各会計科目行 + 折りたたみ詳細
+  document.getElementById(`${key}-tbody`).innerHTML = ev.items.map((it,idx) => {
+    const catName = it.name;
+    const d = n(it.estimate) - n(it.actual);
+    const hasDetail = ledgerForEvt.some(l => l.cat === catName) || estForEvt.some(e => e.cat === catName);
+
+    // 詳細行：経費明細
+    const ledgerDetails = ledgerForEvt.filter(l => l.cat === catName);
+    const estDetails    = estForEvt.filter(e => e.cat === catName);
+
+    const detailRows = [
+      ...ledgerDetails.map(l => {
+        const ld = n(l.estimate) - n(l.actual);
+        return `<tr id="detail-${key}-${idx}-l${l.id}" style="display:none;background:rgba(37,99,235,.03)">
+          <td style="padding-left:28px;font-size:11px;color:var(--t2)">
+            <span style="font-size:9px;background:var(--s3);padding:1px 5px;border-radius:3px;margin-right:6px;color:var(--t3)">経費明細</span>
+            ${l.fee}${l.content?`<span style="color:var(--t3);margin-left:6px;font-size:10px">${l.content}</span>`:''}
+          </td>
+          <td style="font-family:var(--mono);font-size:11px;color:var(--t2);text-align:right">${l.budget?fmtN(l.budget):'—'}</td>
+          <td style="font-family:var(--mono);font-size:11px;color:var(--blue);text-align:right">${l.estimate?fmtN(l.estimate):'—'}</td>
+          <td style="font-family:var(--mono);font-size:11px;color:var(--green);text-align:right">${l.actual?fmtN(l.actual):'—'}</td>
+          <td style="font-size:11px;text-align:right" class="${ld>=0?'ok':'ng'}">${l.estimate||l.actual?`${ld>=0?'▲':'▼'} ${fmtN(Math.abs(ld))}`:'—'}</td>
+        </tr>`;
+      }),
+      ...estDetails.map((e,ei) => {
+        const ed = n(e.estimate) - n(e.actual);
+        return `<tr id="detail-${key}-${idx}-e${ei}" style="display:none;background:rgba(37,99,235,.03)">
+          <td style="padding-left:28px;font-size:11px;color:var(--t2)">
+            <span style="font-size:9px;background:rgba(37,99,235,.1);padding:1px 5px;border-radius:3px;margin-right:6px;color:var(--blue)">見積</span>
+            ${e.name}
+          </td>
+          <td style="text-align:right">—</td>
+          <td style="font-family:var(--mono);font-size:11px;color:var(--blue);text-align:right">${e.estimate?fmtN(e.estimate):'—'}</td>
+          <td style="font-family:var(--mono);font-size:11px;color:var(--green);text-align:right">${e.actual?fmtN(e.actual):'—'}</td>
+          <td style="font-size:11px;text-align:right" class="${ed>=0?'ok':'ng'}">${e.estimate||e.actual?`${ed>=0?'▲':'▼'} ${fmtN(Math.abs(ed))}`:'—'}</td>
+        </tr>`;
+      }),
+    ].join('');
+
+    const toggleBtn = hasDetail
+      ? `<span onclick="toggleEvtDetail('${key}',${idx})" style="cursor:pointer;font-size:10px;color:var(--blue);margin-left:6px;user-select:none" id="toggle-${key}-${idx}">▶ 詳細</span>`
+      : '';
+
+    return `<tr style="cursor:${hasDetail?'pointer':'default'}" onclick="${hasDetail?`toggleEvtDetail('${key}',${idx})`:''}">
+      <td style="font-weight:600;font-size:13px">${catName}${toggleBtn}</td>
+      <td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--t2)">${it.budget?fmtN(it.budget):'—'}</td>
+      <td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--blue)">${it.estimate?fmtN(it.estimate):'—'}</td>
+      <td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--green);font-weight:600">${it.actual?fmtN(it.actual):'—'}</td>
+      <td style="font-size:12px;text-align:right" class="${d>=0?'ok':'ng'}">${d>=0?'▲':'▼'} ${fmtN(Math.abs(d))}</td>
+    </tr>${detailRows}`;
   }).join('');
 
   const items=ev.items.filter(i=>n(i.actual)>0);
@@ -1655,6 +2023,9 @@ function renderEvt(key){
     options:{responsive:true,maintainAspectRatio:false,cutout:'58%',
       plugins:{legend:{position:'right',labels:{boxWidth:7,padding:8,font:{size:10}}},
         tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ¥${Math.round(ctx.raw).toLocaleString()}`}}}}});
+
+  // 見積入力テーブルを描画
+  renderEstimateTable(key);
 }
 
 // ══════════════════════════════════════════════════
@@ -1810,6 +2181,16 @@ function openEvt(key){
   renderEvtItems();openOv('ov-evt');
 }
 
+
+function toggleEvtDetail(key, idx) {
+  const btn = document.getElementById(`toggle-${key}-${idx}`);
+  // この科目の詳細行を全て取得
+  const rows = document.querySelectorAll(`[id^="detail-${key}-${idx}-"]`);
+  if (!rows.length) return;
+  const isOpen = rows[0].style.display !== 'none';
+  rows.forEach(r => r.style.display = isOpen ? 'none' : '');
+  if (btn) btn.textContent = isOpen ? '▶ 詳細' : '▼ 詳細';
+}
 function clearEvtItems() {
   if (!confirm('全費目をクリアしますか？（保存するまで元に戻せます）')) return;
   _eCtx.items = [];
@@ -2626,10 +3007,21 @@ const CAT_MASTER = {
   'トロフィー': '④ 制作・印刷費', '賞品': '④ 制作・印刷費',
   'パンフ': '④ 制作・印刷費', 'チラシ': '④ 制作・印刷費', 'ポスター': '④ 制作・印刷費',
   'アルバム': '④ 制作・印刷費', 'グッズ': '④ 制作・印刷費',
+  // 製作物シート特有の品目名
   'マグカップ': '④ 制作・印刷費', 'トートバッグ': '④ 制作・印刷費',
   'ステッカー': '④ 制作・印刷費', 'クリアファイル': '④ 制作・印刷費',
   'バインダー': '④ 制作・印刷費', '花装飾': '④ 制作・印刷費',
   '照明': '④ 制作・印刷費', '演出': '④ 制作・印刷費',
+  'フォトブース': '④ 制作・印刷費', 'ターポリン': '④ 制作・印刷費',
+  'ウェルカムボード': '④ 制作・印刷費', '企業ロゴ': '④ 制作・印刷費',
+  '企業展示': '④ 制作・印刷費', '展示パネル': '④ 制作・印刷費',
+  '装飾パネル': '④ 制作・印刷費', '受賞パネル': '④ 制作・印刷費',
+  'ロゴパネル': '④ 制作・印刷費', 'ステージパネル': '④ 制作・印刷費',
+  '受付パネル': '④ 制作・印刷費', '広告フラッグ': '④ 制作・印刷費',
+  '公式プログラム': '④ 制作・印刷費', 'スタンプラリー': '④ 制作・印刷費',
+  '詰め合わせボックス': '④ 制作・印刷費', '送料（SUZURI）': '④ 制作・印刷費',
+  'ロールアップ': '④ 制作・印刷費', 'バックパネル': '④ 制作・印刷費',
+  '冠企業特設ブース': '④ 制作・印刷費', '企画制作': '④ 制作・印刷費',
 
   // ⑤ 運営・人件費
   '運営スタッフ': '⑤ 運営・人件費', '運営D': '⑤ 運営・人件費',
@@ -3180,22 +3572,33 @@ function showAiCsvError(msg) {
 // ══════════════════════════════════════════════════
 
 // デフォルト費目テンプレートの初期値
+// デフォルト費目：①〜⑧の会計科目順で統一
+function makeDefaultItems(budgets) {
+  return ACCOUNTING_CATS.map(cat => ({
+    id: uid(),
+    name: cat,
+    budget:   budgets[cat]   || 0,
+    estimate: 0,
+    actual:   0,
+  }));
+}
+
 const SERIES_DEFAULTS_INIT = {
-  hm: [
-    {id:uid(),name:'会場費',     budget:55000, estimate:0, actual:0},
-    {id:uid(),name:'講師・演者費',budget:110000,estimate:0, actual:0},
-    {id:uid(),name:'備品・消耗品',budget:15000, estimate:0, actual:0},
-    {id:uid(),name:'運営人件費',  budget:0,     estimate:0, actual:0},
-    {id:uid(),name:'旅費交通費',  budget:60000, estimate:0, actual:0},
-    {id:uid(),name:'諸経費',      budget:20000, estimate:0, actual:0},
-  ],
-  gk: [
-    {id:uid(),name:'会場費',  budget:55000,estimate:0,actual:0},
-    {id:uid(),name:'諸経費',  budget:5500, estimate:0,actual:0},
-  ],
-  oe: [
-    {id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:0},
-  ],
+  hm: makeDefaultItems({
+    '① 会場・施設費':         55000,
+    '③ 出演・キャスティング費':110000,
+    '⑤ 運営・人件費':         0,
+    '⑥ 備品・設営費':         15000,
+    '⑧ その他':              20000,
+  }),
+  gk: makeDefaultItems({
+    '① 会場・施設費': 55000,
+    '⑧ その他':       5500,
+  }),
+  oe: makeDefaultItems({
+    '① 会場・施設費':          5500,
+    '② 飲食・ケータリング費':  0,
+  }),
 };
 
 // S.defaults が未設定なら初期値をセット
@@ -3231,19 +3634,28 @@ function switchDefaultsTab(key, btn) {
 
 function renderDefaultsItems() {
   const items = _defItems[_defTab] || [];
+  const catOpts = ACCOUNTING_CATS.map(cat =>
+    `<option value="${cat}">${cat}</option>`
+  ).join('');
   document.getElementById('defaults-items').innerHTML = items.map((it, i) => `
-    <div class="item-row">
+    <div class="item-row" style="grid-template-columns:20px 1fr 110px 26px">
       <div class="item-num">${i+1}</div>
-      <input type="text"   value="${it.name}"           placeholder="費目名"
-        data-i="${i}" data-f="name"     oninput="updateDefItem(this)">
-      <input type="number" value="${it.budget||''}"     placeholder="0"
-        data-i="${i}" data-f="budget"   oninput="updateDefItem(this);updateDefaultsPreview()">
-      <input type="number" value="${it.estimate||''}"   placeholder="0"
-        data-i="${i}" data-f="estimate" oninput="updateDefItem(this)">
-      <input type="number" value="${it.actual||''}"     placeholder="0"
-        data-i="${i}" data-f="actual"   oninput="updateDefItem(this)">
+      <select data-i="${i}" data-f="name" onchange="updateDefItem(this)"
+        style="padding:5px 7px;background:var(--s1);border:1.5px solid var(--b2);border-radius:6px;
+               color:var(--t1);font-size:11px;font-family:var(--sans);outline:none;width:100%">
+        <option value="">-- 会計科目を選択 --</option>
+        ${catOpts}
+      </select>
+      <input type="number" value="${it.budget||''}" placeholder="デフォルト予算"
+        data-i="${i}" data-f="budget" oninput="updateDefItem(this);updateDefaultsPreview()"
+        style="text-align:right">
       <button class="del-btn" onclick="removeDefItem(${i})">×</button>
     </div>`).join('');
+  // selectの選択値をセット
+  items.forEach((it, i) => {
+    const sel = document.querySelector(`#defaults-items [data-i="${i}"][data-f="name"]`);
+    if (sel && it.name) sel.value = it.name;
+  });
   updateDefaultsPreview();
 }
 
@@ -3253,7 +3665,9 @@ function updateDefItem(inp) {
 }
 
 function addDefaultItem() {
-  _defItems[_defTab].push({id: uid(), name:'', budget:0, estimate:0, actual:0});
+  const used = new Set((_defItems[_defTab]||[]).map(it=>it.name));
+  const next = ACCOUNTING_CATS.find(c=>!used.has(c)) || '';
+  _defItems[_defTab].push({id: uid(), name:next, budget:0, estimate:0, actual:0});
   renderDefaultsItems();
 }
 
@@ -3321,43 +3735,37 @@ function openSess(key, id) {
 
 // イベント系デフォルト初期値
 const EVENT_DEFAULTS_INIT = {
-  ko: [
-    {id:uid(),name:'会場費',              budget:400000, estimate:0,actual:0},
-    {id:uid(),name:'ケータリング・ドリンク',budget:150000,estimate:0,actual:0},
-    {id:uid(),name:'制作・パネル',        budget:200000, estimate:0,actual:0},
-    {id:uid(),name:'映像・撮影',          budget:300000, estimate:0,actual:0},
-    {id:uid(),name:'運営委託',            budget:150000, estimate:0,actual:0},
-    {id:uid(),name:'MC・キャスティング',  budget:150000, estimate:0,actual:0},
-    {id:uid(),name:'旅費交通費',          budget:100000, estimate:0,actual:0},
-    {id:uid(),name:'諸経費',              budget:100000, estimate:0,actual:0},
-  ],
-  aw: [
-    {id:uid(),name:'会場費',              budget:500000,  estimate:0,actual:0},
-    {id:uid(),name:'ケータリング',        budget:300000,  estimate:0,actual:0},
-    {id:uid(),name:'審査員・キャスティング',budget:400000,estimate:0,actual:0},
-    {id:uid(),name:'運営・進行人件費',    budget:400000,  estimate:0,actual:0},
-    {id:uid(),name:'制作・施工',          budget:800000,  estimate:0,actual:0},
-    {id:uid(),name:'賞金・懇親会',        budget:600000,  estimate:0,actual:0},
-    {id:uid(),name:'デザイン費',          budget:200000,  estimate:0,actual:0},
-    {id:uid(),name:'諸経費',              budget:100000,  estimate:0,actual:0},
-  ],
-  ye: [
-    {id:uid(),name:'会場費',              budget:1100000, estimate:0,actual:0},
-    {id:uid(),name:'ケータリング',        budget:300000,  estimate:0,actual:0},
-    {id:uid(),name:'制作・施工',          budget:200000,  estimate:0,actual:0},
-    {id:uid(),name:'運営・進行人件費',    budget:200000,  estimate:0,actual:0},
-    {id:uid(),name:'MC・キャスティング',  budget:100000,  estimate:0,actual:0},
-    {id:uid(),name:'デザイン・花装飾',    budget:100000,  estimate:0,actual:0},
-    {id:uid(),name:'その他諸経費',        budget:35000,   estimate:0,actual:0},
-  ],
-  md: [
-    {id:uid(),name:'会場費（試合）',      budget:0, estimate:0,actual:0},
-    {id:uid(),name:'ケータリング',        budget:0, estimate:0,actual:0},
-    {id:uid(),name:'制作・装飾',          budget:0, estimate:0,actual:0},
-    {id:uid(),name:'運営人件費',          budget:0, estimate:0,actual:0},
-    {id:uid(),name:'MC・キャスティング',  budget:0, estimate:0,actual:0},
-    {id:uid(),name:'諸経費',              budget:0, estimate:0,actual:0},
-  ],
+  ko: makeDefaultItems({
+    '① 会場・施設費':          400000,
+    '② 飲食・ケータリング費':  150000,
+    '③ 出演・キャスティング費':150000,
+    '④ 制作・印刷費':          500000,
+    '⑤ 運営・人件費':          150000,
+    '⑥ 備品・設営費':          130000,
+    '⑦ 広報費':                0,
+    '⑧ その他':               100000,
+  }),
+  aw: makeDefaultItems({
+    '① 会場・施設費':          500000,
+    '② 飲食・ケータリング費':  300000,
+    '③ 出演・キャスティング費':1000000,
+    '④ 制作・印刷費':          1000000,
+    '⑤ 運営・人件費':          400000,
+    '⑥ 備品・設営費':          727000,
+    '⑦ 広報費':                0,
+    '⑧ その他':               100000,
+  }),
+  ye: makeDefaultItems({
+    '① 会場・施設費':          1100000,
+    '② 飲食・ケータリング費':  300000,
+    '③ 出演・キャスティング費':100000,
+    '④ 制作・印刷費':          300000,
+    '⑤ 運営・人件費':          200000,
+    '⑥ 備品・設営費':          0,
+    '⑦ 広報費':                0,
+    '⑧ その他':               35000,
+  }),
+  md: makeDefaultItems({}),
 };
 
 // S.defaults にイベント系を追加
@@ -3722,18 +4130,48 @@ function calcProdTotal() {
   if (!actEl.value && t) actEl.value = t;
 }
 
+function getStockStatus(it) {
+  const init = n(it.stockInit) || n(it.qty) || 0;
+  const used = n(it.stockUsed) || 0;
+  const remain = init - used;
+  const alert = n(it.stockAlert) || 0;
+  return { init, used, remain, alert };
+}
+
 function renderProd() {
-  const filterCat = document.getElementById('prod-filter-cat')?.value || '';
-  let items = (S.prodItems||[]).filter(i => !filterCat || i.cat === filterCat);
+  const filterCat   = document.getElementById('prod-filter-cat')?.value   || '';
+  const filterStock = document.getElementById('prod-filter-stock')?.value || '';
+
+  let items = (S.prodItems||[]).filter(i => {
+    if (filterCat && i.cat !== filterCat) return false;
+    if (filterStock) {
+      const { remain, alert, init } = getStockStatus(i);
+      if (filterStock === 'out' && remain > 0) return false;
+      if (filterStock === 'low' && (remain <= 0 || remain > alert)) return false;
+      if (filterStock === 'ok'  && (remain <= 0 || (alert > 0 && remain <= alert))) return false;
+    }
+    return true;
+  });
 
   const totB = items.reduce((t,i)=>t+n(i.budget),0);
   const totE = items.reduce((t,i)=>t+n(i.estimate),0);
   const totA = items.reduce((t,i)=>t+n(i.actual),0);
+  const outOfStock = (S.prodItems||[]).filter(i=>{
+    const {remain,init} = getStockStatus(i);
+    return init > 0 && remain <= 0;
+  }).length;
+  const lowStock = (S.prodItems||[]).filter(i=>{
+    const {remain,alert} = getStockStatus(i);
+    return alert > 0 && remain > 0 && remain <= alert;
+  }).length;
+
   document.getElementById('prod-summary').innerHTML = `
-    <div class="kpi r" style="flex:1;min-width:110px;padding:10px 14px"><div class="kl">件数</div><div class="kv" style="font-size:16px">${items.length}<em>件</em></div></div>
-    <div class="kpi b" style="flex:1;min-width:110px;padding:10px 14px"><div class="kl">予算合計</div><div class="kv" style="font-size:16px">${fmtN(totB)}<em>円</em></div></div>
-    <div class="kpi b" style="flex:1;min-width:110px;padding:10px 14px"><div class="kl">見積合計</div><div class="kv" style="font-size:16px;color:#88b4ff">${fmtN(totE)}<em>円</em></div></div>
-    <div class="kpi g" style="flex:1;min-width:110px;padding:10px 14px"><div class="kl">実績合計</div><div class="kv" style="font-size:16px">${fmtN(totA)}<em>円</em></div></div>`;
+    <div class="kpi r" style="flex:1;min-width:100px;padding:10px 14px"><div class="kl">件数</div><div class="kv" style="font-size:16px">${items.length}<em>件</em></div></div>
+    <div class="kpi b" style="flex:1;min-width:100px;padding:10px 14px"><div class="kl">予算合計</div><div class="kv" style="font-size:15px">${fmtN(totB)}<em>円</em></div></div>
+    <div class="kpi b" style="flex:1;min-width:100px;padding:10px 14px"><div class="kl">見積合計</div><div class="kv" style="font-size:15px;color:var(--blue)">${fmtN(totE)}<em>円</em></div></div>
+    <div class="kpi g" style="flex:1;min-width:100px;padding:10px 14px"><div class="kl">実績合計</div><div class="kv" style="font-size:15px">${fmtN(totA)}<em>円</em></div></div>
+    ${outOfStock>0?`<div class="kpi" style="flex:1;min-width:100px;padding:10px 14px;border-top:3px solid var(--red)"><div class="kl" style="color:var(--red)">❌ 在庫切れ</div><div class="kv" style="font-size:16px;color:var(--red)">${outOfStock}<em>件</em></div></div>`:''}
+    ${lowStock>0?`<div class="kpi" style="flex:1;min-width:100px;padding:10px 14px;border-top:3px solid var(--yellow)"><div class="kl" style="color:var(--yellow)">⚠️ 在庫少</div><div class="kv" style="font-size:16px;color:var(--yellow)">${lowStock}<em>件</em></div></div>`:''}`;
 
   const empty = document.getElementById('prod-empty');
   const tbody = document.getElementById('prod-tbody');
@@ -3743,42 +4181,65 @@ function renderProd() {
   tbody.innerHTML = items.map(it => {
     const cc = PROD_CAT_COLORS[it.cat] || ['6b7280','f1f5f9'];
     const sc = it.status==='済'?'var(--green)':it.status==='未'?'var(--red)':'var(--yellow)';
-    const total = Math.round((it.price||0)*(it.qty||1));
+    const { init, used, remain, alert } = getStockStatus(it);
+    const hasStock = init > 0;
+    let stockBadge = '';
+    if (hasStock) {
+      if (remain <= 0)              stockBadge = `<span style="font-size:9px;font-weight:700;color:var(--red);margin-left:4px">❌ 在庫切れ</span>`;
+      else if (alert>0&&remain<=alert) stockBadge = `<span style="font-size:9px;font-weight:700;color:var(--yellow);margin-left:4px">⚠️ 残${remain}</span>`;
+      else                          stockBadge = `<span style="font-size:9px;color:var(--green);margin-left:4px">✅ ${remain}</span>`;
+    }
     return `<tr style="cursor:pointer" onclick="openProdEdit('${it.id}')">
       <td><span style="font-size:8px;font-weight:700;color:#${cc[0]};background:#${cc[1]};padding:1px 5px;border-radius:3px">${it.cat}</span></td>
-      <td style="font-weight:500">${it.name||'—'}</td>
+      <td style="font-weight:500">${it.name||'—'}${stockBadge}</td>
       <td style="font-size:10px;color:var(--t2)">${it.content||'—'}</td>
-      <td style="font-family:var(--mono);font-size:10px">${it.price?fmtN(it.price):'—'}</td>
-      <td style="font-family:var(--mono);font-size:10px;text-align:right">${it.qty||1}</td>
+      <td style="font-family:var(--mono);font-size:10px;text-align:right">${it.price?fmtN(it.price):'—'}</td>
+      <td style="font-family:var(--mono);font-size:10px;text-align:right">${init||it.qty||'—'}</td>
       <td style="font-size:10px;color:var(--t3)">${it.unit||'個'}</td>
-      <td style="font-family:var(--mono);font-size:11px">${it.budget?fmtN(it.budget):'—'}</td>
-      <td style="font-family:var(--mono);font-size:11px;color:#88b4ff">${it.estimate?fmtN(it.estimate):'—'}</td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--green);font-weight:500">${it.actual?fmtN(it.actual):'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px;text-align:right;font-weight:${remain<=0&&hasStock?'700':'400'};color:${remain<=0&&hasStock?'var(--red)':remain<=alert&&alert>0&&hasStock?'var(--yellow)':'var(--t1)'}">
+        ${hasStock ? remain : '—'}
+      </td>
+      <td style="font-family:var(--mono);font-size:10px;text-align:right;color:var(--t2)">${hasStock&&used ? used : '—'}</td>
+      <td style="font-family:var(--mono);font-size:11px;text-align:right">${it.budget?fmtN(it.budget):'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px;text-align:right;color:var(--blue)">${it.estimate?fmtN(it.estimate):'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px;text-align:right;color:var(--green);font-weight:500">${it.actual?fmtN(it.actual):'—'}</td>
       <td style="font-size:9px;font-weight:700;color:${sc}">${it.status||'—'}</td>
-      <td style="font-size:10px;color:var(--t3)">${it.memo||''}</td>
       <td><button class="del-btn" onclick="event.stopPropagation();deleteProdById('${it.id}')">×</button></td>
     </tr>`;
   }).join('');
 }
 
 let _prodCtx = {};
+function calcStock() {
+  const init = parseFloat(document.getElementById('prod-stock-init').value)||0;
+  const used = parseFloat(document.getElementById('prod-stock-used').value)||0;
+  const remain = init - used;
+  const el = document.getElementById('prod-stock-remain');
+  el.value = init > 0 ? remain : '';
+  el.style.color = remain <= 0 && init > 0 ? 'var(--red)' : remain <= (parseFloat(document.getElementById('prod-stock-alert').value)||0) && init > 0 ? 'var(--yellow)' : 'var(--green)';
+}
+
 function openProdEdit(id) {
   _prodCtx = {id};
   const it = id ? (S.prodItems||[]).find(x=>x.id===id) : null;
   document.getElementById('prod-modal-title').textContent = it ? '製作物を編集' : '製作物を追加';
   document.getElementById('prod-del-btn').style.display = it ? '' : 'none';
-  document.getElementById('prod-cat').value      = it?.cat      || 'グッズ';
-  document.getElementById('prod-name').value     = it?.name     || '';
-  document.getElementById('prod-content').value  = it?.content  || '';
-  document.getElementById('prod-price').value    = it?.price    || '';
-  document.getElementById('prod-qty').value      = it?.qty      || 1;
-  document.getElementById('prod-unit').value     = it?.unit     || '個';
-  document.getElementById('prod-budget').value   = it?.budget   || '';
-  document.getElementById('prod-estimate').value = it?.estimate || '';
-  document.getElementById('prod-actual').value   = it?.actual   || '';
-  document.getElementById('prod-status').value   = it?.status   || '';
-  document.getElementById('prod-memo').value     = it?.memo     || '';
+  document.getElementById('prod-cat').value         = it?.cat         || 'グッズ';
+  document.getElementById('prod-name').value        = it?.name        || '';
+  document.getElementById('prod-content').value     = it?.content     || '';
+  document.getElementById('prod-price').value       = it?.price       || '';
+  document.getElementById('prod-qty').value         = it?.qty         || 1;
+  document.getElementById('prod-unit').value        = it?.unit        || '個';
+  document.getElementById('prod-stock-init').value  = it?.stockInit   || '';
+  document.getElementById('prod-stock-used').value  = it?.stockUsed   || '';
+  document.getElementById('prod-stock-alert').value = it?.stockAlert  || '';
+  document.getElementById('prod-budget').value      = it?.budget      || '';
+  document.getElementById('prod-estimate').value    = it?.estimate    || '';
+  document.getElementById('prod-actual').value      = it?.actual      || '';
+  document.getElementById('prod-status').value      = it?.status      || '';
+  document.getElementById('prod-memo').value        = it?.memo        || '';
   calcProdTotal();
+  calcStock();
   openOv('ov-prod');
 }
 function saveProd() {
@@ -3787,18 +4248,22 @@ function saveProd() {
   const before = _prodCtx.id ? JSON.stringify((S.prodItems||[]).find(x=>x.id===_prodCtx.id)) : null;
   const price = parseFloat(document.getElementById('prod-price').value)||0;
   const qty   = parseFloat(document.getElementById('prod-qty').value)||1;
+  const stockInit = parseFloat(document.getElementById('prod-stock-init').value) || 0;
   const obj = {
-    id:       _prodCtx.id || uid(),
-    cat:      document.getElementById('prod-cat').value,
+    id:         _prodCtx.id || uid(),
+    cat:        document.getElementById('prod-cat').value,
     name,
-    content:  document.getElementById('prod-content').value,
+    content:    document.getElementById('prod-content').value,
     price, qty,
-    unit:     document.getElementById('prod-unit').value || '個',
-    budget:   parseFloat(document.getElementById('prod-budget').value)   || 0,
-    estimate: parseFloat(document.getElementById('prod-estimate').value) || 0,
-    actual:   parseFloat(document.getElementById('prod-actual').value)   || Math.round(price*qty),
-    status:   document.getElementById('prod-status').value,
-    memo:     document.getElementById('prod-memo').value,
+    unit:       document.getElementById('prod-unit').value || '個',
+    stockInit,
+    stockUsed:  parseFloat(document.getElementById('prod-stock-used').value)  || 0,
+    stockAlert: parseFloat(document.getElementById('prod-stock-alert').value) || 0,
+    budget:     parseFloat(document.getElementById('prod-budget').value)   || 0,
+    estimate:   parseFloat(document.getElementById('prod-estimate').value) || 0,
+    actual:     parseFloat(document.getElementById('prod-actual').value)   || Math.round(price*qty),
+    status:     document.getElementById('prod-status').value,
+    memo:       document.getElementById('prod-memo').value,
   };
   if (!S.prodItems) S.prodItems = [];
   if (_prodCtx.id) {
@@ -4367,5 +4832,691 @@ function getEffectiveCatMaster() {
   // _removed_は除外
   Object.keys(base).forEach(k => { if(base[k]==='_removed_') delete base[k]; });
   return base;
+}
+
+// ══════════════════════════════════════════════════
+// 見積入力テーブル
+// ══════════════════════════════════════════════════
+if (!S.estimates) S.estimates = {};
+
+function getEstimates(key) {
+  if (!S.estimates) S.estimates = {};
+  if (!S.estimates[key]) S.estimates[key] = [];
+  return S.estimates[key];
+}
+
+function renderEstimateTable(key) {
+  const rows = getEstimates(key);
+  const tbody = document.getElementById(`${key}-est-tbody`);
+  const empty = document.getElementById(`${key}-est-empty`);
+  const total = document.getElementById(`${key}-est-total`);
+  if (!tbody) return;
+
+  if (!rows.length) {
+    tbody.innerHTML = '';
+    if (empty) empty.style.display = '';
+    if (total) total.style.display = 'none';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  const admin = isAdmin();
+  const catOpts = ['', ...ACCOUNTING_CATS].map(cat =>
+    `<option value="${cat}">${cat || '-- 未分類 --'}</option>`
+  ).join('');
+
+  // インライン入力スタイル共通
+  const inpStyle = `width:100%;padding:6px 8px;border:1.5px solid var(--b2);border-radius:6px;
+    font-size:12px;font-family:var(--mono);background:var(--s1);color:var(--t1);outline:none;text-align:right`;
+  const inpRo = `width:100%;padding:6px 8px;border:1.5px solid var(--b1);border-radius:6px;
+    font-size:12px;font-family:var(--mono);background:var(--s3);color:var(--t3);outline:none;text-align:right;cursor:not-allowed`;
+
+  tbody.innerHTML = rows.map((r, i) => {
+    const cc = r.cat ? (CAT_COLORS[r.cat] || {fg:'374151',bg:'f3f4f6'}) : {fg:'9ca3af',bg:'f9fafb'};
+    const budgetLocked = !admin; // 予算は管理者のみ
+    const budgetBg = budgetLocked ? 'rgba(243,244,246,.8)' : 'rgba(254,243,199,.6)';
+    const budgetBorder = budgetLocked ? 'var(--b1)' : 'rgba(180,83,9,.3)';
+
+    return `<tr>
+      <td style="color:var(--t3);font-size:10px;text-align:center;width:28px">${i+1}</td>
+      <td>
+        <input value="${(r.name||'').replace(/"/g,'&quot;')}" placeholder="品目名・内容を入力..."
+          style="width:100%;padding:6px 8px;border:1.5px solid var(--b2);border-radius:6px;font-size:12px;background:var(--s1);color:var(--t1);outline:none"
+          oninput="updateEstRow('${key}',${i},'name',this.value)"
+          onfocus="this.style.borderColor='var(--blue)'"
+          onblur="this.style.borderColor='var(--b2)';autoClassifyRow('${key}',${i})">
+      </td>
+      <td>
+        <select style="width:100%;padding:5px 7px;border:1.5px solid #${cc.bg};border-radius:6px;
+                       font-size:10px;font-weight:700;background:#${cc.bg};color:#${cc.fg};outline:none"
+          onchange="updateEstRow('${key}',${i},'cat',this.value);renderEstimateTable('${key}')">
+          ${catOpts.replace(`value="${r.cat||''}"`, `value="${r.cat||''}" selected`)}
+        </select>
+      </td>
+      <td style="text-align:right">
+        <input type="number" value="${r.budget||''}" placeholder="0"
+          style="width:100%;padding:6px 8px;border:1.5px solid ${budgetBorder};border-radius:6px;
+                 font-size:12px;font-family:var(--mono);background:${budgetBg};color:${budgetLocked?'var(--t3)':'var(--t1)'};
+                 outline:none;text-align:right;${budgetLocked?'cursor:not-allowed':''}"
+          ${budgetLocked ? 'readonly' : ''}
+          oninput="${admin?`updateEstRow('${key}',${i},'budget',parseFloat(this.value)||0);updateEstTotal('${key}')`:''}"
+          ${admin?`onfocus="this.style.borderColor='var(--yellow)'" onblur="this.style.borderColor='${budgetBorder}'"`:''}>
+      </td>
+      <td style="text-align:right">
+        <input type="number" value="${r.estimate||''}" placeholder="0"
+          style="${inpStyle}"
+          oninput="updateEstRow('${key}',${i},'estimate',parseFloat(this.value)||0);updateEstTotal('${key}')"
+          onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--b2)'">
+      </td>
+      <td style="text-align:right">
+        <input type="number" value="${r.actual||''}" placeholder="0"
+          style="${inpStyle}"
+          oninput="updateEstRow('${key}',${i},'actual',parseFloat(this.value)||0);updateEstTotal('${key}')"
+          onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--b2)'">
+      </td>
+      <td>
+        <button onclick="removeEstRow('${key}',${i})"
+          style="width:24px;height:24px;border-radius:5px;border:1px solid var(--b2);background:none;color:var(--t3);cursor:pointer;font-size:13px"
+          onmouseover="this.style.color='var(--red)';this.style.borderColor='var(--red)'"
+          onmouseout="this.style.color='var(--t3)';this.style.borderColor='var(--b2)'">×</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  updateEstTotal(key);
+}
+
+function updateEstTotal(key) {
+  const rows = getEstimates(key);
+  const totB = rows.reduce((t,r)=>t+n(r.budget),0);
+  const totE = rows.reduce((t,r)=>t+n(r.estimate),0);
+  const totA = rows.reduce((t,r)=>t+n(r.actual),0);
+  const el = document.getElementById(`${key}-est-total`);
+  if (!el) return;
+  el.style.display = '';
+  const diff = totB - totA;
+  el.innerHTML = `
+    ${totB ? `<span style="margin-right:16px;color:var(--t2)">予算合計: <strong style="font-family:var(--mono);color:var(--yellow)">${fmtN(totB)}円</strong></span>` : ''}
+    <span style="margin-right:16px">見積合計: <strong style="font-family:var(--mono);color:var(--blue)">${fmtN(totE)}円</strong></span>
+    <span style="margin-right:16px">実績合計: <strong style="font-family:var(--mono);color:var(--green)">${fmtN(totA)}円</strong></span>
+    ${totB ? `<span>差異: <strong style="font-family:var(--mono);color:${diff>=0?'var(--green)':'var(--red)'}">${diff>=0?'▲':'▼'} ${fmtN(Math.abs(diff))}円</strong></span>` : ''}
+  `;
+}
+
+function updateEstRow(key, i, field, value) {
+  const rows = getEstimates(key);
+  if (!rows[i]) return;
+  rows[i][field] = value;
+}
+
+function addEstimateRow(key) {
+  const rows = getEstimates(key);
+  rows.push({ id: uid(), name: '', cat: '', budget: 0, estimate: 0, actual: 0 });
+  renderEstimateTable(key);
+  // フォーカスを最後の行の品目名に
+  setTimeout(() => {
+    const inputs = document.querySelectorAll(`#${key}-est-tbody input[placeholder*="品目"]`);
+    if (inputs.length) inputs[inputs.length-1].focus();
+  }, 50);
+}
+
+function removeEstRow(key, i) {
+  const rows = getEstimates(key);
+  rows.splice(i, 1);
+  renderEstimateTable(key);
+  save();
+}
+
+// 品目名からローカルでカテゴリ自動判定（フォーカスアウト時）
+function autoClassifyRow(key, i) {
+  const rows = getEstimates(key);
+  if (!rows[i]) return;
+  if (rows[i].name && !rows[i].cat) {
+    rows[i].cat = detectCat(rows[i].name);
+    renderEstimateTable(key);
+  }
+}
+
+// 🤖 AIで全行を一括振り分け
+async function aiClassifyEstimates(key) {
+  const rows = getEstimates(key);
+  if (!rows.length) { alert('先に品目を入力してください'); return; }
+
+  const btn = event.target;
+  const origText = btn.textContent;
+  btn.textContent = '⏳ 解析中...';
+  btn.disabled = true;
+
+  // まずローカルで判定
+  rows.forEach(r => {
+    if (r.name && !r.cat) r.cat = detectCat(r.name);
+  });
+
+  // 未分類がある場合はAI（Edge Function）に問い合わせ
+  const unclassified = rows.filter(r => r.name && (!r.cat || r.cat === '⑧ その他'));
+  if (unclassified.length > 0) {
+    try {
+      const prompt = `以下はイベント費用の品目リストです。各品目を以下の8つの会計科目のどれかに分類してください。
+会計科目：${ACCOUNTING_CATS.join(' / ')}
+
+品目リスト：
+${unclassified.map((r,i) => `${i+1}. ${r.name}${r.estimate ? '（¥'+r.estimate.toLocaleString()+'）' : ''}`).join('\n')}
+
+以下のJSON形式のみで返答してください（説明不要）：
+{"results": [{"index": 0, "cat": "会計科目名"}, ...]}`;
+
+      const res = await fetch(SUPABASE_URL + '/functions/v1/ai-csv-analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ prompt }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const text = data.content?.find(b => b.type === 'text')?.text || '';
+        const match = text.match(/\{[\s\S]*\}/);
+        if (match) {
+          const parsed = JSON.parse(match[0]);
+          parsed.results?.forEach(item => {
+            const r = unclassified[item.index];
+            if (r && ACCOUNTING_CATS.includes(item.cat)) r.cat = item.cat;
+          });
+        }
+      }
+    } catch(e) {
+      console.warn('AI分類失敗、ローカル判定のみ使用:', e.message);
+    }
+  }
+
+  btn.textContent = origText;
+  btn.disabled = false;
+  renderEstimateTable(key);
+  save();
+}
+
+// ✅ 集計に反映 — 見積テーブルの内容を会計科目別に合算してS.events[key].itemsに反映
+function applyEstimatesToEvt(key) {
+  const rows = getEstimates(key);
+  if (!rows.length) { alert('見積行がありません'); return; }
+
+  const uncat = rows.filter(r => r.name && !r.cat);
+  if (uncat.length > 0) {
+    if (!confirm(`${uncat.length}件の未分類項目があります。「⑧ その他」として反映しますか？`)) return;
+    uncat.forEach(r => r.cat = '⑧ その他');
+    renderEstimateTable(key);
+  }
+
+  // 会計科目別に合算
+  const catTotals = {};
+  rows.forEach(r => {
+    if (!r.name && !r.estimate && !r.actual && !r.budget) return;
+    const cat = r.cat || '⑧ その他';
+    if (!catTotals[cat]) catTotals[cat] = { budget: 0, estimate: 0, actual: 0 };
+    catTotals[cat].budget   += n(r.budget);
+    catTotals[cat].estimate += n(r.estimate);
+    catTotals[cat].actual   += n(r.actual);
+  });
+
+  // ①〜⑧の順番を維持してS.events[key].itemsを更新
+  if (!S.events[key]) S.events[key] = { label: key, items: [] };
+
+  ACCOUNTING_CATS.forEach(cat => {
+    const vals = catTotals[cat];
+    if (!vals) return;
+    const existing = S.events[key].items.findIndex(it => it.name === cat);
+    if (existing >= 0) {
+      if (isAdmin() && vals.budget)  S.events[key].items[existing].budget   = vals.budget;
+      if (vals.estimate) S.events[key].items[existing].estimate = vals.estimate;
+      if (vals.actual)   S.events[key].items[existing].actual   = vals.actual;
+    } else {
+      S.events[key].items.push({
+        id: uid(), name: cat,
+        budget: isAdmin() ? vals.budget : 0,
+        estimate: vals.estimate, actual: vals.actual
+      });
+    }
+  });
+
+  // ①〜⑧の順番に並び替え
+  S.events[key].items.sort((a, b) => {
+    const ai = ACCOUNTING_CATS.indexOf(a.name);
+    const bi = ACCOUNTING_CATS.indexOf(b.name);
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+  });
+
+  logChange('event', `見積反映: ${key}`, null,
+    Object.entries(catTotals).map(([c,v])=>`${c}: 見積${fmtN(v.estimate)}円`).join(', '));
+  save();
+  renderPg(key);
+
+  // 反映完了をフィードバック
+  const applyBtn = document.querySelector(`#pg-${key} button[onclick*="applyEstimates"]`);
+  if (applyBtn) {
+    const orig = applyBtn.textContent;
+    applyBtn.textContent = '✅ 反映しました！';
+    applyBtn.style.background = 'var(--green)';
+    setTimeout(() => {
+      applyBtn.textContent = orig;
+      applyBtn.style.background = '';
+    }, 2000);
+  }
+}
+
+// renderEstimateTableはrenderEvt本体末尾で呼び出し済み
+
+// loadFromDB後にS.estimatesを補完
+const _origLoadFromDB = loadFromDB;
+async function loadFromDB() {
+  await _origLoadFromDB();
+  if (!S.estimates) S.estimates = {};
+}
+
+// ══════════════════════════════════════════════════
+// マーケ費用 インライン入力
+// ══════════════════════════════════════════════════
+const MKT_CATS = ['動画','LP','チラシ','ポスター','パンフ','広告出稿','その他'];
+const MKT_STATUS = ['','済','未','一部'];
+
+function renderMkt() {
+  const filterCat = document.getElementById('mkt-filter-cat')?.value || '';
+  const items = (S.mktItems||[]).filter(i => !filterCat || i.cat === filterCat);
+
+  const totB = items.reduce((t,i)=>t+n(i.budget),0);
+  const totE = items.reduce((t,i)=>t+n(i.estimate),0);
+  const totA = items.reduce((t,i)=>t+n(i.actual),0);
+  document.getElementById('mkt-summary').innerHTML = `
+    <div class="kpi p" style="flex:1;min-width:90px;padding:9px 13px"><div class="kl">件数</div><div class="kv" style="font-size:15px">${items.length}<em>件</em></div></div>
+    <div class="kpi b" style="flex:1;min-width:90px;padding:9px 13px"><div class="kl">予算</div><div class="kv" style="font-size:15px">${fmtN(totB)}<em>円</em></div></div>
+    <div class="kpi b" style="flex:1;min-width:90px;padding:9px 13px"><div class="kl">見積</div><div class="kv" style="font-size:15px;color:var(--blue)">${fmtN(totE)}<em>円</em></div></div>
+    <div class="kpi g" style="flex:1;min-width:90px;padding:9px 13px"><div class="kl">実績</div><div class="kv" style="font-size:15px">${fmtN(totA)}<em>円</em></div></div>`;
+
+  const empty = document.getElementById('mkt-empty');
+  const tbody = document.getElementById('mkt-tbody');
+  if (!items.length) { tbody.innerHTML=''; empty.style.display=''; return; }
+  empty.style.display='none';
+
+  const catOpts = MKT_CATS.map(c=>`<option>${c}</option>`).join('');
+  const stOpts  = MKT_STATUS.map(s=>`<option value="${s}">${s||'—'}</option>`).join('');
+
+  tbody.innerHTML = items.map((it,idx) => {
+    const realIdx = (S.mktItems||[]).findIndex(x=>x.id===it.id);
+    return `<tr id="mkt-row-${it.id}">
+      <td style="color:var(--t3);font-size:10px;text-align:center">${idx+1}</td>
+      <td><select class="inline-sel" onchange="S.mktItems[${realIdx}].cat=this.value">${catOpts.replace(`>${it.cat||'動画'}<`,` selected>${it.cat||'動画'}<`)}</select></td>
+      <td><input class="inline-inp" value="${(it.name||'').replace(/"/g,'&quot;')}" placeholder="品目名" onchange="S.mktItems[${realIdx}].name=this.value"></td>
+      <td><input class="inline-inp" value="${(it.content||'').replace(/"/g,'&quot;')}" placeholder="内容・仕様" onchange="S.mktItems[${realIdx}].content=this.value" style="font-size:10px"></td>
+      <td><input class="inline-inp num" type="number" value="${it.budget||''}" placeholder="0" onchange="S.mktItems[${realIdx}].budget=parseFloat(this.value)||0"></td>
+      <td><input class="inline-inp num" type="number" value="${it.estimate||''}" placeholder="0" onchange="S.mktItems[${realIdx}].estimate=parseFloat(this.value)||0" style="color:var(--blue)"></td>
+      <td><input class="inline-inp num" type="number" value="${it.actual||''}" placeholder="0" onchange="S.mktItems[${realIdx}].actual=parseFloat(this.value)||0" style="color:var(--green)"></td>
+      <td><select class="inline-sel" onchange="S.mktItems[${realIdx}].status=this.value">${stOpts.replace(`value="${it.status||''}"`,`value="${it.status||''}" selected`)}</select></td>
+      <td><button class="del-btn" onclick="deleteMktById('${it.id}')">×</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function addMktRow() {
+  if (!S.mktItems) S.mktItems = [];
+  S.mktItems.push({id:uid(),cat:'動画',name:'',content:'',budget:0,estimate:0,actual:0,status:'',memo:''});
+  renderMkt();
+  // 最後の行の品目名にフォーカス
+  setTimeout(()=>{
+    const rows = document.querySelectorAll('#mkt-tbody input[placeholder="品目名"]');
+    if(rows.length) rows[rows.length-1].focus();
+  },50);
+}
+
+function saveMktInline() {
+  save();
+  const btn = document.querySelector('#pg-mkt button[onclick="saveMktInline()"]');
+  if(btn){ btn.textContent='✅ 保存しました'; setTimeout(()=>btn.textContent='💾 保存',1500); }
+}
+
+// ══════════════════════════════════════════════════
+// 製作物 インライン入力
+// ══════════════════════════════════════════════════
+const PROD_CATS_LIST = ['グッズ','イベント装飾','その他'];
+
+function renderProd() {
+  const filterCat   = document.getElementById('prod-filter-cat')?.value   || '';
+  const filterStock = document.getElementById('prod-filter-stock')?.value || '';
+
+  let items = (S.prodItems||[]).filter(i => {
+    if (filterCat && i.cat !== filterCat) return false;
+    if (filterStock) {
+      const { remain, alert, init } = getStockStatus(i);
+      if (filterStock === 'out' && remain > 0) return false;
+      if (filterStock === 'low' && (remain <= 0 || remain > alert)) return false;
+      if (filterStock === 'ok'  && (remain <= 0 || (alert > 0 && remain <= alert))) return false;
+    }
+    return true;
+  });
+
+  const totB = items.reduce((t,i)=>t+n(i.budget),0);
+  const totE = items.reduce((t,i)=>t+n(i.estimate),0);
+  const totA = items.reduce((t,i)=>t+n(i.actual),0);
+  const outCnt = (S.prodItems||[]).filter(i=>{ const {remain,init}=getStockStatus(i); return init>0&&remain<=0; }).length;
+  const lowCnt = (S.prodItems||[]).filter(i=>{ const {remain,alert}=getStockStatus(i); return alert>0&&remain>0&&remain<=alert; }).length;
+  document.getElementById('prod-summary').innerHTML = `
+    <div class="kpi r" style="flex:1;min-width:90px;padding:9px 13px"><div class="kl">件数</div><div class="kv" style="font-size:15px">${items.length}<em>件</em></div></div>
+    <div class="kpi b" style="flex:1;min-width:90px;padding:9px 13px"><div class="kl">見積</div><div class="kv" style="font-size:15px;color:var(--blue)">${fmtN(totE)}<em>円</em></div></div>
+    <div class="kpi g" style="flex:1;min-width:90px;padding:9px 13px"><div class="kl">実績</div><div class="kv" style="font-size:15px">${fmtN(totA)}<em>円</em></div></div>
+    ${outCnt>0?`<div class="kpi" style="flex:1;min-width:90px;padding:9px 13px;border-top:3px solid var(--red)"><div class="kl" style="color:var(--red)">❌在庫切れ</div><div class="kv" style="font-size:15px;color:var(--red)">${outCnt}<em>件</em></div></div>`:''}
+    ${lowCnt>0?`<div class="kpi" style="flex:1;min-width:90px;padding:9px 13px;border-top:3px solid var(--yellow)"><div class="kl" style="color:var(--yellow)">⚠️在庫少</div><div class="kv" style="font-size:15px;color:var(--yellow)">${lowCnt}<em>件</em></div></div>`:''}`;
+
+  const empty = document.getElementById('prod-empty');
+  const tbody = document.getElementById('prod-tbody');
+  if (!items.length) { tbody.innerHTML=''; empty.style.display=''; return; }
+  empty.style.display='none';
+
+  const catOpts = PROD_CATS_LIST.map(c=>`<option>${c}</option>`).join('');
+  const stOpts  = MKT_STATUS.map(s=>`<option value="${s}">${s||'—'}</option>`).join('');
+
+  tbody.innerHTML = items.map((it,idx) => {
+    const realIdx = (S.prodItems||[]).findIndex(x=>x.id===it.id);
+    const {remain,init,alert} = getStockStatus(it);
+    const hasStock = init > 0;
+    const stockColor = !hasStock?'var(--t3)':remain<=0?'var(--red)':alert>0&&remain<=alert?'var(--yellow)':'var(--green)';
+    return `<tr>
+      <td style="color:var(--t3);font-size:10px;text-align:center">${idx+1}</td>
+      <td><select class="inline-sel" style="font-size:9px" onchange="S.prodItems[${realIdx}].cat=this.value">${catOpts.replace(`>${it.cat||'グッズ'}<`,` selected>${it.cat||'グッズ'}<`)}</select></td>
+      <td><input class="inline-inp" value="${(it.name||'').replace(/"/g,'&quot;')}" placeholder="品目名" onchange="S.prodItems[${realIdx}].name=this.value" style="font-weight:500"></td>
+      <td><input class="inline-inp" value="${(it.content||'').replace(/"/g,'&quot;')}" placeholder="仕様・内容" onchange="S.prodItems[${realIdx}].content=this.value" style="font-size:10px"></td>
+      <td><input class="inline-inp num" type="number" value="${it.price||''}" placeholder="0" onchange="S.prodItems[${realIdx}].price=parseFloat(this.value)||0"></td>
+      <td><input class="inline-inp num" type="number" value="${it.stockInit||it.qty||''}" placeholder="0" onchange="S.prodItems[${realIdx}].stockInit=parseFloat(this.value)||0;renderProd()"></td>
+      <td style="font-size:10px;color:var(--t3);text-align:center">${it.unit||'個'}</td>
+      <td style="font-family:var(--mono);font-size:11px;text-align:right;font-weight:700;color:${stockColor}">${hasStock?remain:'—'}</td>
+      <td><input class="inline-inp num" type="number" value="${it.stockUsed||''}" placeholder="0" onchange="S.prodItems[${realIdx}].stockUsed=parseFloat(this.value)||0;renderProd()"></td>
+      <td><input class="inline-inp num" type="number" value="${it.estimate||''}" placeholder="0" onchange="S.prodItems[${realIdx}].estimate=parseFloat(this.value)||0" style="color:var(--blue)"></td>
+      <td><input class="inline-inp num" type="number" value="${it.actual||''}" placeholder="0" onchange="S.prodItems[${realIdx}].actual=parseFloat(this.value)||0" style="color:var(--green)"></td>
+      <td><select class="inline-sel" onchange="S.prodItems[${realIdx}].status=this.value">${stOpts.replace(`value="${it.status||''}"`,`value="${it.status||''}" selected`)}</select></td>
+      <td><button class="del-btn" onclick="deleteProdById('${it.id}')">×</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function addProdRow() {
+  if (!S.prodItems) S.prodItems = [];
+  S.prodItems.push({id:uid(),cat:'グッズ',name:'',content:'',price:0,qty:1,unit:'個',stockInit:0,stockUsed:0,stockAlert:0,budget:0,estimate:0,actual:0,status:'',memo:''});
+  renderProd();
+  setTimeout(()=>{
+    const rows = document.querySelectorAll('#prod-tbody input[placeholder="品目名"]');
+    if(rows.length) rows[rows.length-1].focus();
+  },50);
+}
+
+function saveProdInline() {
+  save();
+  const btn = document.querySelector('#pg-prod button[onclick="saveProdInline()"]');
+  if(btn){ btn.textContent='✅ 保存しました'; setTimeout(()=>btn.textContent='💾 保存',1500); }
+}
+
+// ══════════════════════════════════════════════════
+// インライン入力 共通CSS（動的挿入）
+// ══════════════════════════════════════════════════
+(function injectInlineStyles(){
+  const style = document.createElement('style');
+  style.textContent = `
+    .inline-inp {
+      width:100%;padding:5px 7px;border:1.5px solid transparent;border-radius:5px;
+      font-size:11px;font-family:var(--mono);background:transparent;color:var(--t1);
+      outline:none;transition:all .15s;
+    }
+    .inline-inp:hover { border-color:var(--b2);background:var(--s2); }
+    .inline-inp:focus { border-color:var(--blue);background:var(--s1);box-shadow:0 0 0 2px rgba(37,99,235,.1); }
+    .inline-inp.num   { text-align:right; }
+    .inline-sel {
+      width:100%;padding:4px 6px;border:1.5px solid transparent;border-radius:5px;
+      font-size:10px;background:transparent;color:var(--t1);outline:none;cursor:pointer;
+      transition:all .15s;
+    }
+    .inline-sel:hover { border-color:var(--b2);background:var(--s2); }
+    .inline-sel:focus { border-color:var(--blue);background:var(--s1); }
+    #mkt-tbody tr:hover td, #prod-tbody tr:hover td { background:rgba(37,99,235,.03); }
+  `;
+  document.head.appendChild(style);
+})();
+
+// ══════════════════════════════════════════════════
+// サマリー：8科目の費目別消化状況（全ソース集計）
+// ══════════════════════════════════════════════════
+function calcCat8Totals() {
+  // ソース1: 経費明細（S.ledger）
+  const totals = {};
+  ACCOUNTING_CATS.forEach(cat => { totals[cat] = { estimate:0, actual:0, budget:0 }; });
+
+  (S.ledger||[]).forEach(i => {
+    const cat = i.cat || '⑧ その他';
+    if (!totals[cat]) totals[cat] = {estimate:0,actual:0,budget:0};
+    totals[cat].estimate += n(i.estimate);
+    totals[cat].actual   += n(i.actual);
+    totals[cat].budget   += n(i.budget);
+  });
+
+  // ソース2: イベント費目（S.events）
+  ['ko','aw','ye','md'].forEach(key => {
+    (S.events[key]?.items||[]).forEach(it => {
+      const cat = ACCOUNTING_CATS.includes(it.name) ? it.name : '⑧ その他';
+      if (!totals[cat]) totals[cat] = {estimate:0,actual:0,budget:0};
+      totals[cat].estimate += n(it.estimate);
+      totals[cat].actual   += n(it.actual);
+      totals[cat].budget   += n(it.budget);
+    });
+  });
+
+  // ソース3: シリーズ費目（S.sessions）
+  ['hm','gk','oe'].forEach(key => {
+    (S.sessions[key]||[]).forEach(sess => {
+      (sess.items||[]).forEach(it => {
+        const cat = ACCOUNTING_CATS.includes(it.name) ? it.name : '⑧ その他';
+        if (!totals[cat]) totals[cat] = {estimate:0,actual:0,budget:0};
+        totals[cat].estimate += n(it.estimate);
+        totals[cat].actual   += n(it.actual);
+        totals[cat].budget   += n(it.budget);
+      });
+    });
+  });
+
+  return totals;
+}
+
+// renderOvのov-cats部分を上書き
+// renderOvラッパー削除済み（元関数に統合）
+
+// ══════════════════════════════════════════════════
+// 製作物管理 — 年間共通製作物 セクション別表示
+// ══════════════════════════════════════════════════
+const PROD_SECTION_COLORS = {
+  'グッズ':       {h:'#7c3aed', bg:'#ede9fe', fg:'#5b21b6'},
+  'イベント装飾': {h:'#0f766e', bg:'#ccfbf1', fg:'#134e4a'},
+  'その他':       {h:'#374151', bg:'#f3f4f6', fg:'#1f2937'},
+};
+
+// カテゴリごとの予算設定（S.prodBudgetsに保存）
+function getProdBudgets() {
+  if (!S.prodBudgets) S.prodBudgets = {};
+  return S.prodBudgets;
+}
+
+function renderProd() {
+  const filterCat   = document.getElementById('prod-filter-cat')?.value   || '';
+  const filterStock = document.getElementById('prod-filter-stock')?.value || '';
+
+  const allItems = S.prodItems || [];
+
+  // KPIサマリー
+  const totE   = allItems.reduce((t,i)=>t+n(i.estimate),0);
+  const totA   = allItems.reduce((t,i)=>t+n(i.actual),0);
+  const totB   = allItems.reduce((t,i)=>t+n(i.budget),0);
+  const outCnt = allItems.filter(i=>{ const {remain,init}=getStockStatus(i); return init>0&&remain<=0; }).length;
+  const lowCnt = allItems.filter(i=>{ const {remain,alert}=getStockStatus(i); return alert>0&&remain>0&&remain<=alert; }).length;
+
+  // カテゴリ予算合計
+  const budgets = getProdBudgets();
+  const totCatB = PROD_CATS_LIST.reduce((t,cat)=>t+(budgets[cat]||0),0);
+  const arari = totCatB - totA;
+
+  const kpiEl = document.getElementById('prod-kpis');
+  if (kpiEl) kpiEl.innerHTML = `
+    <div class="kpi r"><div class="kl">品目数</div><div class="kv">${allItems.length}<em>件</em></div></div>
+    <div class="kpi r"><div class="kl">カテゴリ予算計</div><div class="kv">${fmtN(totCatB)}<em>円</em></div></div>
+    <div class="kpi b"><div class="kl">見積合計</div><div class="kv" style="color:var(--blue)">${fmtN(totE)}<em>円</em></div></div>
+    <div class="kpi g"><div class="kl">実績合計</div><div class="kv">${fmtN(totA)}<em>円</em></div></div>
+    <div class="kpi ${arari>=0?'g':'r'}">
+      <div class="kl">粗利（予算－実績）</div>
+      <div class="kv" style="color:${arari>=0?'var(--green)':'var(--red)'}">${arari>=0?'+':''}${fmtN(arari)}<em>円</em></div>
+      <div class="ks">${outCnt>0?`❌在庫切れ${outCnt}件`:lowCnt>0?`⚠️在庫少${lowCnt}件`:'✅ 在庫正常'}</div>
+    </div>`;
+
+  // カテゴリでグループ化
+  const sections = {};
+  PROD_CATS_LIST.forEach(cat => { sections[cat] = []; });
+  allItems.forEach(it => {
+    const cat = it.cat || 'その他';
+    if (!sections[cat]) sections[cat] = [];
+    sections[cat].push(it);
+  });
+
+  // フィルター適用
+  const filteredSections = {};
+  Object.entries(sections).forEach(([cat, items]) => {
+    let filtered = filterCat ? (cat === filterCat ? items : []) : items;
+    if (filterStock) {
+      filtered = filtered.filter(i => {
+        const {remain,alert,init} = getStockStatus(i);
+        if (filterStock==='out') return init>0 && remain<=0;
+        if (filterStock==='low') return alert>0 && remain>0 && remain<=alert;
+        if (filterStock==='ok')  return init>0 && remain>0 && !(alert>0&&remain<=alert);
+        return true;
+      });
+    }
+    if (filtered.length > 0) filteredSections[cat] = filtered;
+  });
+
+  const container = document.getElementById('prod-sections');
+  if (!container) return;
+
+  if (Object.keys(filteredSections).length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--t3);font-size:12px">「＋ 行を追加」で製作物を登録できます</div>';
+    return;
+  }
+
+  container.innerHTML = Object.entries(filteredSections).map(([cat, items]) => {
+    const col = PROD_SECTION_COLORS[cat] || PROD_SECTION_COLORS['その他'];
+    const secTotB = items.reduce((t,i)=>t+n(i.budget),0);
+    const secTotE = items.reduce((t,i)=>t+n(i.estimate),0);
+    const secTotA = items.reduce((t,i)=>t+n(i.actual),0);
+
+    const rows = items.map((it) => {
+      const realIdx = allItems.findIndex(x=>x.id===it.id);
+      const {remain,init,alert} = getStockStatus(it);
+      const hasStock = init > 0;
+      const stockColor = !hasStock?'var(--t3)':remain<=0?'var(--red)':alert>0&&remain<=alert?'var(--yellow)':'var(--green)';
+      const stOpts = ['','済','未','一部'].map(s=>`<option value="${s}"${it.status===s?' selected':''}>${s||'—'}</option>`).join('');
+
+      return `<tr>
+        <td style="padding-left:12px;font-weight:600;font-size:12px">
+          <input class="inline-inp" value="${(it.name||'').replace(/"/g,'&quot;')}" placeholder="品目名を入力"
+            onchange="S.prodItems[${realIdx}].name=this.value" style="font-weight:500;font-size:12px">
+        </td>
+        <td><input class="inline-inp" value="${(it.content||'').replace(/"/g,'&quot;')}" placeholder="仕様・内容"
+            onchange="S.prodItems[${realIdx}].content=this.value" style="font-size:11px;color:var(--t2)"></td>
+        <td><input class="inline-inp num" type="number" value="${it.price||''}" placeholder="0"
+            onchange="S.prodItems[${realIdx}].price=parseFloat(this.value)||0"></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:4px">
+            <input class="inline-inp num" type="number" value="${it.stockInit||it.qty||''}" placeholder="0"
+              onchange="S.prodItems[${realIdx}].stockInit=parseFloat(this.value)||0;S.prodItems[${realIdx}].qty=parseFloat(this.value)||0;renderProd()" style="width:60px">
+            <span style="font-size:10px;color:var(--t3)">${it.unit||'個'}</span>
+          </div>
+        </td>
+        <td style="font-family:var(--mono);font-size:12px;text-align:right;font-weight:700;color:${stockColor}">
+          ${hasStock ? remain : '—'}
+        </td>
+        <td><input class="inline-inp num" type="number" value="${it.stockUsed||''}" placeholder="0"
+            onchange="S.prodItems[${realIdx}].stockUsed=parseFloat(this.value)||0;renderProd()" style="width:70px"></td>
+        <td><input class="inline-inp num" type="number" value="${it.budget||''}" placeholder="0"
+            onchange="S.prodItems[${realIdx}].budget=parseFloat(this.value)||0"></td>
+        <td><input class="inline-inp num" type="number" value="${it.estimate||''}" placeholder="0"
+            onchange="S.prodItems[${realIdx}].estimate=parseFloat(this.value)||0" style="color:var(--blue)"></td>
+        <td><input class="inline-inp num" type="number" value="${it.actual||''}" placeholder="0"
+            onchange="S.prodItems[${realIdx}].actual=parseFloat(this.value)||0" style="color:var(--green)"></td>
+        <td><select class="inline-sel" onchange="S.prodItems[${realIdx}].status=this.value">${stOpts}</select></td>
+        <td><button class="del-btn" onclick="deleteProdById('${it.id}');renderProd()">×</button></td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="card" style="margin-bottom:10px;border-left:3px solid ${col.h}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--b1);flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;font-weight:700;color:${col.fg};background:${col.bg};padding:4px 12px;border-radius:12px">${cat}</span>
+          <span style="font-size:11px;color:var(--t2)">${items.length}件</span>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <!-- カテゴリ予算入力 -->
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:10px;font-weight:700;color:var(--t2)">カテゴリ予算</span>
+            <input type="number" value="${getProdBudgets()[cat]||''}" placeholder="0"
+              style="width:110px;padding:5px 8px;border:1.5px solid var(--b2);border-radius:6px;font-size:11px;font-family:var(--mono);background:var(--s1);color:var(--t1);outline:none;text-align:right"
+              onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--b2)'"
+              onchange="getProdBudgets()['${cat}']=parseFloat(this.value)||0;renderProd()">
+            <span style="font-size:10px;color:var(--t2)">円</span>
+          </div>
+          <!-- 集計表示 -->
+          <div style="display:flex;gap:14px;font-size:11px;font-family:var(--mono)">
+            ${secTotE?`<span style="color:var(--blue)">見積 <strong>${fmtN(secTotE)}</strong>円</span>`:'<span style="color:var(--t3)">見積 0円</span>'}
+            ${secTotA?`<span style="color:var(--green)">実績 <strong>${fmtN(secTotA)}</strong>円</span>`:'<span style="color:var(--t3)">実績 0円</span>'}
+            ${(()=>{const bgt=getProdBudgets()[cat]||0;const diff=bgt-secTotA;return bgt?`<span style="color:${diff>=0?'var(--green)':'var(--red)'};font-weight:700">${diff>=0?'▲':'▼'}差異 ${fmtN(Math.abs(diff))}円</span>`:'';})()}
+          </div>
+          <button onclick="addProdRowInCat('${cat}')"
+            style="font-size:9px;font-weight:700;color:${col.fg};background:${col.bg};border:none;padding:4px 10px;border-radius:6px;cursor:pointer">＋ 追加</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="tbl" style="min-width:780px">
+          <thead><tr>
+            <th>品目名</th>
+            <th style="width:160px">仕様・内容</th>
+            <th style="text-align:right;width:80px">単価</th>
+            <th style="text-align:right;width:90px">製作数</th>
+            <th style="text-align:right;width:70px">在庫数</th>
+            <th style="text-align:right;width:70px">配布済</th>
+            <th style="text-align:right;width:90px">予算（円）</th>
+            <th style="text-align:right;width:100px">見積（円）</th>
+            <th style="text-align:right;width:100px">実績（円）</th>
+            <th style="width:70px">支払</th>
+            <th style="width:28px"></th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addProdRowInCat(cat) {
+  if (!S.prodItems) S.prodItems = [];
+  S.prodItems.push({id:uid(),cat,name:'',content:'',price:0,qty:1,unit:'個',
+    stockInit:0,stockUsed:0,stockAlert:0,budget:0,estimate:0,actual:0,status:'',memo:''});
+  renderProd();
+  setTimeout(()=>{
+    // カテゴリのセクション内の最後の品目名inputにフォーカス
+    const allInputs = document.querySelectorAll('#prod-sections input[placeholder="品目名を入力"]');
+    if(allInputs.length) allInputs[allInputs.length-1].focus();
+  },50);
+}
+
+function addProdRow() {
+  // フィルター中のカテゴリ or グッズに追加
+  const cat = document.getElementById('prod-filter-cat')?.value || 'グッズ';
+  addProdRowInCat(cat);
+}
+
+function saveProdInline() {
+  save();
+  const btns = document.querySelectorAll('#pg-prod button[onclick="saveProdInline()"]');
+  btns.forEach(btn => { btn.textContent='✅ 保存しました'; setTimeout(()=>btn.textContent='💾 保存',1500); });
 }
 </script></body></html>
