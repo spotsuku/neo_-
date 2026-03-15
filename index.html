@@ -1425,7 +1425,9 @@ async function loadFromDB() {
       ko_items: S.events?.ko?.items?.length,
       ko_estimates: S.estimates?.ko?.length,
       aw_items: S.events?.aw?.items?.length,
-      ledger: S.ledger?.length,
+      orderMaster: S.orderMaster?.length,
+      prodItems: S.prodItems?.length,
+      mktItems: S.mktItems?.length,
     });
   } catch(e) {
     console.warn('[loadFromDB] failed, using local:', e.message);
@@ -1520,6 +1522,16 @@ async function manualSave() {
   } catch(e) {
     if (btn) { btn.textContent = '❌ 保存失敗'; btn.disabled = false; }
   }
+}
+
+// debounce付き自動保存（入力中に何度も呼ばれても最後の1回だけ保存）
+let _saveTimer = null;
+function debouncedSave() {
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(async () => {
+    await save();
+    console.log('[debouncedSave] saved orderMaster:', S.orderMaster?.length, 'items');
+  }, 800);
 }
 function sdot(){return document.getElementById('sdot');}
 function slbl(){return document.getElementById('slbl');}
@@ -5735,29 +5747,29 @@ function renderOrderMaster() {
       <td style="color:var(--t3);font-size:10px;text-align:center">${realIdx+1}</td>
       <td>
         <input class="inline-inp" value="${(it.name||'').replace(/"/g,'&quot;')}" placeholder="品目名・サービス名"
-          onchange="getOrderMaster()[${realIdx}].name=this.value"
+          onchange="getOrderMaster()[${realIdx}].name=this.value;debouncedSave()"
           style="font-weight:500;font-size:12px">
       </td>
       <td>
-        <select class="inline-sel" onchange="getOrderMaster()[${realIdx}].cat=this.value;renderOrderMaster()">
+        <select class="inline-sel" onchange="getOrderMaster()[${realIdx}].cat=this.value;renderOrderMaster();debouncedSave()">
           ${catOpts.replace(`value="${it.cat||''}"`,`value="${it.cat||''}" selected`)}
         </select>
       </td>
       <td>
         <input class="inline-inp" value="${(it.content||'').replace(/"/g,'&quot;')}" placeholder="仕様・内容メモ"
-          onchange="getOrderMaster()[${realIdx}].content=this.value" style="font-size:11px;color:var(--t2)">
+          onchange="getOrderMaster()[${realIdx}].content=this.value;debouncedSave()" style="font-size:11px;color:var(--t2)">
       </td>
       <td>
         <input class="inline-inp num" type="number" value="${it.price||''}" placeholder="0"
-          onchange="getOrderMaster()[${realIdx}].price=parseFloat(this.value)||0">
+          onchange="getOrderMaster()[${realIdx}].price=parseFloat(this.value)||0;debouncedSave()">
       </td>
       <td>
         <input class="inline-inp" value="${it.unit||'式'}" style="text-align:center;font-size:11px"
-          onchange="getOrderMaster()[${realIdx}].unit=this.value">
+          onchange="getOrderMaster()[${realIdx}].unit=this.value;debouncedSave()">
       </td>
       <td>
         <input class="inline-inp" value="${(it.vendor||'').replace(/"/g,'&quot;')}" placeholder="取引先名"
-          onchange="getOrderMaster()[${realIdx}].vendor=this.value" style="font-size:11px;color:var(--t2)">
+          onchange="getOrderMaster()[${realIdx}].vendor=this.value;debouncedSave()" style="font-size:11px;color:var(--t2)">
       </td>
       <td>
         <button class="del-btn" onclick="deleteOrderMaster('${it.id}')">×</button>
@@ -5770,6 +5782,7 @@ function addOrderMasterRow() {
   const items = getOrderMaster();
   items.push({ id:uid(), name:'', cat:'', content:'', price:0, unit:'式', vendor:'' });
   renderOrderMaster();
+  debouncedSave();
   setTimeout(()=>{
     const inputs = document.querySelectorAll('#om-tbody input[placeholder="品目名・サービス名"]');
     if(inputs.length) inputs[inputs.length-1].focus();
@@ -5779,6 +5792,7 @@ function addOrderMasterRow() {
 function deleteOrderMaster(id) {
   S.orderMaster = getOrderMaster().filter(x=>x.id!==id);
   renderOrderMaster();
+  save();
 }
 
 function saveOrderMaster() {
