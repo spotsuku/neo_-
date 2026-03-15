@@ -2266,12 +2266,16 @@ function updateEvtInline(key, cat, field, value) {
 }
 function toggleEvtDetail(key, idx) {
   const btn = document.getElementById(`toggle-${key}-${idx}`);
-  // この科目の詳細行を全て取得
-  const rows = document.querySelectorAll(`[id^="detail-${key}-${idx}-"]`);
+  // edet- プレフィックスで詳細行を取得
+  const rows = document.querySelectorAll(`[id^="edet-${key}-${idx}-"]`);
   if (!rows.length) return;
   const isOpen = rows[0].style.display !== 'none';
-  rows.forEach(r => r.style.display = isOpen ? 'none' : '');
-  if (btn) btn.textContent = isOpen ? '▶ 詳細' : '▼ 詳細';
+  rows.forEach(r => r.style.display = isOpen ? 'none' : 'table-row');
+  if (btn) {
+    const count = rows.length;
+    btn.textContent = isOpen ? `▶ 詳細 ${count}件` : `▼ 閉じる`;
+    btn.style.background = isOpen ? 'rgba(37,99,235,.08)' : 'rgba(37,99,235,.18)';
+  }
 }
 function clearEvtItems() {
   if (!confirm('全費目をクリアしますか？（保存するまで元に戻せます）')) return;
