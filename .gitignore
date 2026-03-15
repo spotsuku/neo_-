@@ -1,0 +1,10 @@
+# 環境変数（絶対にGitHubに上げない）
+.env
+.env.local
+.env.production
+
+# macOS
+.DS_Store
+
+# エディタ
+.vscode/
