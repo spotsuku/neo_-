@@ -337,8 +337,33 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 <div class="main-wrap">
   <div class="topbar">
     <div class="topbar-title" id="pgTitle">サマリー</div>
-    <div class="topbar-right">
-      <span style="color:var(--t3)">2025.04–2026.03</span>
+    <div class="topbar-right" style="gap:8px;align-items:center">
+      <div style="display:flex;align-items:center;gap:5px">
+        <button onclick="changeFYQuick(-1)" id="fy-prev-btn"
+          style="width:24px;height:24px;border-radius:6px;border:1.5px solid var(--b2);
+                 background:var(--s2);cursor:pointer;font-size:13px;color:var(--t2);
+                 display:flex;align-items:center;justify-content:center;line-height:1">‹</button>
+        <div style="position:relative">
+          <select id="fy-quick-sel" onchange="changeFYQuick(0,this.value)"
+            style="appearance:none;-webkit-appearance:none;padding:4px 26px 4px 10px;border-radius:7px;
+                   border:1.5px solid var(--blue);background:rgba(37,99,235,.07);cursor:pointer;
+                   font-size:11px;font-weight:700;color:var(--blue);font-family:var(--sans);
+                   outline:none;min-width:170px">
+            <option value="2025">2025年度（25/4〜26/3）</option>
+            <option value="2026">2026年度（26/4〜27/3）</option>
+          </select>
+          <span style="position:absolute;right:7px;top:50%;transform:translateY(-50%);
+                       font-size:9px;color:var(--blue);pointer-events:none">▼</span>
+        </div>
+        <button onclick="changeFYQuick(1)" id="fy-next-btn"
+          style="width:24px;height:24px;border-radius:6px;border:1.5px solid var(--b2);
+                 background:var(--s2);cursor:pointer;font-size:13px;color:var(--t2);
+                 display:flex;align-items:center;justify-content:center;line-height:1">›</button>
+        <button onclick="openFiscalYearManager()" title="年度管理・新年度作成"
+          style="width:24px;height:24px;border-radius:6px;border:1.5px solid var(--b2);
+                 background:var(--s2);cursor:pointer;font-size:11px;
+                 display:flex;align-items:center;justify-content:center">⚙️</button>
+      </div>
     </div>
   </div>
   <div class="content">
@@ -1708,6 +1733,62 @@ function updateFiscalYearUI() {
   // （切り替え時にloadSが新しいキーを参照するよう_currentFiscalYearは更新済み）
 }
 
+
+// ── 年度クイック切り替え ──
+async function changeFYQuick(delta, fy) {
+  let newFY;
+  if (delta !== 0) {
+    newFY = _currentFiscalYear + delta;
+  } else {
+    newFY = parseInt(fy);
+  }
+  if (newFY < 2024 || newFY > 2040) return;
+  if (newFY === _currentFiscalYear) return;
+
+  // 確認
+  const label = getFiscalYearLabel(newFY);
+  if (!confirm(`${label}に切り替えます。\n現在のデータは自動保存されます。`)) {
+    // セレクターを元に戻す
+    const sel = document.getElementById('fy-quick-sel');
+    if (sel) sel.value = _currentFiscalYear;
+    return;
+  }
+
+  // 切り替え処理
+  await save();
+  _currentFiscalYear = newFY;
+  localStorage.setItem('neo_fiscal_year', newFY);
+  S = loadS();
+  await loadFromDB();
+  updateFYSelectorUI();
+  renderPg('ov');
+  go('ov', document.querySelector('.nb'));
+}
+
+function updateFYSelectorUI() {
+  const sel = document.getElementById('fy-quick-sel');
+  if (!sel) return;
+
+  // 利用可能な年度をオプションに反映
+  const years = [];
+  for (let y = 2025; y <= _currentFiscalYear + 1; y++) years.push(y);
+
+  sel.innerHTML = years.map(y =>
+    `<option value="${y}" ${y===_currentFiscalYear?'selected':''}>
+      ${y}年度（${String(y).slice(2)}/4〜${String(y+1).slice(2)}/3）
+    </option>`
+  ).join('');
+
+  // ナビボタンの活性状態
+  const prevBtn = document.getElementById('fy-prev-btn');
+  const nextBtn = document.getElementById('fy-next-btn');
+  if (prevBtn) prevBtn.style.opacity = _currentFiscalYear <= 2025 ? '.3' : '1';
+  if (nextBtn) nextBtn.style.opacity = '1';
+
+  // ページタイトルの年度表示も更新
+  const label = document.getElementById('fiscal-year-label');
+  if (label) label.textContent = getFiscalYearLabel(_currentFiscalYear);
+}
 async function loadAvailableFiscalYears() {
   try {
     const {data} = await _sb.from('dashboard_data').select('id').order('id');
@@ -1828,18 +1909,38 @@ function renderOv(){
   const maxActual8 = Math.max(...ACCOUNTING_CATS.map(cat=>totals8[cat]?.actual||0), 1);
 
   document.getElementById('ov-cats').innerHTML = ACCOUNTING_CATS.map(cat => {
-    const t = totals8[cat] || {estimate:0, actual:0};
-    const p = Math.min(Math.round(t.actual / maxActual8 * 100), 100);
+    const t = totals8[cat] || {budget:0, estimate:0, actual:0};
     const col = CAT8_COLORS[cat] || '#374151';
-    return `<div class="pb">
-      <div class="pb-top">
-        <span class="n">${cat}</span>
-        <span style="font-family:var(--mono);font-size:10px;color:var(--t2)">
-          実績 <strong style="color:${col}">${fmtN(t.actual)}円</strong>
-          ${t.estimate ? ` ／ 見積 ${fmtN(t.estimate)}円` : ''}
-        </span>
+    // バーの幅：予算がある場合は予算比、ない場合は最大実績比
+    const hasBudget = t.budget > 0;
+    const barMax = hasBudget ? t.budget : maxActual8;
+    const barPct = barMax > 0 ? Math.min(Math.round(t.actual / barMax * 100), 100) : 0;
+    const consPct = hasBudget ? Math.round(t.actual / t.budget * 100) : null;
+    const isOver = hasBudget && t.actual > t.budget;
+    const barColor = isOver ? '#ef4444' : col;
+
+    return `<div class="pb" style="margin-bottom:10px">
+      <div class="pb-top" style="margin-bottom:4px">
+        <span class="n" style="font-size:12px;font-weight:600">${cat}</span>
+        <div style="display:flex;gap:12px;align-items:center;font-size:10px;font-family:var(--mono)">
+          ${hasBudget ? `<span style="color:var(--t3)">予算 ${fmtN(t.budget)}円</span>` : ''}
+          ${t.estimate ? `<span style="color:var(--blue)">見積 ${fmtN(t.estimate)}円</span>` : ''}
+          <span style="color:${isOver?'#ef4444':col};font-weight:700">実績 ${fmtN(t.actual)}円</span>
+          ${consPct!==null ? `<span style="font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px;
+            background:${isOver?'rgba(239,68,68,.1)':'rgba(37,99,235,.08)'};
+            color:${isOver?'#ef4444':'var(--blue)'}">
+            ${consPct}%
+          </span>` : ''}
+        </div>
       </div>
-      <div class="pb-track"><div class="pb-fill" style="width:${Math.max(p, t.actual>0?2:0)}%;background:${col}"></div></div>
+      <div class="pb-track" style="height:7px;background:var(--b1);border-radius:4px;overflow:hidden;position:relative">
+        ${hasBudget ? `<div style="position:absolute;top:0;left:0;height:100%;width:100%;background:rgba(0,0,0,.04);border-radius:4px"></div>` : ''}
+        <div class="pb-fill" style="height:100%;width:${Math.max(barPct, t.actual>0?1:0)}%;
+          background:${barColor};border-radius:4px;transition:width .4s ease"></div>
+      </div>
+      ${hasBudget ? `<div style="display:flex;justify-content:flex-end;margin-top:2px;font-size:9px;color:var(--t3)">
+        <span>予算上限 ${fmtN(t.budget)}円</span>
+      </div>` : ''}
     </div>`;
   }).join('');
 
@@ -2659,6 +2760,7 @@ async function onLogin(user) {
   applyRoleUI();
   await loadFromDB();
   // DBロード完了後に現在のページを再描画（ファーストビューのデータ空対策）
+  updateFYSelectorUI();
   renderPg(_curPg || 'ov');
 }
 
@@ -5457,40 +5559,34 @@ function saveProdInline() {
 // サマリー：8科目の費目別消化状況（全ソース集計）
 // ══════════════════════════════════════════════════
 function calcCat8Totals() {
-  // ソース1: 経費明細（S.ledger）
   const totals = {};
-  ACCOUNTING_CATS.forEach(cat => { totals[cat] = { estimate:0, actual:0, budget:0 }; });
+  ACCOUNTING_CATS.forEach(cat => { totals[cat] = { budget:0, estimate:0, actual:0 }; });
 
-  (S.ledger||[]).forEach(i => {
-    const cat = i.cat || '⑨ その他';
-    if (!totals[cat]) totals[cat] = {estimate:0,actual:0,budget:0};
-    totals[cat].estimate += n(i.estimate);
-    totals[cat].actual   += n(i.actual);
-    totals[cat].budget   += n(i.budget);
-  });
+  function addTo(cat, b, e, a) {
+    const c = ACCOUNTING_CATS.includes(cat) ? cat : '⑨ その他';
+    totals[c].budget   += n(b);
+    totals[c].estimate += n(e);
+    totals[c].actual   += n(a);
+  }
+
+  // ソース1: 経費明細
+  (S.ledger||[]).forEach(i => addTo(i.cat||'⑨ その他', i.budget, i.estimate, i.actual));
 
   // ソース2: イベント費目（S.events）
   ['ko','aw','ye','md'].forEach(key => {
-    (S.events[key]?.items||[]).forEach(it => {
-      const cat = ACCOUNTING_CATS.includes(it.name) ? it.name : '⑨ その他';
-      if (!totals[cat]) totals[cat] = {estimate:0,actual:0,budget:0};
-      totals[cat].estimate += n(it.estimate);
-      totals[cat].actual   += n(it.actual);
-      totals[cat].budget   += n(it.budget);
-    });
+    (S.events[key]?.items||[]).forEach(it => addTo(it.name, it.budget, it.estimate, it.actual));
   });
 
   // ソース3: シリーズ費目（S.sessions）
   ['hm','gk','oe'].forEach(key => {
     (S.sessions[key]||[]).forEach(sess => {
-      (sess.items||[]).forEach(it => {
-        const cat = ACCOUNTING_CATS.includes(it.name) ? it.name : '⑨ その他';
-        if (!totals[cat]) totals[cat] = {estimate:0,actual:0,budget:0};
-        totals[cat].estimate += n(it.estimate);
-        totals[cat].actual   += n(it.actual);
-        totals[cat].budget   += n(it.budget);
-      });
+      (sess.items||[]).forEach(it => addTo(it.name, it.budget, it.estimate, it.actual));
     });
+  });
+
+  // ソース4: 見積入力テーブル（S.estimates）
+  Object.values(S.estimates||{}).forEach(rows => {
+    (rows||[]).forEach(r => addTo(r.cat||'⑨ その他', r.budget||0, r.estimate, r.actual));
   });
 
   return totals;
