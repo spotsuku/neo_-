@@ -301,14 +301,13 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
   <button class="nb" onclick="go('aw',this)"><span class="ic">🏆</span>アワード</button>
   <button class="nb" onclick="go('ye',this)"><span class="ic">🎉</span>イヤーエンド</button>
   <div class="sb-sec">管理</div>
-  <button class="nb" id="nb-budget" onclick="openBulkBudget()"><span class="ic">✏️</span>予算を一括登録</button>
-  <button class="nb" id="nb-defaults" onclick="openSeriesDefaults()"><span class="ic">⚙️</span>デフォルト費目設定</button>
-  <button class="nb" onclick="openCatMaster()"><span class="ic">🗂</span>カテゴリ判定設定</button>
   <button class="nb" onclick="go('ordermaster',this)"><span class="ic">📋</span>発注マスタ</button>
-  <button class="nb" onclick="go('ledger',this)"><span class="ic">📝</span>経費明細登録</button>
   <button class="nb" onclick="go('mkt',this)"><span class="ic">📣</span>マーケ費用管理</button>
   <button class="nb" onclick="go('prod',this)"><span class="ic">📦</span>製作物管理</button>
   <button class="nb" onclick="go('rev',this)"><span class="ic">💰</span>収入管理</button>
+  <div class="sb-sec">設定</div>
+  <button class="nb" id="nb-defaults" onclick="openSeriesDefaults()"><span class="ic">⚙️</span>デフォルト費目設定</button>
+  <button class="nb" onclick="openCatMaster()"><span class="ic">🗂</span>カテゴリ判定設定</button>
   <button class="nb" onclick="go('changelog',this)"><span class="ic">🕵️</span>変更履歴</button>
   <button class="nb" id="nb-users" onclick="go('users',this)" style="display:none"><span class="ic">👥</span>ユーザー管理</button>
   <button class="nb" onclick="go('history',this)"><span class="ic">🕐</span>ログイン履歴</button>
@@ -669,58 +668,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       </div>
     </div>
 
-    <!-- LEDGER -->
-    <div class="pg" id="pg-ledger">
-      <div class="card" style="margin-bottom:12px">
-        <div class="ct">
-          <div class="pip" style="background:var(--acc2)"></div>経費明細一覧
-          <div style="margin-left:auto;display:flex;gap:7px;align-items:center">
-            <select id="ledger-filter-prog" class="fi" style="width:140px;padding:4px 8px;font-size:10px" onchange="renderLedger()">
-              <option value="">すべてのプログラム</option>
-            </select>
-            <select id="ledger-filter-cat" class="fi" style="width:160px;padding:4px 8px;font-size:10px" onchange="renderLedger()">
-              <option value="">すべての科目</option>
-              <option>① 会場・施設費</option>
-              <option>② 飲食・ケータリング費</option>
-              <option>③ 出演・キャスティング費</option>
-              <option>④ 制作・印刷費</option>
-              <option>⑤ 運営・人件費</option>
-              <option>⑥ 備品・設営費</option>
-              <option>⑦ 広報費</option>
-              <option>⑨ その他</option>
-              <option>⑧ デザイン費</option>
-            </select>
-            <button class="btn btn-sm btn-p" onclick="openLedgerEdit(null)">＋ 明細を追加</button>
-          </div>
-        </div>
-        <!-- 集計バー -->
-        <div id="ledger-summary" style="display:flex;gap:12px;padding:10px 0 14px;border-bottom:1px solid var(--b1);margin-bottom:12px;flex-wrap:wrap"></div>
-        <!-- テーブル -->
-        <div style="overflow-x:auto">
-          <table class="tbl" style="min-width:900px">
-            <thead><tr>
-              <th style="width:24px"></th>
-              <th>プログラム</th>
-              <th>費目名</th>
-              <th>カテゴリ</th>
-              <th>内容・品目</th>
-              <th style="text-align:right">単価</th>
-              <th style="text-align:right">数量</th>
-              <th>単位</th>
-              <th style="text-align:right">見積（円）</th>
-              <th style="text-align:right">実績（円）</th>
-              <th>支払状況</th>
-              <th>備考</th>
-              <th style="width:32px"></th>
-            </tr></thead>
-            <tbody id="ledger-tbody"></tbody>
-          </table>
-        </div>
-        <div id="ledger-empty" style="text-align:center;padding:32px;color:var(--t3);font-size:12px;display:none">
-          まだ明細がありません。「＋ 明細を追加」から登録してください。
-        </div>
-      </div>
-    </div>
+
 
     <!-- マーケ費用管理 -->
     <div class="pg" id="pg-mkt">
@@ -905,39 +853,6 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 
 <!-- ══ PANELS ══ -->
 
-<!-- 予算一括登録 -->
-<div class="ov" id="ov-budget">
-  <div class="panel wide">
-    <div class="ph"><h2>予算を一括登録</h2><button class="xbtn" onclick="closeOv('ov-budget')">×</button></div>
-    <div class="pb-body">
-      <p style="font-size:10px;color:var(--t2);margin-bottom:12px">プログラム全体の予算と、各イベント内の費目別予算を設定できます。</p>
-      <div class="tabs">
-        <button class="tab on" onclick="switchBudgetTab('prog',this)">プログラム単位</button>
-        <button class="tab" onclick="switchBudgetTab('items',this)">費目単位（イベント別）</button>
-      </div>
-      <div id="budget-prog-tab">
-        <table class="btbl"><thead><tr><th>プログラム</th><th>予算（円）</th><th>収入（円）</th></tr></thead><tbody id="bprog-body"></tbody></table>
-      </div>
-      <div id="budget-items-tab" style="display:none">
-        <div style="margin-bottom:10px">
-          <select class="fi" id="budget-evt-sel" onchange="renderBudgetItems()" style="width:auto;padding:5px 10px">
-            <option value="ko">キックオフ</option>
-            <option value="aw">アワード</option>
-            <option value="ye">イヤーエンド</option>
-            <option value="hm">ホームルーム（回次別）</option>
-            <option value="gk">評議会（回次別）</option>
-            <option value="oe">応援カイギ（回次別）</option>
-          </select>
-        </div>
-        <div id="budget-items-content"></div>
-      </div>
-    </div>
-    <div class="pf">
-      <button class="btn btn-g" onclick="closeOv('ov-budget')">閉じる</button>
-      <button class="btn btn-p" onclick="saveBulkBudget()">保存する</button>
-    </div>
-  </div>
-</div>
 
 <!-- 回次編集パネル -->
 <div class="ov" id="ov-sess">
@@ -1273,68 +1188,6 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 </style>
 
-<!-- 経費明細編集 -->
-<div class="ov" id="ov-ledger">
-  <div class="panel wide">
-    <div class="ph"><h2 id="ledger-modal-title">経費明細を追加</h2><button class="xbtn" onclick="closeOv('ov-ledger')">×</button></div>
-    <div class="pb-body">
-      <div class="fg2" style="margin-bottom:8px">
-        <div class="frow"><div class="fl">プログラム名</div>
-          <select class="fi" id="led-prog">
-            <option value="">選択してください</option>
-          </select>
-        </div>
-        <div class="frow"><div class="fl">費目名（入力）</div><input class="fi" id="led-fee" placeholder="例: 会場費、講師費"
-                  oninput="autoFillCat();showOrderSuggest(this,'led-cat')"
-                  autocomplete="off"></div>
-      </div>
-      <div class="fg2" style="margin-bottom:8px">
-        <div class="frow"><div class="fl">カテゴリ（自動判定）</div>
-          <select class="fi" id="led-cat">
-            <option>① 会場・施設費</option>
-            <option>② 飲食・ケータリング費</option>
-            <option>③ 出演・キャスティング費</option>
-            <option>④ 制作・印刷費</option>
-            <option>⑤ 運営・人件費</option>
-            <option>⑥ 備品・設営費</option>
-            <option>⑦ 広報費</option>
-            <option>⑨ その他</option>
-            <option>⑧ デザイン費</option>
-          </select>
-        </div>
-        <div class="frow"><div class="fl">内容・品目</div><input class="fi" id="led-content" placeholder="例: イベント当日施設利用料"></div>
-      </div>
-      <div class="fg4" style="margin-bottom:8px">
-        <div class="frow"><div class="fl">単価（円）</div><input class="fi" id="led-price" type="number" placeholder="0" oninput="calcLedgerTotal()"></div>
-        <div class="frow"><div class="fl">数量</div><input class="fi" id="led-qty" type="number" placeholder="1" value="1" oninput="calcLedgerTotal()"></div>
-        <div class="frow"><div class="fl">単位</div><input class="fi" id="led-unit" placeholder="式"></div>
-        <div class="frow"><div class="fl">合計（自動）</div><input class="fi" id="led-total" readonly style="color:var(--t2);opacity:.7"></div>
-      </div>
-      <div class="fg2" style="margin-bottom:8px">
-        <div class="frow"><div class="fl">見積金額（円）</div><input class="fi" id="led-est" type="number" placeholder="0"></div>
-        <div class="frow"><div class="fl">実績金額（円）</div><input class="fi" id="led-act" type="number" placeholder="0"></div>
-      </div>
-      <div class="fg2">
-        <div class="frow"><div class="fl">支払状況</div>
-          <select class="fi" id="led-status">
-            <option value="">未設定</option>
-            <option value="済">済</option>
-            <option value="未">未</option>
-            <option value="一部">一部</option>
-          </select>
-        </div>
-        <div class="frow"><div class="fl">備考</div><input class="fi" id="led-memo" placeholder="任意メモ"></div>
-      </div>
-    </div>
-    <div class="pf" style="justify-content:space-between">
-      <button class="btn btn-red btn-sm" id="led-del-btn" onclick="deleteLedger()" style="display:none">削除</button>
-      <div style="display:flex;gap:7px">
-        <button class="btn btn-g" onclick="closeOv('ov-ledger')">キャンセル</button>
-        <button class="btn btn-p" onclick="saveLedger()">保存</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- Excel同期結果 -->
 <div class="ov" id="ov-xl">
@@ -1829,17 +1682,99 @@ const sessSum=(s,f)=>s.items?s.items.reduce((t,i)=>t+n(i[f]),0):n(s[f]||0);
 const evtSum=(key,f)=>S.events[key].items.reduce((t,i)=>t+n(i[f]),0);
 
 // プログラム実績（セッション or イベント）
-function progActual(id){
-  if(S.events[id]) return evtSum(id,'actual');
-  const sess=S.sessions[id]||[];
-  return sess.reduce((t,s)=>t+sessSum(s,'actual'),0);
-}
-function progEstimate(id){
-  if(S.events[id]) return evtSum(id,'estimate');
-  const sess=S.sessions[id]||[];
-  return sess.reduce((t,s)=>t+sessSum(s,'estimate'),0);
+// プログラム名のキーワードマップ
+const PROG_KEYWORDS = {
+  annual:   ['年間共通','annual'],
+  ko:       ['キックオフ','ko'],
+  hm:       ['ホームルーム','hm'],
+  aw:       ['アワード','aw','award'],
+  cityfes:  ['シティフェス','cityfes','city fes'],
+  ye:       ['イヤーエンド','ye','year end','yearend'],
+  gk:       ['評議会','gk'],
+  oe:       ['応援カイギ','oe'],
+  other:    ['その他','other'],
+  marketing:['マーケ','マーケ関連','marketing'],
+};
+
+function matchProg(progStr, id) {
+  if (!progStr) return false;
+  const p = progStr.toLowerCase();
+  return (PROG_KEYWORDS[id] || []).some(kw => p.includes(kw.toLowerCase()));
 }
 
+function progActual(id) {
+  // ① イベント費目
+  if (S.events[id]) {
+    let t = evtSum(id, 'actual');
+    // ② 経費明細（prog一致）
+    t += (S.ledger||[]).filter(i => matchProg(i.prog, id)).reduce((s,i) => s+n(i.actual), 0);
+    return t;
+  }
+  // シリーズ
+  let t = (S.sessions[id]||[]).reduce((s,sess) => s+sessSum(sess,'actual'), 0);
+  t += (S.ledger||[]).filter(i => matchProg(i.prog, id)).reduce((s,i) => s+n(i.actual), 0);
+  // マーケ費用（marketingプログラム）
+  if (id === 'marketing') {
+    t += (S.mktItems||[]).reduce((s,i) => s+n(i.actual), 0);
+  }
+  // 製作物（annualプログラム）
+  if (id === 'annual') {
+    t += (S.prodItems||[]).reduce((s,i) => s+n(i.actual), 0);
+  }
+  return t;
+}
+
+function progEstimate(id) {
+  if (S.events[id]) {
+    let t = evtSum(id, 'estimate');
+    t += (S.ledger||[]).filter(i => matchProg(i.prog, id)).reduce((s,i) => s+n(i.estimate), 0);
+    return t;
+  }
+  let t = (S.sessions[id]||[]).reduce((s,sess) => s+sessSum(sess,'estimate'), 0);
+  t += (S.ledger||[]).filter(i => matchProg(i.prog, id)).reduce((s,i) => s+n(i.estimate), 0);
+  if (id === 'marketing') {
+    t += (S.mktItems||[]).reduce((s,i) => s+n(i.estimate), 0);
+  }
+  if (id === 'annual') {
+    t += (S.prodItems||[]).reduce((s,i) => s+n(i.estimate), 0);
+  }
+  return t;
+}
+
+
+// ══════════════════════════════════════════════════
+// 予算取得：デフォルト費目設定 → イベント費目 → プログラム予算
+// ══════════════════════════════════════════════════
+function getEventBudget(key) {
+  // ① S.events[key].items に予算が入っていればその合計
+  const evtBudget = evtSum(key, 'budget');
+  if (evtBudget > 0) return evtBudget;
+
+  // ② デフォルト費目設定（S.defaults[key]）から合計
+  const defaults = S.defaults?.[key] || [];
+  const defBudget = defaults.reduce((t, d) => t + n(d.budget), 0);
+  if (defBudget > 0) return defBudget;
+
+  // ③ プログラム予算（S.programs）
+  const prog = S.programs.find(p => p.id === key);
+  return prog ? n(prog.budget) : 0;
+}
+
+function getSeriesBudget(key) {
+  // シリーズ：セッション合計 → デフォルト×回数 → プログラム予算
+  const sessBudget = (S.sessions[key] || []).reduce((t, s) =>
+    t + (s.items || []).reduce((tt, it) => tt + n(it.budget), 0), 0);
+  if (sessBudget > 0) return sessBudget;
+
+  // デフォルト費目の合計 × セッション数
+  const defaults = S.defaults?.[key] || [];
+  const defPerSession = defaults.reduce((t, d) => t + n(d.budget), 0);
+  const sessCount = (S.sessions[key] || []).length;
+  if (defPerSession > 0 && sessCount > 0) return defPerSession * sessCount;
+
+  const prog = S.programs.find(p => p.id === key);
+  return prog ? n(prog.budget) : 0;
+}
 Chart.defaults.color='#3a4255';
 Chart.defaults.font.family="'JetBrains Mono',monospace";
 Chart.defaults.font.size=10;
@@ -2081,8 +2016,7 @@ function renderSeries(key){
 function renderEvt(key){
   const ev=S.events[key];if(!ev)return;
   const totB=evtSum(key,'budget'),totE=evtSum(key,'estimate'),totA=evtSum(key,'actual');
-  const budgetProg=S.programs.find(p=>p.id===key);
-  const progBudget=budgetProg?n(budgetProg.budget):totB;
+  const progBudget = getEventBudget(key);
 
   // このイベントに紐づく収入を計算
   const EVT_PROG_KEYS = {
@@ -2433,8 +2367,7 @@ function updateEvtInline(key, cat, field, value) {
   item[field] = value;
   // KPIを即更新
   const totB=evtSum(key,'budget'),totE=evtSum(key,'estimate'),totA=evtSum(key,'actual');
-  const budgetProg=S.programs.find(p=>p.id===key);
-  const progBudget=budgetProg?n(budgetProg.budget):totB;
+  const progBudget = getSeriesBudget(key);
   // 自動保存
   save();
 }
@@ -5517,6 +5450,12 @@ function calcCat8Totals() {
   Object.values(S.estimates||{}).forEach(rows => {
     (rows||[]).forEach(r => addTo(r.cat||'⑨ その他', r.budget||0, r.estimate, r.actual));
   });
+
+  // ソース5: マーケ費用管理（S.mktItems）→ ⑦ 広報費
+  (S.mktItems||[]).forEach(i => addTo('⑦ 広報費', i.budget||0, i.estimate||0, i.actual||0));
+
+  // ソース6: 製作物管理（S.prodItems）→ ④ 制作・印刷費
+  (S.prodItems||[]).forEach(i => addTo('④ 制作・印刷費', i.budget||0, i.estimate||0, i.actual||0));
 
   return totals;
 }
