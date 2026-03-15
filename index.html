@@ -1364,24 +1364,21 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 // ══════════════════════════════════════════════════
 // DEFAULT DATA
 // ══════════════════════════════════════════════════
+// 新年度作成時のデフォルト：プログラム構成のみ・金額は全て0
 const DEF = {
   programs:[
-    {id:'annual',   name:'年間共通',    budget:1650000},
-    {id:'ko',       name:'キックオフ',  budget:1579820},
-    {id:'hm',       name:'ホームルーム',budget:2084500},
-    {id:'aw',       name:'アワード',    budget:5027000},
-    {id:'cityfes',  name:'シティフェス',budget:2700000},
-    {id:'ye',       name:'イヤーエンド',budget:2035000},
-    {id:'gk',       name:'評議会',      budget:712800 },
-    {id:'oe',       name:'応援カイギ',  budget:49500  },
-    {id:'other',    name:'その他',      budget:676500 },
-    {id:'marketing',name:'マーケ関連',  budget:3000000},
+    {id:'annual',   name:'年間共通',    budget:0},
+    {id:'ko',       name:'キックオフ',  budget:0},
+    {id:'hm',       name:'ホームルーム',budget:0},
+    {id:'aw',       name:'アワード',    budget:0},
+    {id:'cityfes',  name:'シティフェス',budget:0},
+    {id:'ye',       name:'イヤーエンド',budget:0},
+    {id:'gk',       name:'評議会',      budget:0},
+    {id:'oe',       name:'応援カイギ',  budget:0},
+    {id:'other',    name:'その他',      budget:0},
+    {id:'marketing',name:'マーケ関連',  budget:0},
   ],
-  revenues:[
-    {id:'r1',name:'アワード参加費',    amount:900000,  prog:'アワード',    type:'参加費'},
-    {id:'r2',name:'スタジアムシティ',  amount:1707800, prog:'シティフェス', type:'協賛・協力金'},
-    {id:'r3',name:'イヤーエンド参加費',amount:1000000, prog:'イヤーエンド', type:'参加費'},
-  ],
+  revenues:[], // 新年度は収入ゼロからスタート
   events:{
     ko:{ label:'キックオフ',   items:[] },
     aw:{ label:'アワード',     items:[] },
@@ -2310,7 +2307,20 @@ function openSess(key,id){
   document.getElementById('s-date').value=s?s.date:'';
   document.getElementById('s-memo').value=s?s.memo:'';
   document.getElementById('sess-del-btn').style.display=s?'':'none';
-  _sCtx.items=s?JSON.parse(JSON.stringify(s.items)):[...FEE_TEMPLATE.slice(0,4).map(t=>({...t,id:uid()}))];
+  // 既存データを9科目に変換
+  const rawItems = s ? JSON.parse(JSON.stringify(s.items)) : makeDefaultItems(
+    S.defaults?.[key] ? Object.fromEntries(S.defaults[key].map(d=>[d.name,d.budget])) : {}
+  );
+  _sCtx.items = rawItems.map(it => ({
+    ...it,
+    // 名前が9科目でなければdetectCatで変換
+    name: ACCOUNTING_CATS.includes(it.name) ? it.name : detectCat(it.name) || it.name
+  }));
+  // 変換後にS.sessionsにも書き戻す（次回から正しく表示）
+  if (s && _sCtx.items.some((it,i) => it.name !== (s.items[i]?.name))) {
+    s.items = JSON.parse(JSON.stringify(_sCtx.items));
+    save();
+  }
   renderSessItems();
   openOv('ov-sess');
 }
@@ -3952,88 +3962,7 @@ function resetDefaults() {
 
 // ── openSess を上書き：新規追加時にデフォルト費目を適用 ──
 const _origOpenSess = openSess;
-function openSess(key, id) {
-  _sCtx = {key, id};
-  const map = {hm:'ホームルーム', gk:'評議会', oe:'応援カイギ'};
-  const s = id ? S.sessions[key].find(x => x.id === id) : null;
-  document.getElementById('sess-title').textContent = (s ? '編集：' : '追加：') + map[key];
-  document.getElementById('s-title').value = s ? s.title : '';
-  document.getElementById('s-date').value  = s ? s.date  : '';
-  document.getElementById('s-memo').value  = s ? s.memo  : '';
-  document.getElementById('sess-del-btn').style.display = s ? '' : 'none';
 
-  if (s) {
-    // 編集時：既存の費目をそのまま使用
-    _sCtx.items = JSON.parse(JSON.stringify(s.items));
-  } else {
-    // 新規追加時：デフォルト費目を適用（予算のみプリセット、見積・実数は空）
-    const defaults = S.defaults?.[key] || SERIES_DEFAULTS_INIT[key];
-    _sCtx.items = defaults
-      .filter(d => d.name)
-      .map(d => ({
-        id: uid(),
-        name: d.name,
-        budget:   d.budget   || 0,
-        estimate: d.estimate || 0,
-        actual:   d.actual   || 0,
-      }));
-  }
-
-  renderSessItems();
-  openOv('ov-sess');
-}
-
-// ══════════════════════════════════════════════════
-// デフォルト費目設定の拡張（KO/AW/YE/マッチデイ対応）
-// ══════════════════════════════════════════════════
-
-// イベント系デフォルト初期値
-const EVENT_DEFAULTS_INIT = {
-  ko: makeDefaultItems({
-    '① 会場・施設費':          400000,
-    '② 飲食・ケータリング費':  150000,
-    '③ 出演・キャスティング費':150000,
-    '④ 制作・印刷費':          500000,
-    '⑤ 運営・人件費':          150000,
-    '⑥ 備品・設営費':          130000,
-    '⑦ 広報費':                0,
-    '⑨ その他':               100000,
-  }),
-  aw: makeDefaultItems({
-    '① 会場・施設費':          500000,
-    '② 飲食・ケータリング費':  300000,
-    '③ 出演・キャスティング費':1000000,
-    '④ 制作・印刷費':          1000000,
-    '⑤ 運営・人件費':          400000,
-    '⑥ 備品・設営費':          727000,
-    '⑦ 広報費':                0,
-    '⑨ その他':               100000,
-  }),
-  ye: makeDefaultItems({
-    '① 会場・施設費':          1100000,
-    '② 飲食・ケータリング費':  300000,
-    '③ 出演・キャスティング費':100000,
-    '④ 制作・印刷費':          300000,
-    '⑤ 運営・人件費':          200000,
-    '⑥ 備品・設営費':          0,
-    '⑦ 広報費':                0,
-    '⑨ その他':               35000,
-  }),
-  md: makeDefaultItems({}),
-};
-
-// S.defaults にイベント系を追加
-if (!S.defaults) S.defaults = {};
-['ko','aw','ye','md'].forEach(k => {
-  if (!S.defaults[k]) S.defaults[k] = JSON.parse(JSON.stringify(EVENT_DEFAULTS_INIT[k])).map(i=>({...i,id:uid()}));
-});
-// マッチデイ用セッションデータも初期化
-if (!S.sessions.md) S.sessions.md = [];
-// マッチデイ用イベントデータも初期化
-if (!S.events.md) S.events.md = { label:'マッチデイ', items: [] };
-
-// switchDefaultsTab を上書き（イベント系タブで「適用」ボタン表示制御）
-const _origSwitchDefaultsTab = switchDefaultsTab;
 function switchDefaultsTab(key, btn) {
   _defTab = key;
   document.querySelectorAll('#defaults-tabs .tab').forEach(t => t.classList.remove('on'));
