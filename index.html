@@ -619,6 +619,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
               <option>⑥ 備品・設営費</option>
               <option>⑦ 広報費</option>
               <option>⑧ その他</option>
+              <option>⑨ デザイン費</option>
             </select>
             <button class="btn btn-sm btn-p" onclick="openLedgerEdit(null)">＋ 明細を追加</button>
           </div>
@@ -1104,6 +1105,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <button class="tab" onclick="switchCatTab('⑥ 備品・設営費',this)">⑥ 備品</button>
         <button class="tab" onclick="switchCatTab('⑦ 広報費',this)">⑦ 広報費</button>
         <button class="tab" onclick="switchCatTab('⑧ その他',this)">⑧ その他</button>
+        <button class="tab" onclick="switchCatTab('⑨ デザイン費',this)">⑨ デザイン費</button>
       </div>
       <div id="cat-master-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:120px;padding:10px 0"></div>
       <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
@@ -1224,6 +1226,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
             <option>⑥ 備品・設営費</option>
             <option>⑦ 広報費</option>
             <option>⑧ その他</option>
+            <option>⑨ デザイン費</option>
           </select>
         </div>
         <div class="frow"><div class="fl">内容・品目</div><input class="fi" id="led-content" placeholder="例: イベント当日施設利用料"></div>
@@ -1743,7 +1746,7 @@ function renderOv(){
     '① 会場・施設費':'#0369a1','② 飲食・ケータリング費':'#b45309',
     '③ 出演・キャスティング費':'#7c3aed','④ 制作・印刷費':'#0f766e',
     '⑤ 運営・人件費':'#1d4ed8','⑥ 備品・設営費':'#9a3412',
-    '⑦ 広報費':'#be185d','⑧ その他':'#4b5563',
+    '⑦ 広報費':'#be185d','⑧ その他':'#4b5563','⑨ デザイン費':'#9d174d',
   };
   const totals8 = calcCat8Totals();
   const maxActual8 = Math.max(...ACCOUNTING_CATS.map(cat=>totals8[cat]?.actual||0), 1);
@@ -2955,6 +2958,7 @@ const ACCOUNTING_CATS = [
   '⑥ 備品・設営費',
   '⑦ 広報費',
   '⑧ その他',
+  '⑨ デザイン費',
 ];
 
 // 科目ごとの内訳費目（表示・入力のサジェスト用）
@@ -3066,6 +3070,7 @@ const CAT_COLORS = {
   '⑥ 備品・設営費':         {fg:'9a3412', bg:'ffedd5'},
   '⑦ 広報費':               {fg:'be185d', bg:'fce7f3'},
   '⑧ その他':               {fg:'4b5563', bg:'f3f4f6'},
+  '⑨ デザイン費':           {fg:'be185d', bg:'fdf2f8'},
 };
 
 
@@ -4707,7 +4712,7 @@ Excelの内容で上書きしますか？
 // ══════════════════════════════════════════════════
 // カテゴリ判定設定（マスタ管理）
 // ══════════════════════════════════════════════════
-let _catTabCurrent = '① 会場・施設費';
+let _catTabCurrent = '① 会場・施設費'; // タブ初期値
 
 // S.catRulesにカスタムルールを保存（CAT_MASTERを上書き）
 function getEffectiveCatMaster() {
@@ -4729,7 +4734,7 @@ function detectCat(feeName) {
 }
 
 function openCatMaster() {
-  _catTabCurrent = '① 会場・施設費';
+  _catTabCurrent = '① 会場・施設費'; // タブ初期値
   document.querySelectorAll('#cat-tabs .tab').forEach((t,i) => t.className='tab'+(i===0?' on':''));
   renderCatMasterList();
   openOv('ov-cat-master');
