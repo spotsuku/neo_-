@@ -378,6 +378,16 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>費目別 消化状況</div><div id="ov-cats"></div><div style="margin-top:12px"><div class="ch" style="height:140px"><canvas id="ch-cat"></canvas></div></div></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--purple)"></div>プログラム別 予算比率</div><div class="ch-t"><canvas id="ch-donut"></canvas></div></div>
       </div>
+      <!-- CF（キャッシュフロー） -->
+      <div class="card" style="margin-top:14px">
+        <div class="ct">
+          <div class="pip" style="background:var(--green)"></div>
+          月次キャッシュフロー（CF）
+          <span style="font-size:9px;font-weight:400;color:var(--t2);margin-left:8px">支払月を登録した費目・見積の月次支出予測</span>
+        </div>
+        <div style="height:200px"><canvas id="ch-cf"></canvas></div>
+        <div id="cf-table" style="overflow-x:auto;margin-top:12px"></div>
+      </div>
     </div>
 
     <!-- PROGRAMS -->
@@ -480,13 +490,17 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
             <thead><tr>
               <th style="width:28px"></th>
               <th>品目名・内容</th>
-              <th style="width:170px">会計科目</th>
-              <th style="text-align:right;width:110px">
+              <th style="width:160px">会計科目</th>
+              <th style="text-align:right;width:100px">
                 予算（円）
                 <span style="font-size:8px;font-weight:400;color:var(--t3);display:block">管理者のみ</span>
               </th>
-              <th style="text-align:right;width:110px">見積（円）</th>
-              <th style="text-align:right;width:110px">実績（円）</th>
+              <th style="text-align:right;width:100px">見積（円）</th>
+              <th style="text-align:right;width:100px">実績（円）</th>
+              <th style="width:80px">
+                支払月
+                <span style="font-size:8px;font-weight:400;color:var(--t3);display:block">CF用</span>
+              </th>
               <th style="width:28px"></th>
             </tr></thead>
             <tbody id="ko-est-tbody"></tbody>
@@ -543,13 +557,17 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
             <thead><tr>
               <th style="width:28px"></th>
               <th>品目名・内容</th>
-              <th style="width:170px">会計科目</th>
-              <th style="text-align:right;width:110px">
+              <th style="width:160px">会計科目</th>
+              <th style="text-align:right;width:100px">
                 予算（円）
                 <span style="font-size:8px;font-weight:400;color:var(--t3);display:block">管理者のみ</span>
               </th>
-              <th style="text-align:right;width:110px">見積（円）</th>
-              <th style="text-align:right;width:110px">実績（円）</th>
+              <th style="text-align:right;width:100px">見積（円）</th>
+              <th style="text-align:right;width:100px">実績（円）</th>
+              <th style="width:80px">
+                支払月
+                <span style="font-size:8px;font-weight:400;color:var(--t3);display:block">CF用</span>
+              </th>
               <th style="width:28px"></th>
             </tr></thead>
             <tbody id="aw-est-tbody"></tbody>
@@ -606,13 +624,17 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
             <thead><tr>
               <th style="width:28px"></th>
               <th>品目名・内容</th>
-              <th style="width:170px">会計科目</th>
-              <th style="text-align:right;width:110px">
+              <th style="width:160px">会計科目</th>
+              <th style="text-align:right;width:100px">
                 予算（円）
                 <span style="font-size:8px;font-weight:400;color:var(--t3);display:block">管理者のみ</span>
               </th>
-              <th style="text-align:right;width:110px">見積（円）</th>
-              <th style="text-align:right;width:110px">実績（円）</th>
+              <th style="text-align:right;width:100px">見積（円）</th>
+              <th style="text-align:right;width:100px">実績（円）</th>
+              <th style="width:80px">
+                支払月
+                <span style="font-size:8px;font-weight:400;color:var(--t3);display:block">CF用</span>
+              </th>
               <th style="width:28px"></th>
             </tr></thead>
             <tbody id="ye-est-tbody"></tbody>
@@ -1926,6 +1948,9 @@ function renderOv(){
     options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
       plugins:{legend:{position:'right',labels:{boxWidth:8,padding:8,font:{size:10}}},
         tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ¥${Math.round(ctx.raw).toLocaleString()}`}}}}});
+
+  // CFチャートを描画
+  if (typeof renderCF === 'function') renderCF();
 }
 
 // ══════════════════════════════════════════════════
@@ -5106,7 +5131,7 @@ function updateEstRow(key, i, field, value) {
 
 function addEstimateRow(key) {
   const rows = getEstimates(key);
-  rows.push({ id: uid(), name: '', cat: '', budget: 0, estimate: 0, actual: 0 });
+  rows.push({ id: uid(), name: '', cat: '', budget: 0, estimate: 0, actual: 0, payMonth: '' });
   renderEstimateTable(key);
   // フォーカスを最後の行の品目名に
   setTimeout(() => {
@@ -5448,7 +5473,13 @@ function calcCat8Totals() {
 
   // ソース2: イベント費目（S.events）
   ['ko','aw','ye','md'].forEach(key => {
-    (S.events[key]?.items||[]).forEach(it => addTo(it.name, it.budget, it.estimate, it.actual));
+    const items = S.events[key]?.items || [];
+    if (items.length > 0) {
+      items.forEach(it => addTo(it.name, it.budget, it.estimate, it.actual));
+    } else {
+      // 費目未設定の場合はデフォルト費目設定から予算のみ追加
+      (S.defaults?.[key] || []).forEach(d => addTo(d.name, d.budget, 0, 0));
+    }
   });
 
   // ソース3: シリーズ費目（S.sessions）
@@ -5933,4 +5964,133 @@ function selectOrderSuggest(itemId, inputId, catSelId) {
 }
 
 // renderPg ordermaster: 統合版に追加済み
+
+// ══════════════════════════════════════════════════
+// キャッシュフロー（CF）機能
+// ══════════════════════════════════════════════════
+
+// 見積テーブルに支払月フィールドを追加（renderEstimateTableに統合）
+const _origRenderEstTbl = renderEstimateTable;
+function renderEstimateTable(key) {
+  _origRenderEstTbl(key);
+
+  // 支払月セルを各行に追加
+  const rows = getEstimates(key);
+  const tbody = document.getElementById(`${key}-est-tbody`);
+  if (!tbody) return;
+
+  const trs = tbody.querySelectorAll('tr');
+  rows.forEach((r, i) => {
+    const tr = trs[i];
+    if (!tr) return;
+    // 既に支払月セルがあれば更新のみ
+    let pmCell = tr.querySelector('.pm-cell');
+    if (!pmCell) {
+      pmCell = document.createElement('td');
+      pmCell.className = 'pm-cell';
+      // ×ボタンの前に挿入
+      const delTd = tr.querySelector('td:last-child');
+      tr.insertBefore(pmCell, delTd);
+    }
+    // 月プルダウン（年度の月：4月〜翌3月）
+    const months = [];
+    for (let m = 4; m <= 12; m++) months.push(`${_currentFiscalYear}/${m}`);
+    for (let m = 1; m <= 3; m++) months.push(`${_currentFiscalYear+1}/${m}`);
+    const opts = `<option value="">-</option>` + months.map(m =>
+      `<option value="${m}"${r.payMonth===m?' selected':''}>${m}</option>`
+    ).join('');
+    pmCell.innerHTML = `<select class="inline-sel"
+      style="font-size:10px;padding:4px 4px;border:1.5px solid var(--b2);border-radius:5px;
+             background:var(--s1);color:var(--t1);width:90px"
+      onchange="updateEstRow('${key}',${i},'payMonth',this.value);renderCF()">
+      ${opts}
+    </select>`;
+  });
+}
+
+// CF集計：S.estimatesの支払月ごとに費用を集計
+function calcCF() {
+  const months = [];
+  for (let m = 4; m <= 12; m++) months.push(`${_currentFiscalYear}/${m}`);
+  for (let m = 1; m <= 3; m++) months.push(`${_currentFiscalYear+1}/${m}`);
+
+  const cfData = {}; // { '2025/4': { estimate:0, actual:0 } }
+  months.forEach(m => { cfData[m] = { estimate:0, actual:0 }; });
+
+  // 見積テーブルから支払月付きデータを集計
+  Object.entries(S.estimates || {}).forEach(([evtKey, rows]) => {
+    (rows || []).forEach(r => {
+      if (!r.payMonth || !cfData[r.payMonth]) return;
+      cfData[r.payMonth].estimate += n(r.estimate);
+      cfData[r.payMonth].actual   += n(r.actual);
+    });
+  });
+
+  return { months, cfData };
+}
+
+function renderCF() {
+  const { months, cfData } = calcCF();
+  const cfEl = document.getElementById('ch-cf');
+  if (!cfEl) return;
+
+  // 累計CF計算
+  let cumEst = 0, cumAct = 0;
+  const cumEstData = months.map(m => { cumEst += cfData[m].estimate; return cumEst; });
+  const cumActData = months.map(m => { cumAct += cfData[m].actual;   return cumAct; });
+  const monthlyEst = months.map(m => cfData[m].estimate);
+  const monthlyAct = months.map(m => cfData[m].actual);
+
+  dc('ch-cf');
+  _ch['ch-cf'] = new Chart(cfEl, {
+    type: 'bar',
+    data: {
+      labels: months.map(m => m.replace(`${_currentFiscalYear}/`,'').replace(`${_currentFiscalYear+1}/`,'') + '月'),
+      datasets: [
+        { label:'月次支出（見積）', data:monthlyEst, backgroundColor:'rgba(37,99,235,.25)', borderColor:'rgba(37,99,235,.6)', borderWidth:1, borderRadius:3, yAxisID:'y' },
+        { label:'月次支出（実績）', data:monthlyAct, backgroundColor:'rgba(16,185,129,.3)', borderColor:'rgba(16,185,129,.7)', borderWidth:1, borderRadius:3, yAxisID:'y' },
+        { label:'累計（見積）', data:cumEstData, type:'line', borderColor:'#3b82f6', borderWidth:2, pointRadius:3, fill:false, tension:0.3, yAxisID:'y2' },
+        { label:'累計（実績）', data:cumActData, type:'line', borderColor:'#10b981', borderWidth:2, pointRadius:3, fill:false, tension:0.3, yAxisID:'y2' },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: { legend:{ display:true, position:'top', labels:{ boxWidth:8, padding:10, font:{size:9} } },
+        tooltip:{ callbacks:{ label: ctx=>`${ctx.dataset.label}: ¥${Math.round(ctx.raw).toLocaleString()}` } } },
+      scales: {
+        x: { grid:{ color:'rgba(0,0,0,.05)' } },
+        y: { position:'left', grid:{ color:'rgba(0,0,0,.05)' }, ticks:{ callback:v=>v>=10000?(v/10000)+'万':v }, title:{ display:true, text:'月次支出', font:{size:9} } },
+        y2: { position:'right', grid:{ drawOnChartArea:false }, ticks:{ callback:v=>v>=10000?(v/10000)+'万':v }, title:{ display:true, text:'累計', font:{size:9} } },
+      }
+    }
+  });
+
+  // CFテーブル
+  const cfTable = document.getElementById('cf-table');
+  if (!cfTable) return;
+  const hasData = months.some(m => cfData[m].estimate > 0 || cfData[m].actual > 0);
+  if (!hasData) {
+    cfTable.innerHTML = '<div style="text-align:center;padding:16px;color:var(--t3);font-size:11px">各イベントページの「予算・見積・実績 入力」で支払月を登録するとCFが表示されます</div>';
+    return;
+  }
+  cfTable.innerHTML = `<table class="tbl" style="min-width:700px;font-size:10px">
+    <thead><tr>
+      <th>月</th>
+      ${months.map(m=>`<th style="text-align:right">${m.split('/')[1]}月</th>`).join('')}
+      <th style="text-align:right">合計</th>
+    </tr></thead>
+    <tbody>
+      <tr><td style="font-weight:600;color:var(--blue)">見積（円）</td>
+        ${months.map(m=>`<td style="text-align:right;font-family:var(--mono);color:${cfData[m].estimate>0?'var(--blue)':'var(--t3)'}">${cfData[m].estimate>0?fmtN(cfData[m].estimate):'—'}</td>`).join('')}
+        <td style="text-align:right;font-family:var(--mono);font-weight:700;color:var(--blue)">${fmtN(cumEst)}</td>
+      </tr>
+      <tr><td style="font-weight:600;color:var(--green)">実績（円）</td>
+        ${months.map(m=>`<td style="text-align:right;font-family:var(--mono);color:${cfData[m].actual>0?'var(--green)':'var(--t3)'}">${cfData[m].actual>0?fmtN(cfData[m].actual):'—'}</td>`).join('')}
+        <td style="text-align:right;font-family:var(--mono);font-weight:700;color:var(--green)">${fmtN(cumAct)}</td>
+      </tr>
+    </tbody>
+  </table>`;
+}
+
+// renderCF はrenderOv本体末尾から呼び出し
 </script></body></html>
