@@ -303,6 +303,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
   <button class="nb" id="nb-budget" onclick="openBulkBudget()"><span class="ic">✏️</span>予算を一括登録</button>
   <button class="nb" id="nb-defaults" onclick="openSeriesDefaults()"><span class="ic">⚙️</span>デフォルト費目設定</button>
   <button class="nb" onclick="openCatMaster()"><span class="ic">🗂</span>カテゴリ判定設定</button>
+  <button class="nb" onclick="go('ordermaster',this)"><span class="ic">📋</span>発注マスタ</button>
   <button class="nb" onclick="go('ledger',this)"><span class="ic">📝</span>経費明細登録</button>
   <button class="nb" onclick="go('mkt',this)"><span class="ic">📣</span>マーケ費用管理</button>
   <button class="nb" onclick="go('prod',this)"><span class="ic">📦</span>製作物管理</button>
@@ -600,6 +601,48 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
     </div>
 
     <!-- REVENUE -->
+    <!-- 発注マスタ -->
+    <div class="pg" id="pg-ordermaster">
+      <div class="card">
+        <div class="ct">
+          <div class="pip" style="background:var(--acc2)"></div>発注マスタ
+          <span style="font-size:10px;font-weight:400;color:var(--t2);margin-left:8px">よく発注する品目・単価を登録。経費明細・見積入力で選択できます</span>
+          <div style="margin-left:auto;display:flex;gap:7px;align-items:center">
+            <input id="om-search" class="fi" placeholder="🔍 品目名で検索..." style="width:180px;padding:5px 9px;font-size:11px" oninput="renderOrderMaster()">
+            <select id="om-filter-cat" class="fi" style="width:150px;padding:5px 9px;font-size:11px" onchange="renderOrderMaster()">
+              <option value="">すべての科目</option>
+              <option>① 会場・施設費</option><option>② 飲食・ケータリング費</option>
+              <option>③ 出演・キャスティング費</option><option>④ 制作・印刷費</option>
+              <option>⑤ 運営・人件費</option><option>⑥ 備品・設営費</option>
+              <option>⑦ 広報費</option><option>⑧ デザイン費</option><option>⑨ その他</option>
+            </select>
+            <button class="btn btn-sm btn-g" onclick="autoGenerateOrderMaster()" style="white-space:nowrap">🤖 自動生成</button>
+            <button class="btn btn-sm btn-p" onclick="addOrderMasterRow()">＋ 追加</button>
+            <button class="btn btn-sm btn-g" onclick="saveOrderMaster()" style="font-weight:700">💾 保存</button>
+          </div>
+        </div>
+        <div id="om-summary" style="display:flex;gap:10px;padding:8px 0 12px;border-bottom:1px solid var(--b1);margin-bottom:10px;font-size:11px;color:var(--t2)"></div>
+        <div style="overflow-x:auto">
+          <table class="tbl" id="om-table" style="min-width:760px">
+            <thead><tr>
+              <th style="width:28px"></th>
+              <th>品目名・サービス名</th>
+              <th style="width:160px">会計科目</th>
+              <th style="width:200px">仕様・内容メモ</th>
+              <th style="text-align:right;width:110px">標準単価（円）</th>
+              <th style="width:60px">単位</th>
+              <th style="width:120px">取引先・発注先</th>
+              <th style="width:28px"></th>
+            </tr></thead>
+            <tbody id="om-tbody"></tbody>
+          </table>
+        </div>
+        <div id="om-empty" style="text-align:center;padding:32px;color:var(--t3);font-size:11px">
+          「＋ 追加」で品目を登録、または「🤖 自動生成」で経費明細から自動作成できます
+        </div>
+      </div>
+    </div>
+
     <!-- LEDGER -->
     <div class="pg" id="pg-ledger">
       <div class="card" style="margin-bottom:12px">
@@ -618,8 +661,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
               <option>⑤ 運営・人件費</option>
               <option>⑥ 備品・設営費</option>
               <option>⑦ 広報費</option>
-              <option>⑧ その他</option>
-              <option>⑨ デザイン費</option>
+              <option>⑨ その他</option>
+              <option>⑧ デザイン費</option>
             </select>
             <button class="btn btn-sm btn-p" onclick="openLedgerEdit(null)">＋ 明細を追加</button>
           </div>
@@ -1104,8 +1147,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <button class="tab" onclick="switchCatTab('⑤ 運営・人件費',this)">⑤ 運営</button>
         <button class="tab" onclick="switchCatTab('⑥ 備品・設営費',this)">⑥ 備品</button>
         <button class="tab" onclick="switchCatTab('⑦ 広報費',this)">⑦ 広報費</button>
-        <button class="tab" onclick="switchCatTab('⑧ その他',this)">⑧ その他</button>
-        <button class="tab" onclick="switchCatTab('⑨ デザイン費',this)">⑨ デザイン費</button>
+        <button class="tab" onclick="switchCatTab('⑨ その他',this)">⑨ その他</button>
+        <button class="tab" onclick="switchCatTab('⑧ デザイン費',this)">⑧ デザイン費</button>
       </div>
       <div id="cat-master-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:120px;padding:10px 0"></div>
       <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
@@ -1213,7 +1256,9 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
             <option value="">選択してください</option>
           </select>
         </div>
-        <div class="frow"><div class="fl">費目名（入力）</div><input class="fi" id="led-fee" placeholder="例: 会場費、講師費" oninput="autoFillCat()"></div>
+        <div class="frow"><div class="fl">費目名（入力）</div><input class="fi" id="led-fee" placeholder="例: 会場費、講師費"
+                  oninput="autoFillCat();showOrderSuggest(this,'led-cat')"
+                  autocomplete="off"></div>
       </div>
       <div class="fg2" style="margin-bottom:8px">
         <div class="frow"><div class="fl">カテゴリ（自動判定）</div>
@@ -1225,8 +1270,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
             <option>⑤ 運営・人件費</option>
             <option>⑥ 備品・設営費</option>
             <option>⑦ 広報費</option>
-            <option>⑧ その他</option>
-            <option>⑨ デザイン費</option>
+            <option>⑨ その他</option>
+            <option>⑧ デザイン費</option>
           </select>
         </div>
         <div class="frow"><div class="fl">内容・品目</div><input class="fi" id="led-content" placeholder="例: イベント当日施設利用料"></div>
@@ -1310,44 +1355,9 @@ const DEF = {
     {id:'r3',name:'イヤーエンド参加費',amount:1000000, prog:'イヤーエンド', type:'参加費'},
   ],
   events:{
-    ko:{
-      label:'キックオフ',
-      items:[
-        {id:'k1',name:'会場費',              budget:400000, estimate:662000, actual:346500},
-        {id:'k2',name:'ケータリング・ドリンク',budget:0,      estimate:0,      actual:186200},
-        {id:'k3',name:'制作・パネル',         budget:0,      estimate:200000, actual:37840 },
-        {id:'k4',name:'映像・撮影',           budget:300000, estimate:0,      actual:490000},
-        {id:'k5',name:'運営委託',             budget:0,      estimate:0,      actual:154000},
-        {id:'k6',name:'備品・印刷',           budget:0,      estimate:0,      actual:60955 },
-        {id:'k7',name:'MC・キャスティング',   budget:150000, estimate:165000, actual:230000},
-        {id:'k8',name:'旅費交通費',           budget:100000, estimate:0,      actual:0     },
-        {id:'k9',name:'諸経費',               budget:100000, estimate:0,      actual:120155},
-      ]
-    },
-    aw:{
-      label:'アワード',
-      items:[
-        {id:'a1',name:'会場費（施設・延長）',  budget:500000,  estimate:800000, actual:1000000},
-        {id:'a2',name:'ケータリング',          budget:100000,  estimate:150000, actual:523000 },
-        {id:'a3',name:'審査員・キャスティング',budget:400000,  estimate:400000, actual:200000 },
-        {id:'a4',name:'運営・進行人件費',      budget:0,       estimate:400000, actual:389000 },
-        {id:'a5',name:'制作・施工',            budget:0,       estimate:400000, actual:867504 },
-        {id:'a6',name:'賞金・懇親会',          budget:0,       estimate:0,      actual:760000 },
-        {id:'a7',name:'デザイン費',            budget:0,       estimate:0,      actual:200000 },
-        {id:'a8',name:'その他諸経費',          budget:0,       estimate:0,      actual:23734  },
-      ]
-    },
-    ye:{
-      label:'イヤーエンド',
-      items:[
-        {id:'y1',name:'会場費（当日・前日）', budget:1100000, estimate:625000, actual:625000 },
-        {id:'y2',name:'ケータリング',         budget:0,       estimate:530000, actual:530000 },
-        {id:'y3',name:'備品・受付一式',       budget:0,       estimate:60000,  actual:60000  },
-        {id:'y4',name:'進行・運営人件費',     budget:0,       estimate:350000, actual:350000 },
-        {id:'y5',name:'制作・施工',           budget:0,       estimate:798483, actual:798483 },
-        {id:'y6',name:'懇親会・デザイン・花', budget:0,       estimate:380000, actual:380000 },
-        {id:'y7',name:'演出費',               budget:0,       estimate:0,      actual:0      },
-      ]
+    ko:{ label:'キックオフ',   items:[] },
+    aw:{ label:'アワード',     items:[] },
+    ye:{ label:'イヤーエンド', items:[] 
     },
   },
   sessions:{
@@ -1401,7 +1411,7 @@ const DEF = {
     {name:'② 制作・印刷費', budget:8200000, actual:2598763},
     {name:'③ 外部委託費',   budget:3000000, actual:2025848},
     {name:'④ 広報費',       budget:1300000, actual:0      },
-    {name:'⑤ その他',       budget:5057700, actual:5052518},
+    {name:'⑨ その他',       budget:5057700, actual:5052518},
   ],
   months:['25/4','25/5','25/6','25/7','25/8','25/9','25/10','25/11','25/12','26/1','26/2','26/3'],
   monthlyTotal:[0,570540,2066928,474167,560867,2618041,490094,40000,150621,4633778,1398000,4854068],
@@ -1487,7 +1497,9 @@ async function loadFromDB() {
       if (!S.programs)     S.programs     = DEF.programs;
       if (!S.revenues)     S.revenues     = DEF.revenues;
       if (!S.sessions)     S.sessions     = DEF.sessions;
-      if (!S.events)       S.events       = DEF.events;
+      // eventsはDBから読んだデータを優先（空の場合のみDEFで補完）
+      if (!S.events) S.events = {ko:{label:'キックオフ',items:[]},aw:{label:'アワード',items:[]},ye:{label:'イヤーエンド',items:[]},md:{label:'マッチデイ',items:[]}};
+      ['ko','aw','ye','md'].forEach(k=>{ if(!S.events[k]) S.events[k]={label:{ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',md:'マッチデイ'}[k],items:[]}; });
       if (!S.categories)   S.categories   = DEF.categories;
       if (!S.months)       S.months       = DEF.months;
       if (!S.monthlyTotal) S.monthlyTotal = DEF.monthlyTotal;
@@ -1496,6 +1508,7 @@ async function loadFromDB() {
       if (!S.prodItems)    S.prodItems    = [];
       if (!S.changelog)    S.changelog    = [];
       if (!S.defaults)     S.defaults     = {};
+      if (!S.orderMaster)  S.orderMaster  = [];
     }
     slbl().textContent = 'DB同期済み';
     sdot().className = 'sdot';
@@ -1546,10 +1559,10 @@ async function save() {
     console.log('[save] OK, revenues:', S.revenues?.length, 'ledger:', S.ledger?.length);
   } catch(e) {
     sdot().className = 'sdot uns';
-    slbl().textContent = '保存エラー';
+    slbl().textContent = '保存エラー: ' + e.message;
     console.error('[save] Error:', e.message, e);
-    // ローカルには保存済みなのでユーザーに通知
-    alert('⚠️ クラウド保存に失敗しました。\n\nエラー: ' + e.message + '\n\nデータはブラウザに保存されています。');
+    // ローカルには保存済み
+    alert('⚠️ クラウド保存に失敗しました。\n\nエラー: ' + e.message + '\n\nデータはこのブラウザには保存されています。\n別のデバイスには反映されません。');
   }
 }
 
@@ -1746,7 +1759,7 @@ function renderOv(){
     '① 会場・施設費':'#0369a1','② 飲食・ケータリング費':'#b45309',
     '③ 出演・キャスティング費':'#7c3aed','④ 制作・印刷費':'#0f766e',
     '⑤ 運営・人件費':'#1d4ed8','⑥ 備品・設営費':'#9a3412',
-    '⑦ 広報費':'#be185d','⑧ その他':'#4b5563','⑨ デザイン費':'#9d174d',
+    '⑦ 広報費':'#be185d','⑨ その他':'#4b5563','⑧ デザイン費':'#9d174d',
   };
   const totals8 = calcCat8Totals();
   const maxActual8 = Math.max(...ACCOUNTING_CATS.map(cat=>totals8[cat]?.actual||0), 1);
@@ -1962,8 +1975,11 @@ function renderEvt(key){
   const ledgerForEvt = (S.ledger||[]).filter(item =>
     evtProgNames.some(kw => (item.prog||'').includes(kw))
   );
-  // 見積テーブルのデータも含める
+  // 見積テーブル（手動入力 + Excelインポート明細）
   const estForEvt = (S.estimates?.[key] || []).filter(r => r.name);
+
+  // Excelから取り込んだ明細かどうかの判定
+  const isExcelImport = estForEvt.some(r => r._origCat !== undefined);
 
   // 各会計科目行 + 折りたたみ詳細
   document.getElementById(`${key}-tbody`).innerHTML = ev.items.map((it,idx) => {
@@ -1993,8 +2009,11 @@ function renderEvt(key){
         const ed = n(e.estimate) - n(e.actual);
         return `<tr id="detail-${key}-${idx}-e${ei}" style="display:none;background:rgba(37,99,235,.03)">
           <td style="padding-left:28px;font-size:11px;color:var(--t2)">
-            <span style="font-size:9px;background:rgba(37,99,235,.1);padding:1px 5px;border-radius:3px;margin-right:6px;color:var(--blue)">見積</span>
+            <span style="font-size:9px;background:${e._origCat?'rgba(16,185,129,.1)':'rgba(37,99,235,.1)'};padding:1px 5px;border-radius:3px;margin-right:6px;color:${e._origCat?'var(--green)':'var(--blue)'}">
+              ${e._origCat ? 'Excel明細' : '見積'}
+            </span>
             ${e.name}
+            ${e._origCat ? `<span style="font-size:9px;color:var(--t3);margin-left:6px">${e._origCat}</span>` : ''}
           </td>
           <td style="text-align:right">—</td>
           <td style="font-family:var(--mono);font-size:11px;color:var(--blue);text-align:right">${e.estimate?fmtN(e.estimate):'—'}</td>
@@ -2957,8 +2976,8 @@ const ACCOUNTING_CATS = [
   '⑤ 運営・人件費',
   '⑥ 備品・設営費',
   '⑦ 広報費',
-  '⑧ その他',
-  '⑨ デザイン費',
+  '⑧ デザイン費',
+  '⑨ その他',
 ];
 
 // 科目ごとの内訳費目（表示・入力のサジェスト用）
@@ -2969,7 +2988,7 @@ const CAT_SUBCATS = {
   '④ 制作・印刷費':        ['パネル制作','デザイン費','印刷費','撮影費','映像制作','WEB制作','写真撮影'],
   '⑤ 運営・人件費':        ['運営スタッフ費','進行D','進行AD','受付スタッフ','誘導スタッフ','外部委託費','運営委託費'],
   '⑥ 備品・設営費':        ['設営撤去費','備品購入','機材レンタル','運搬費','養生材費','備品費','消耗品費'],
-  '⑦ 広報・その他':        ['広告出稿費','SNS広告費','旅費交通費','諸経費','雑費','交通費'],
+  '⑦ 広報費':        ['広告出稿費','SNS広告費','旅費交通費','諸経費','雑費','交通費'],
 };
 
 // キーワード → 会計科目 マッピング
@@ -3051,14 +3070,14 @@ const CAT_MASTER = {
   '電源': '⑥ 備品・設営費', '延長コード': '⑥ 備品・設営費',
 
   // ⑦ 広報・その他
-  '広報': '⑦ 広報・その他', '広告': '⑦ 広報・その他',
-  'SNS': '⑦ 広報・その他', 'PR': '⑦ 広報・その他',
-  'インフルエンサー': '⑦ 広報・その他', '駅貼り': '⑦ 広報・その他',
-  '旅費': '⑦ 広報・その他', '交通費': '⑦ 広報・その他',
-  'ガソリン': '⑦ 広報・その他', '駐車場': '⑦ 広報・その他',
-  '諸経費': '⑦ 広報・その他', '雑費': '⑦ 広報・その他',
-  '送料': '⑦ 広報・その他', '手数料': '⑦ 広報・その他',
-  '調整': '⑦ 広報・その他',
+  '広報': '⑦ 広報費', '広告': '⑦ 広報費',
+  'SNS': '⑦ 広報費', 'PR': '⑦ 広報費',
+  'インフルエンサー': '⑦ 広報費', '駅貼り': '⑦ 広報費',
+  '旅費': '⑦ 広報費', '交通費': '⑦ 広報費',
+  'ガソリン': '⑦ 広報費', '駐車場': '⑦ 広報費',
+  '諸経費': '⑦ 広報費', '雑費': '⑦ 広報費',
+  '送料': '⑦ 広報費', '手数料': '⑦ 広報費',
+  '調整': '⑦ 広報費',
 };
 
 const CAT_COLORS = {
@@ -3069,8 +3088,8 @@ const CAT_COLORS = {
   '⑤ 運営・人件費':         {fg:'1d4ed8', bg:'dbeafe'},
   '⑥ 備品・設営費':         {fg:'9a3412', bg:'ffedd5'},
   '⑦ 広報費':               {fg:'be185d', bg:'fce7f3'},
-  '⑧ その他':               {fg:'4b5563', bg:'f3f4f6'},
-  '⑨ デザイン費':           {fg:'be185d', bg:'fdf2f8'},
+  '⑨ その他':               {fg:'4b5563', bg:'f3f4f6'},
+  '⑧ デザイン費':           {fg:'be185d', bg:'fdf2f8'},
 };
 
 
@@ -3493,7 +3512,7 @@ function showAiCsvResult(parsed) {
 
   // テーブル行
   const CAT_C = {'① イベント費':['dc2626','fee2e2'],'② 制作・印刷費':['1d4ed8','dbeafe'],
-    '③ 外部委託費':['6d28d9','ede9fe'],'④ 広報費':['b45309','fef3c7'],'⑤ その他':['15803d','dcfce7']};
+    '③ 外部委託費':['6d28d9','ede9fe'],'④ 広報費':['b45309','fef3c7'],'⑨ その他':['15803d','dcfce7']};
   document.getElementById('ai-csv-tbody').innerHTML = rows.map((r,i) => {
     const cc = CAT_C[r.cat] || ['374151','fafafa'];
     const progShort = (r.program||'').replace('（第一期）','').replace('（第二期）','');
@@ -3594,11 +3613,11 @@ const SERIES_DEFAULTS_INIT = {
     '③ 出演・キャスティング費':110000,
     '⑤ 運営・人件費':         0,
     '⑥ 備品・設営費':         15000,
-    '⑧ その他':              20000,
+    '⑨ その他':              20000,
   }),
   gk: makeDefaultItems({
     '① 会場・施設費': 55000,
-    '⑧ その他':       5500,
+    '⑨ その他':       5500,
   }),
   oe: makeDefaultItems({
     '① 会場・施設費':          5500,
@@ -3748,7 +3767,7 @@ const EVENT_DEFAULTS_INIT = {
     '⑤ 運営・人件費':          150000,
     '⑥ 備品・設営費':          130000,
     '⑦ 広報費':                0,
-    '⑧ その他':               100000,
+    '⑨ その他':               100000,
   }),
   aw: makeDefaultItems({
     '① 会場・施設費':          500000,
@@ -3758,7 +3777,7 @@ const EVENT_DEFAULTS_INIT = {
     '⑤ 運営・人件費':          400000,
     '⑥ 備品・設営費':          727000,
     '⑦ 広報費':                0,
-    '⑧ その他':               100000,
+    '⑨ その他':               100000,
   }),
   ye: makeDefaultItems({
     '① 会場・施設費':          1100000,
@@ -3768,7 +3787,7 @@ const EVENT_DEFAULTS_INIT = {
     '⑤ 運営・人件費':          200000,
     '⑥ 備品・設営費':          0,
     '⑦ 広報費':                0,
-    '⑧ その他':               35000,
+    '⑨ その他':               35000,
   }),
   md: makeDefaultItems({}),
 };
@@ -3896,7 +3915,8 @@ function renderPg(id){
   else if(id==='ledger')    renderLedger();
   else if(id==='mkt')       renderMkt();
   else if(id==='prod')      renderProd();
-  else if(id==='changelog') renderChangelog();
+  else if(id==='changelog')    renderChangelog();
+  else if(id==='ordermaster')  renderOrderMaster();
 }
 // マッチデイ用のナビボタンとページがなければ動的追加
 (function initMatchday() {
@@ -4723,14 +4743,14 @@ function getEffectiveCatMaster() {
 // detectCatをカスタムルール対応に上書き
 const _origDetectCat = detectCat;
 function detectCat(feeName) {
-  if (!feeName) return '⑤ その他';
+  if (!feeName) return '⑨ その他';
   const master = getEffectiveCatMaster();
   if (master[feeName]) return master[feeName];
   const keys = Object.keys(master).sort((a,b) => b.length - a.length);
   for (const k of keys) {
     if (feeName.includes(k)) return master[k];
   }
-  return '⑤ その他';
+  return '⑨ その他';
 }
 
 function openCatMaster() {
@@ -4760,7 +4780,7 @@ function renderCatMasterList() {
     '② 制作・印刷費': '#1d4ed8',
     '③ 外部委託費':   '#6d28d9',
     '④ 広報費':       '#b45309',
-    '⑤ その他':       '#059669',
+    '⑨ その他':       '#059669',
   };
   const col = CAT_C[_catTabCurrent] || '#374151';
 
@@ -4807,8 +4827,8 @@ function testCatDetect() {
   const fee = document.getElementById('cat-test-input').value;
   const result = detectCat(fee);
   const el = document.getElementById('cat-test-result');
-  const CAT_BG = {'① イベント費':'rgba(220,38,38,.1)','② 制作・印刷費':'rgba(29,78,216,.1)','③ 外部委託費':'rgba(109,40,217,.1)','④ 広報費':'rgba(180,83,9,.1)','⑤ その他':'rgba(5,150,105,.1)'};
-  const CAT_FG = {'① イベント費':'#dc2626','② 制作・印刷費':'#1d4ed8','③ 外部委託費':'#6d28d9','④ 広報費':'#b45309','⑤ その他':'#059669'};
+  const CAT_BG = {'① イベント費':'rgba(220,38,38,.1)','② 制作・印刷費':'rgba(29,78,216,.1)','③ 外部委託費':'rgba(109,40,217,.1)','④ 広報費':'rgba(180,83,9,.1)','⑨ その他':'rgba(5,150,105,.1)'};
+  const CAT_FG = {'① イベント費':'#dc2626','② 制作・印刷費':'#1d4ed8','③ 外部委託費':'#6d28d9','④ 広報費':'#b45309','⑨ その他':'#059669'};
   el.textContent = result;
   el.style.background = CAT_BG[result] || 'var(--s3)';
   el.style.color = CAT_FG[result] || 'var(--t1)';
@@ -4885,11 +4905,12 @@ function renderEstimateTable(key) {
     return `<tr>
       <td style="color:var(--t3);font-size:10px;text-align:center;width:28px">${i+1}</td>
       <td>
-        <input value="${(r.name||'').replace(/"/g,'&quot;')}" placeholder="品目名・内容を入力..."
+        <input id="est-name-${key}-${i}" value="${(r.name||'').replace(/"/g,'&quot;')}" placeholder="品目名・内容を入力..."
           style="width:100%;padding:6px 8px;border:1.5px solid var(--b2);border-radius:6px;font-size:12px;background:var(--s1);color:var(--t1);outline:none"
-          oninput="updateEstRow('${key}',${i},'name',this.value)"
+          oninput="updateEstRow('${key}',${i},'name',this.value);showOrderSuggest(this,null)"
           onfocus="this.style.borderColor='var(--blue)'"
-          onblur="this.style.borderColor='var(--b2)';autoClassifyRow('${key}',${i})">
+          onblur="this.style.borderColor='var(--b2)';autoClassifyRow('${key}',${i})"
+          autocomplete="off">
       </td>
       <td>
         <select style="width:100%;padding:5px 7px;border:1.5px solid #${cc.bg};border-radius:6px;
@@ -4998,7 +5019,7 @@ async function aiClassifyEstimates(key) {
   });
 
   // 未分類がある場合はAI（Edge Function）に問い合わせ
-  const unclassified = rows.filter(r => r.name && (!r.cat || r.cat === '⑧ その他'));
+  const unclassified = rows.filter(r => r.name && (!r.cat || r.cat === '⑨ その他'));
   if (unclassified.length > 0) {
     try {
       const prompt = `以下はイベント費用の品目リストです。各品目を以下の8つの会計科目のどれかに分類してください。
@@ -5050,7 +5071,7 @@ function applyEstimatesToEvt(key) {
   const uncat = rows.filter(r => r.name && !r.cat);
   if (uncat.length > 0) {
     if (!confirm(`${uncat.length}件の未分類項目があります。「⑧ その他」として反映しますか？`)) return;
-    uncat.forEach(r => r.cat = '⑧ その他');
+    uncat.forEach(r => r.cat = '⑨ その他');
     renderEstimateTable(key);
   }
 
@@ -5058,7 +5079,7 @@ function applyEstimatesToEvt(key) {
   const catTotals = {};
   rows.forEach(r => {
     if (!r.name && !r.estimate && !r.actual && !r.budget) return;
-    const cat = r.cat || '⑧ その他';
+    const cat = r.cat || '⑨ その他';
     if (!catTotals[cat]) catTotals[cat] = { budget: 0, estimate: 0, actual: 0 };
     catTotals[cat].budget   += n(r.budget);
     catTotals[cat].estimate += n(r.estimate);
@@ -5293,7 +5314,7 @@ function calcCat8Totals() {
   ACCOUNTING_CATS.forEach(cat => { totals[cat] = { estimate:0, actual:0, budget:0 }; });
 
   (S.ledger||[]).forEach(i => {
-    const cat = i.cat || '⑧ その他';
+    const cat = i.cat || '⑨ その他';
     if (!totals[cat]) totals[cat] = {estimate:0,actual:0,budget:0};
     totals[cat].estimate += n(i.estimate);
     totals[cat].actual   += n(i.actual);
@@ -5303,7 +5324,7 @@ function calcCat8Totals() {
   // ソース2: イベント費目（S.events）
   ['ko','aw','ye','md'].forEach(key => {
     (S.events[key]?.items||[]).forEach(it => {
-      const cat = ACCOUNTING_CATS.includes(it.name) ? it.name : '⑧ その他';
+      const cat = ACCOUNTING_CATS.includes(it.name) ? it.name : '⑨ その他';
       if (!totals[cat]) totals[cat] = {estimate:0,actual:0,budget:0};
       totals[cat].estimate += n(it.estimate);
       totals[cat].actual   += n(it.actual);
@@ -5315,7 +5336,7 @@ function calcCat8Totals() {
   ['hm','gk','oe'].forEach(key => {
     (S.sessions[key]||[]).forEach(sess => {
       (sess.items||[]).forEach(it => {
-        const cat = ACCOUNTING_CATS.includes(it.name) ? it.name : '⑧ その他';
+        const cat = ACCOUNTING_CATS.includes(it.name) ? it.name : '⑨ その他';
         if (!totals[cat]) totals[cat] = {estimate:0,actual:0,budget:0};
         totals[cat].estimate += n(it.estimate);
         totals[cat].actual   += n(it.actual);
@@ -5524,4 +5545,232 @@ function saveProdInline() {
   const btns = document.querySelectorAll('#pg-prod button[onclick="saveProdInline()"]');
   btns.forEach(btn => { btn.textContent='✅ 保存しました'; setTimeout(()=>btn.textContent='💾 保存',1500); });
 }
+
+// ══════════════════════════════════════════════════
+// 発注マスタ
+// ══════════════════════════════════════════════════
+TITLES['ordermaster'] = '発注マスタ';
+
+function getOrderMaster() {
+  if (!S.orderMaster) S.orderMaster = [];
+  return S.orderMaster;
+}
+
+function renderOrderMaster() {
+  const search = (document.getElementById('om-search')?.value || '').toLowerCase();
+  const filterCat = document.getElementById('om-filter-cat')?.value || '';
+  const items = getOrderMaster();
+
+  const filtered = items.filter(it => {
+    if (filterCat && it.cat !== filterCat) return false;
+    if (search && !it.name.toLowerCase().includes(search) &&
+        !(it.vendor||'').toLowerCase().includes(search) &&
+        !(it.content||'').toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  const sumEl = document.getElementById('om-summary');
+  if (sumEl) sumEl.innerHTML = `
+    <span>登録品目数: <strong>${items.length}件</strong></span>
+    <span style="margin-left:16px">表示中: <strong>${filtered.length}件</strong></span>`;
+
+  const empty = document.getElementById('om-empty');
+  const tbody = document.getElementById('om-tbody');
+  if (!filtered.length) { tbody.innerHTML=''; empty.style.display=''; return; }
+  empty.style.display='none';
+
+  const catOpts = ['', ...ACCOUNTING_CATS].map(cat =>
+    `<option value="${cat}">${cat||'-- 科目を選択 --'}</option>`).join('');
+
+  tbody.innerHTML = filtered.map((it) => {
+    const realIdx = items.findIndex(x=>x.id===it.id);
+    const cc = CAT_COLORS[it.cat] || {fg:'374151',bg:'f3f4f6'};
+    return `<tr>
+      <td style="color:var(--t3);font-size:10px;text-align:center">${realIdx+1}</td>
+      <td>
+        <input class="inline-inp" value="${(it.name||'').replace(/"/g,'&quot;')}" placeholder="品目名・サービス名"
+          onchange="getOrderMaster()[${realIdx}].name=this.value"
+          style="font-weight:500;font-size:12px">
+      </td>
+      <td>
+        <select class="inline-sel" onchange="getOrderMaster()[${realIdx}].cat=this.value;renderOrderMaster()">
+          ${catOpts.replace(`value="${it.cat||''}"`,`value="${it.cat||''}" selected`)}
+        </select>
+      </td>
+      <td>
+        <input class="inline-inp" value="${(it.content||'').replace(/"/g,'&quot;')}" placeholder="仕様・内容メモ"
+          onchange="getOrderMaster()[${realIdx}].content=this.value" style="font-size:11px;color:var(--t2)">
+      </td>
+      <td>
+        <input class="inline-inp num" type="number" value="${it.price||''}" placeholder="0"
+          onchange="getOrderMaster()[${realIdx}].price=parseFloat(this.value)||0">
+      </td>
+      <td>
+        <input class="inline-inp" value="${it.unit||'式'}" style="text-align:center;font-size:11px"
+          onchange="getOrderMaster()[${realIdx}].unit=this.value">
+      </td>
+      <td>
+        <input class="inline-inp" value="${(it.vendor||'').replace(/"/g,'&quot;')}" placeholder="取引先名"
+          onchange="getOrderMaster()[${realIdx}].vendor=this.value" style="font-size:11px;color:var(--t2)">
+      </td>
+      <td>
+        <button class="del-btn" onclick="deleteOrderMaster('${it.id}')">×</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function addOrderMasterRow() {
+  const items = getOrderMaster();
+  items.push({ id:uid(), name:'', cat:'', content:'', price:0, unit:'式', vendor:'' });
+  renderOrderMaster();
+  setTimeout(()=>{
+    const inputs = document.querySelectorAll('#om-tbody input[placeholder="品目名・サービス名"]');
+    if(inputs.length) inputs[inputs.length-1].focus();
+  },50);
+}
+
+function deleteOrderMaster(id) {
+  S.orderMaster = getOrderMaster().filter(x=>x.id!==id);
+  renderOrderMaster();
+}
+
+function saveOrderMaster() {
+  save();
+  logChange('other', `発注マスタ保存: ${getOrderMaster().length}件`, null, null);
+  const btn = document.querySelector('#pg-ordermaster button[onclick="saveOrderMaster()"]');
+  if(btn){ btn.textContent='✅ 保存しました'; setTimeout(()=>btn.textContent='💾 保存',1500); }
+}
+
+// 🤖 経費明細・見積テーブルから自動生成
+function autoGenerateOrderMaster() {
+  const existing = getOrderMaster();
+  const existNames = new Set(existing.map(x=>x.name.trim().toLowerCase()));
+  let added = 0;
+
+  // 経費明細から収集
+  const sources = [];
+  (S.ledger||[]).forEach(l => {
+    if (l.fee && l.fee.trim()) sources.push({ name:l.fee.trim(), cat:l.cat||'', content:l.content||'', price:l.price||0, unit:l.unit||'式', vendor:'' });
+  });
+  // 見積テーブルから収集
+  Object.values(S.estimates||{}).forEach(rows => {
+    (rows||[]).forEach(r => {
+      if (r.name && r.name.trim()) sources.push({ name:r.name.trim(), cat:r.cat||'', content:'', price:0, unit:'式', vendor:'' });
+    });
+  });
+
+  // 重複除去して追加
+  const seen = new Set(existNames);
+  sources.forEach(src => {
+    const key = src.name.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      existing.push({ id:uid(), ...src });
+      added++;
+    }
+  });
+
+  renderOrderMaster();
+  alert(`✅ ${added}件を発注マスタに追加しました（重複除外済み）`);
+}
+
+// ── 発注マスタから選択するオートコンプリート ──
+function getOrderMasterSuggestions(query, cat) {
+  const items = getOrderMaster();
+  const q = query.toLowerCase();
+  return items
+    .filter(it => {
+      if (cat && it.cat && it.cat !== cat) return false;
+      return !q || it.name.toLowerCase().includes(q) || (it.vendor||'').toLowerCase().includes(q);
+    })
+    .slice(0, 8);
+}
+
+// 経費明細の費目名入力にサジェスト追加
+function showOrderSuggest(inputEl, catSelId) {
+  const query = inputEl.value;
+  const cat = document.getElementById(catSelId)?.value || '';
+  const suggestions = getOrderMasterSuggestions(query, cat);
+
+  // 既存のサジェストを削除
+  const old = document.getElementById('order-suggest-box');
+  if (old) old.remove();
+
+  if (!suggestions.length || !query) return;
+
+  const box = document.createElement('div');
+  box.id = 'order-suggest-box';
+  box.style.cssText = `position:absolute;z-index:999;background:var(--s1);border:1.5px solid var(--b2);
+    border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);min-width:320px;overflow:hidden;`;
+
+  box.innerHTML = suggestions.map((it,i) => {
+    const cc = CAT_COLORS[it.cat] || {fg:'374151',bg:'f3f4f6'};
+    return `<div onclick="selectOrderSuggest('${it.id}','${inputEl.id}','${catSelId}')"
+      style="padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--b1);display:flex;justify-content:space-between;align-items:center"
+      onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background=''">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--t1)">${it.name}</div>
+        <div style="font-size:10px;color:var(--t3);margin-top:1px">${it.content||''} ${it.vendor?'／ '+it.vendor:''}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;margin-left:12px">
+        ${it.price?`<div style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--t1)">${fmtN(it.price)}円/${it.unit||'式'}</div>`:''}
+        <div style="font-size:9px;font-weight:700;color:#${cc.fg};background:#${cc.bg};padding:1px 5px;border-radius:3px;margin-top:2px">${it.cat||'未分類'}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // 最後に「発注マスタに追加」リンク
+  box.innerHTML += `<div onclick="go('ordermaster',null)" style="padding:7px 14px;font-size:10px;color:var(--blue);cursor:pointer;text-align:center"
+    onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background=''">
+    ＋ 発注マスタに追加・編集
+  </div>`;
+
+  // 位置調整
+  const rect = inputEl.getBoundingClientRect();
+  box.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+  box.style.left = (rect.left + window.scrollX) + 'px';
+  document.body.appendChild(box);
+
+  // 外クリックで閉じる
+  setTimeout(()=>{
+    document.addEventListener('click', function handler(e) {
+      if (!box.contains(e.target) && e.target !== inputEl) { box.remove(); document.removeEventListener('click',handler); }
+    });
+  }, 100);
+}
+
+function selectOrderSuggest(itemId, inputId, catSelId) {
+  const it = getOrderMaster().find(x=>x.id===itemId);
+  if (!it) return;
+  const inp = document.getElementById(inputId);
+  if (inp) inp.value = it.name;
+
+  // 経費明細モーダルの場合
+  if (inputId === 'led-fee') {
+    if (it.cat) { const s=document.getElementById('led-cat'); if(s) s.value=it.cat; }
+    if (it.price) { const p=document.getElementById('led-price'); if(p) p.value=it.price; }
+    if (it.unit)  { const u=document.getElementById('led-unit');  if(u) u.value=it.unit; }
+    if (it.content){ const ct=document.getElementById('led-content'); if(ct) ct.value=it.content; }
+    autoFillCat();
+  }
+
+  // 見積テーブルの場合（inputId = est-name-{key}-{i} 形式）
+  const estMatch = inputId.match(/^est-name-(\w+)-(\d+)$/);
+  if (estMatch) {
+    const [,key,idx] = estMatch;
+    const rows = getEstimates(key);
+    if (rows[idx]) {
+      rows[idx].name = it.name;
+      rows[idx].cat  = it.cat || rows[idx].cat;
+      if (!rows[idx].estimate && it.price) rows[idx].estimate = it.price;
+      renderEstimateTable(key);
+    }
+  }
+
+  const box = document.getElementById('order-suggest-box');
+  if (box) box.remove();
+}
+
+// renderPg ordermaster: 統合版に追加済み
 </script></body></html>
