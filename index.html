@@ -2,14 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-  <!-- Vercel環境変数をwindowオブジェクトに注入 -->
-  <!-- vercel.json の headers で X-Robots-Tag等を設定 -->
-  <script>
-    // Vercelのエッジで動的に差し込まれる場合のプレースホルダー
-    // 静的デプロイの場合はfallback値（dash_p2.js内）を使用
-    window.__SUPABASE_URL__ = window.__SUPABASE_URL__ || null;
-    window.__SUPABASE_ANON_KEY__ = window.__SUPABASE_ANON_KEY__ || null;
-  </script>
+  <!-- セキュリティ設定 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NEO福岡 経費ダッシュボード</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -1433,13 +1426,26 @@ const DEF = {
 // ══════════════════════════════════════════════════
 // SUPABASE CONFIG — ここにAPIキーを設定してください
 // ══════════════════════════════════════════════════
-// Supabase設定: window.__SUPABASE_URL__ / window.__SUPABASE_ANON_KEY__ が
-// Vercelの環境変数から注入される（vercel.jsonのrewritesで対応）
-// フォールバックとして直接記載（開発用・anon keyは公開前提の設計）
-const SUPABASE_URL = (typeof window!=='undefined' && window.__SUPABASE_URL__)
-  || 'https://hhifpqlbgyjdfbluigfo.supabase.co';
-const SUPABASE_ANON_KEY = (typeof window!=='undefined' && window.__SUPABASE_ANON_KEY__)
-  || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoaWZwcWxiZ3lqZGZibHVpZ2ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzOTkyNTksImV4cCI6MjA4ODk3NTI1OX0.hjycUEUf_Kr9iUDrs4GQZvqVWtcfi4Ij4mEfq-HM5c0';
+// Supabase設定：起動時に /api/config から取得（Vercel環境変数を安全に参照）
+// 開発時フォールバックとして直接記載（anon keyはRLSで保護済み）
+let SUPABASE_URL     = 'https://hhifpqlbgyjdfbluigfo.supabase.co';
+let SUPABASE_ANON_KEY= 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoaWZwcWxiZ3lqZGZibHVpZ2ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzOTkyNTksImV4cCI6MjA4ODk3NTI1OX0.hjycUEUf_Kr9iUDrs4GQZvqVWtcfi4Ij4mEfq-HM5c0';
+
+// /api/config が使えるVercel環境ではそちらを優先
+async function initConfig() {
+  try {
+    const res = await fetch('/api/config', { cache: 'no-store' });
+    if (res.ok) {
+      const cfg = await res.json();
+      if (cfg.supabaseUrl)     SUPABASE_URL      = cfg.supabaseUrl;
+      if (cfg.supabaseAnonKey) SUPABASE_ANON_KEY = cfg.supabaseAnonKey;
+      console.log('[config] Loaded from /api/config');
+    }
+  } catch(e) {
+    // ローカル開発時やAPIなし環境ではフォールバック値を使用
+    console.log('[config] Using fallback (local dev)');
+  }
+}
 
 const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
