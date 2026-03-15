@@ -420,7 +420,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <div class="card">
           <div class="ct">
             <div class="pip"></div>会計科目別集計
-            <button class="btn btn-xs btn-g" style="margin-left:auto" onclick="openEvt('ko')" class="btn btn-xs btn-g admin-only">✏️ 編集</button>
+            <button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('ko')">✏️ 予算を編集</button>
           </div>
           <table class="tbl"><thead><tr>
               <th>会計科目</th>
@@ -483,7 +483,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <div class="card">
           <div class="ct">
             <div class="pip"></div>会計科目別集計
-            <button class="btn btn-xs btn-g" style="margin-left:auto" onclick="openEvt('aw')" class="btn btn-xs btn-g admin-only">✏️ 編集</button>
+            <button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('aw')">✏️ 予算を編集</button>
           </div>
           <table class="tbl"><thead><tr>
               <th>会計科目</th>
@@ -546,7 +546,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <div class="card">
           <div class="ct">
             <div class="pip"></div>会計科目別集計
-            <button class="btn btn-xs btn-g" style="margin-left:auto" onclick="openEvt('ye')" class="btn btn-xs btn-g admin-only">✏️ 編集</button>
+            <button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('ye')">✏️ 予算を編集</button>
           </div>
           <table class="tbl"><thead><tr>
               <th>会計科目</th>
@@ -1967,7 +1967,7 @@ function renderEvt(key){
       <div class="ks">${arari>=0?'✅ 黒字':'⚠️ 赤字'}</div>
     </div>`;
 
-  // 経費明細から該当イベントのデータを取得
+  // 経費明細・見積テーブルから詳細を取得
   const EVT_PROG_NAMES = {
     ko:['キックオフ'], aw:['アワード','AWARD'], ye:['イヤーエンド','YEAR END'], md:['マッチデイ']
   };
@@ -1975,66 +1975,93 @@ function renderEvt(key){
   const ledgerForEvt = (S.ledger||[]).filter(item =>
     evtProgNames.some(kw => (item.prog||'').includes(kw))
   );
-  // 見積テーブル（手動入力 + Excelインポート明細）
   const estForEvt = (S.estimates?.[key] || []).filter(r => r.name);
 
-  // Excelから取り込んだ明細かどうかの判定
-  const isExcelImport = estForEvt.some(r => r._origCat !== undefined);
+  const admin = isAdmin();
 
-  // 各会計科目行 + 折りたたみ詳細
-  document.getElementById(`${key}-tbody`).innerHTML = ev.items.map((it,idx) => {
-    const catName = it.name;
-    const d = n(it.estimate) - n(it.actual);
-    const hasDetail = ledgerForEvt.some(l => l.cat === catName) || estForEvt.some(e => e.cat === catName);
+  // ev.itemsを9科目に自動変換（古いデータ対応）
+  const cat9Map = {};
+  (ev.items||[]).forEach(it => {
+    const cat = ACCOUNTING_CATS.includes(it.name) ? it.name : detectCat(it.name);
+    if (!cat9Map[cat]) cat9Map[cat] = {id:it.id||uid(), budget:0, estimate:0, actual:0};
+    cat9Map[cat].budget   += n(it.budget);
+    cat9Map[cat].estimate += n(it.estimate);
+    cat9Map[cat].actual   += n(it.actual);
+  });
+  // 古い名前が含まれていたら9科目に変換して保存
+  if ((ev.items||[]).some(it => !ACCOUNTING_CATS.includes(it.name))) {
+    S.events[key].items = ACCOUNTING_CATS
+      .filter(cat => cat9Map[cat] && (cat9Map[cat].budget||cat9Map[cat].estimate||cat9Map[cat].actual))
+      .map(cat => ({id:cat9Map[cat].id, name:cat, ...cat9Map[cat]}));
+    save();
+  }
 
-    // 詳細行：経費明細
-    const ledgerDetails = ledgerForEvt.filter(l => l.cat === catName);
-    const estDetails    = estForEvt.filter(e => e.cat === catName);
+  // 詳細（経費明細 + Excel明細 + 見積入力）をカテゴリ別に集計
+  const detailsByCat = {};
+  ACCOUNTING_CATS.forEach(cat => { detailsByCat[cat] = []; });
+  ledgerForEvt.forEach(l => {
+    const cat = ACCOUNTING_CATS.includes(l.cat) ? l.cat : detectCat(l.fee||'');
+    if (!detailsByCat[cat]) detailsByCat[cat] = [];
+    detailsByCat[cat].push({type:'ledger', label:l.fee, sub:l.content, budget:l.budget, estimate:l.estimate, actual:l.actual});
+  });
+  estForEvt.forEach(e => {
+    const cat = ACCOUNTING_CATS.includes(e.cat) ? e.cat : detectCat(e.name||'');
+    if (!detailsByCat[cat]) detailsByCat[cat] = [];
+    detailsByCat[cat].push({type:e._origCat?'excel':'estimate', label:e.name, sub:e._origCat||'', budget:0, estimate:e.estimate, actual:e.actual});
+  });
 
-    const detailRows = [
-      ...ledgerDetails.map(l => {
-        const ld = n(l.estimate) - n(l.actual);
-        return `<tr id="detail-${key}-${idx}-l${l.id}" style="display:none;background:rgba(37,99,235,.03)">
-          <td style="padding-left:28px;font-size:11px;color:var(--t2)">
-            <span style="font-size:9px;background:var(--s3);padding:1px 5px;border-radius:3px;margin-right:6px;color:var(--t3)">経費明細</span>
-            ${l.fee}${l.content?`<span style="color:var(--t3);margin-left:6px;font-size:10px">${l.content}</span>`:''}
-          </td>
-          <td style="font-family:var(--mono);font-size:11px;color:var(--t2);text-align:right">${l.budget?fmtN(l.budget):'—'}</td>
-          <td style="font-family:var(--mono);font-size:11px;color:var(--blue);text-align:right">${l.estimate?fmtN(l.estimate):'—'}</td>
-          <td style="font-family:var(--mono);font-size:11px;color:var(--green);text-align:right">${l.actual?fmtN(l.actual):'—'}</td>
-          <td style="font-size:11px;text-align:right" class="${ld>=0?'ok':'ng'}">${l.estimate||l.actual?`${ld>=0?'▲':'▼'} ${fmtN(Math.abs(ld))}`:'—'}</td>
-        </tr>`;
-      }),
-      ...estDetails.map((e,ei) => {
-        const ed = n(e.estimate) - n(e.actual);
-        return `<tr id="detail-${key}-${idx}-e${ei}" style="display:none;background:rgba(37,99,235,.03)">
-          <td style="padding-left:28px;font-size:11px;color:var(--t2)">
-            <span style="font-size:9px;background:${e._origCat?'rgba(16,185,129,.1)':'rgba(37,99,235,.1)'};padding:1px 5px;border-radius:3px;margin-right:6px;color:${e._origCat?'var(--green)':'var(--blue)'}">
-              ${e._origCat ? 'Excel明細' : '見積'}
-            </span>
-            ${e.name}
-            ${e._origCat ? `<span style="font-size:9px;color:var(--t3);margin-left:6px">${e._origCat}</span>` : ''}
-          </td>
-          <td style="text-align:right">—</td>
-          <td style="font-family:var(--mono);font-size:11px;color:var(--blue);text-align:right">${e.estimate?fmtN(e.estimate):'—'}</td>
-          <td style="font-family:var(--mono);font-size:11px;color:var(--green);text-align:right">${e.actual?fmtN(e.actual):'—'}</td>
-          <td style="font-size:11px;text-align:right" class="${ed>=0?'ok':'ng'}">${e.estimate||e.actual?`${ed>=0?'▲':'▼'} ${fmtN(Math.abs(ed))}`:'—'}</td>
-        </tr>`;
-      }),
-    ].join('');
+  // 読み取り専用の集計テーブル（値は詳細合算 > ev.items値）
+  document.getElementById(`${key}-tbody`).innerHTML = ACCOUNTING_CATS.map((cat, idx) => {
+    const vals = cat9Map[cat] || {budget:0, estimate:0, actual:0};
+    const details = detailsByCat[cat] || [];
+    const detailE = details.reduce((t,d)=>t+n(d.estimate),0);
+    const detailA = details.reduce((t,d)=>t+n(d.actual),0);
+    const dispB = vals.budget;
+    const dispE = details.length ? detailE : vals.estimate;
+    const dispA = details.length ? detailA : vals.actual;
+    const diff = dispE - dispA;
+    const cc = CAT_COLORS[cat] || {fg:'374151', bg:'f3f4f6'};
+    const hasDetail = details.length > 0;
+
+    // 詳細行
+    const detailHTML = details.map((det,di) => {
+      const dd = n(det.estimate)-n(det.actual);
+      const typeLabel = det.type==='ledger'?'経費明細':det.type==='excel'?'Excel明細':'見積入力';
+      const typeBg = det.type==='ledger'?'var(--s3)':det.type==='excel'?'rgba(16,185,129,.12)':'rgba(37,99,235,.1)';
+      const typeFg = det.type==='ledger'?'var(--t3)':det.type==='excel'?'var(--green)':'var(--blue)';
+      return `<tr id="edet-${key}-${idx}-${di}" style="display:none;background:var(--s2)">
+        <td style="padding-left:28px;font-size:11px;color:var(--t2)">
+          <span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;margin-right:6px;background:${typeBg};color:${typeFg}">${typeLabel}</span>
+          ${det.label}${det.sub?`<span style="color:var(--t3);margin-left:6px;font-size:10px">${det.sub}</span>`:''}
+        </td>
+        <td style="font-family:var(--mono);font-size:11px;text-align:right;color:var(--t3)">${det.budget?fmtN(det.budget):'—'}</td>
+        <td style="font-family:var(--mono);font-size:11px;text-align:right;color:var(--blue)">${det.estimate?fmtN(det.estimate):'—'}</td>
+        <td style="font-family:var(--mono);font-size:11px;text-align:right;color:var(--green)">${det.actual?fmtN(det.actual):'—'}</td>
+        <td style="font-size:10px;text-align:right;color:var(--t3)">${det.estimate||det.actual?`${dd>=0?'▲':'▼'}${fmtN(Math.abs(dd))}`:'—'}</td>
+      </tr>`;
+    }).join('');
 
     const toggleBtn = hasDetail
-      ? `<span onclick="toggleEvtDetail('${key}',${idx})" style="cursor:pointer;font-size:10px;color:var(--blue);margin-left:6px;user-select:none" id="toggle-${key}-${idx}">▶ 詳細</span>`
+      ? `<button onclick="toggleEvtDetail('${key}',${idx})" id="toggle-${key}-${idx}"
+          style="font-size:9px;color:var(--blue);background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.2);
+                 padding:2px 6px;border-radius:4px;cursor:pointer;margin-left:8px;font-weight:700">▶ 詳細 ${details.length}件</button>`
       : '';
 
-    return `<tr style="cursor:${hasDetail?'pointer':'default'}" onclick="${hasDetail?`toggleEvtDetail('${key}',${idx})`:''}">
-      <td style="font-weight:600;font-size:13px">${catName}${toggleBtn}</td>
-      <td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--t2)">${it.budget?fmtN(it.budget):'—'}</td>
-      <td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--blue)">${it.estimate?fmtN(it.estimate):'—'}</td>
-      <td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--green);font-weight:600">${it.actual?fmtN(it.actual):'—'}</td>
-      <td style="font-size:12px;text-align:right" class="${d>=0?'ok':'ng'}">${d>=0?'▲':'▼'} ${fmtN(Math.abs(d))}</td>
-    </tr>${detailRows}`;
-  }).join('');
+    // 値があるか（表示する行か）
+    const hasValue = dispB || dispE || dispA;
+    if (!hasValue && !hasDetail) return ''; // 0のみの行は非表示
+
+    return `<tr style="border-bottom:1px solid var(--b1)">
+      <td style="padding:10px 0;font-weight:600;font-size:13px">
+        <span style="font-size:9px;font-weight:700;color:#${cc.fg};background:#${cc.bg};padding:2px 8px;border-radius:10px;margin-right:8px">${cat}</span>
+        ${toggleBtn}
+      </td>
+      <td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--t2)">${dispB?fmtN(dispB):'—'}</td>
+      <td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--blue)">${dispE?fmtN(dispE):'—'}</td>
+      <td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--green);font-weight:600">${dispA?fmtN(dispA):'—'}</td>
+      <td style="font-size:12px;text-align:right;font-weight:600" class="${diff>=0?'ok':'ng'}">${dispE||dispA?(diff>=0?'▲':'▼')+' '+fmtN(Math.abs(diff)):'—'}</td>
+    </tr>${detailHTML}`;
+  }).filter(Boolean).join('');
 
   const items=ev.items.filter(i=>n(i.actual)>0);
   dc('ch-'+key);
@@ -2125,28 +2152,26 @@ function openSess(key,id){
 }
 function renderSessItems(){
   const wrap=document.getElementById('sess-items');
-  const catOpts = ACCOUNTING_CATS.map(cat =>
-    `<option value="${cat}">${cat}</option>`
-  ).join('');
-  wrap.innerHTML=_sCtx.items.map((it,i)=>`
+  wrap.innerHTML=_sCtx.items.map((it,i)=>{
+    // selected属性をHTML生成時に直接埋め込む
+    const catOpts = `<option value="">-- 会計科目を選択 --</option>` +
+      ACCOUNTING_CATS.map(cat =>
+        `<option value="${cat}"${it.name===cat?' selected':''}>${cat}</option>`
+      ).join('');
+    return `
     <div class="item-row" id="si-${i}" style="grid-template-columns:20px 1fr 90px 90px 90px 26px">
       <div class="item-num">${i+1}</div>
       <select data-i="${i}" data-f="name" onchange="updateSessItem(this)"
         style="padding:5px 7px;background:var(--s1);border:1.5px solid var(--b2);border-radius:6px;
                color:var(--t1);font-size:11px;font-family:var(--sans);outline:none;width:100%">
-        <option value="">-- 会計科目を選択 --</option>
         ${catOpts}
       </select>
       <input type="number" value="${it.budget||''}"    placeholder="0" data-i="${i}" data-f="budget"   oninput="updateSessItem(this);updateSessTotals()" ${isAdmin()?'':'readonly style="opacity:.4;pointer-events:none"'}>
       <input type="number" value="${it.estimate||''}"  placeholder="0" data-i="${i}" data-f="estimate" oninput="updateSessItem(this);updateSessTotals()">
       <input type="number" value="${it.actual||''}"    placeholder="0" data-i="${i}" data-f="actual"   oninput="updateSessItem(this);updateSessTotals()">
       ${isAdmin()?`<button class="del-btn" onclick="removeSessItem(${i})">×</button>`:`<div style="width:22px"></div>`}
-    </div>`).join('');
-  // selectの選択値をセット
-  _sCtx.items.forEach((it, i) => {
-    const sel = wrap.querySelector(`[data-i="${i}"][data-f="name"]`);
-    if (sel && it.name) sel.value = it.name;
-  });
+    </div>`;
+  }).join('');
   updateSessTotals();
 }
 function updateSessItem(inp){
@@ -2197,13 +2222,48 @@ let _eCtx={};
 function openEvt(key){
   if(!isAdmin()){alert('費目の編集は管理者のみ可能です');return;}
   _eCtx={key};
-  const labels={ko:'キックオフ',aw:'アワード',ye:'イヤーエンド'};
+  const labels={ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',md:'マッチデイ'};
   document.getElementById('evt-title').textContent='費目別明細を編集：'+labels[key];
-  _eCtx.items=JSON.parse(JSON.stringify(S.events[key].items));
+
+  // 既存データを9科目に変換（古いデータ対応）
+  const rawItems = JSON.parse(JSON.stringify(S.events[key]?.items || []));
+  const cat9Map = {};
+  rawItems.forEach(it => {
+    // すでに9科目名であればそのまま、そうでなければdetectCatで変換
+    const cat = ACCOUNTING_CATS.includes(it.name) ? it.name : detectCat(it.name);
+    if (!cat9Map[cat]) cat9Map[cat] = {budget:0, estimate:0, actual:0};
+    cat9Map[cat].budget   += n(it.budget);
+    cat9Map[cat].estimate += n(it.estimate);
+    cat9Map[cat].actual   += n(it.actual);
+  });
+
+  // 9科目順で並べ直す
+  _eCtx.items = ACCOUNTING_CATS.map(cat => {
+    const vals = cat9Map[cat] || {budget:0, estimate:0, actual:0};
+    return { id: uid(), name: cat, ...vals };
+  });
+
   renderEvtItems();openOv('ov-evt');
 }
 
 
+
+function updateEvtInline(key, cat, field, value) {
+  if (!S.events[key]) return;
+  // ACCOUNTING_CATSで9科目を正規化してev.itemsを管理
+  let item = S.events[key].items.find(it => it.name === cat);
+  if (!item) {
+    item = { id: uid(), name: cat, budget:0, estimate:0, actual:0 };
+    S.events[key].items.push(item);
+  }
+  item[field] = value;
+  // KPIを即更新
+  const totB=evtSum(key,'budget'),totE=evtSum(key,'estimate'),totA=evtSum(key,'actual');
+  const budgetProg=S.programs.find(p=>p.id===key);
+  const progBudget=budgetProg?n(budgetProg.budget):totB;
+  // 自動保存
+  save();
+}
 function toggleEvtDetail(key, idx) {
   const btn = document.getElementById(`toggle-${key}-${idx}`);
   // この科目の詳細行を全て取得
@@ -3661,25 +3721,25 @@ function renderDefaultsItems() {
   const catOpts = ACCOUNTING_CATS.map(cat =>
     `<option value="${cat}">${cat}</option>`
   ).join('');
-  document.getElementById('defaults-items').innerHTML = items.map((it, i) => `
+  document.getElementById('defaults-items').innerHTML = items.map((it, i) => {
+    const catOpts = `<option value="">-- 会計科目を選択 --</option>` +
+      ACCOUNTING_CATS.map(cat =>
+        `<option value="${cat}"${it.name===cat?' selected':''}>${cat}</option>`
+      ).join('');
+    return `
     <div class="item-row" style="grid-template-columns:20px 1fr 110px 26px">
       <div class="item-num">${i+1}</div>
       <select data-i="${i}" data-f="name" onchange="updateDefItem(this)"
         style="padding:5px 7px;background:var(--s1);border:1.5px solid var(--b2);border-radius:6px;
                color:var(--t1);font-size:11px;font-family:var(--sans);outline:none;width:100%">
-        <option value="">-- 会計科目を選択 --</option>
         ${catOpts}
       </select>
       <input type="number" value="${it.budget||''}" placeholder="デフォルト予算"
         data-i="${i}" data-f="budget" oninput="updateDefItem(this);updateDefaultsPreview()"
         style="text-align:right">
       <button class="del-btn" onclick="removeDefItem(${i})">×</button>
-    </div>`).join('');
-  // selectの選択値をセット
-  items.forEach((it, i) => {
-    const sel = document.querySelector(`#defaults-items [data-i="${i}"][data-f="name"]`);
-    if (sel && it.name) sel.value = it.name;
-  });
+    </div>`;
+  }).join('');
   updateDefaultsPreview();
 }
 
