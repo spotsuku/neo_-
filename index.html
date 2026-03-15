@@ -300,9 +300,10 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
   <button class="nb" onclick="go('ko',this)"><span class="ic">🚀</span>キックオフ</button>
   <button class="nb" onclick="go('aw',this)"><span class="ic">🏆</span>アワード</button>
   <button class="nb" onclick="go('ye',this)"><span class="ic">🎉</span>イヤーエンド</button>
+  <button class="nb" onclick="go('tour',this)"><span class="ic">✈️</span>ツアー</button>
+  <button class="nb" onclick="go('cityfes',this)"><span class="ic">🏙</span>シティフェス</button>
   <div class="sb-sec">管理</div>
   <button class="nb" onclick="go('ordermaster',this)"><span class="ic">📋</span>発注マスタ</button>
-  <button class="nb" onclick="go('mkt',this)"><span class="ic">📣</span>マーケ費用管理</button>
   <button class="nb" onclick="go('prod',this)"><span class="ic">📦</span>製作物管理</button>
   <button class="nb" onclick="go('rev',this)"><span class="ic">💰</span>収入管理</button>
   <div class="sb-sec">設定</div>
@@ -410,6 +411,25 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       </div>
       <!-- KPIカード（5列） -->
       <div class="g5" id="hm-kpis" style="margin-bottom:14px"></div>
+      <!-- 会計科目別集計 + チャート -->
+      <div class="g2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="ct">
+            <div class="pip"></div>会計科目別集計（全回次合算）
+          </div>
+          <table class="tbl"><thead><tr>
+            <th>会計科目</th>
+            <th style="text-align:right">予算（円）</th>
+            <th style="text-align:right">見積（円）</th>
+            <th style="text-align:right">実数（円）</th>
+            <th style="text-align:right">差異</th>
+          </tr></thead><tbody id="hm-cat-tbody"></tbody></table>
+        </div>
+        <div class="card">
+          <div class="ct"><div class="pip" style="background:var(--green)"></div>実数内訳</div>
+          <div class="ch-t"><canvas id="ch-hm-cat"></canvas></div>
+        </div>
+      </div>
       <!-- 回次グリッド -->
       <div class="sg" id="hm-grid"></div>
     </div>
@@ -426,6 +446,25 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       </div>
       <!-- KPIカード（5列） -->
       <div class="g5" id="gk-kpis" style="margin-bottom:14px"></div>
+      <!-- 会計科目別集計 + チャート -->
+      <div class="g2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="ct">
+            <div class="pip"></div>会計科目別集計（全回次合算）
+          </div>
+          <table class="tbl"><thead><tr>
+            <th>会計科目</th>
+            <th style="text-align:right">予算（円）</th>
+            <th style="text-align:right">見積（円）</th>
+            <th style="text-align:right">実数（円）</th>
+            <th style="text-align:right">差異</th>
+          </tr></thead><tbody id="gk-cat-tbody"></tbody></table>
+        </div>
+        <div class="card">
+          <div class="ct"><div class="pip" style="background:var(--blue)"></div>実数内訳</div>
+          <div class="ch-t"><canvas id="ch-gk-cat"></canvas></div>
+        </div>
+      </div>
       <!-- 回次グリッド -->
       <div class="sg" id="gk-grid"></div>
     </div>
@@ -442,6 +481,25 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       </div>
       <!-- KPIカード（5列） -->
       <div class="g5" id="oe-kpis" style="margin-bottom:14px"></div>
+      <!-- 会計科目別集計 + チャート -->
+      <div class="g2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="ct">
+            <div class="pip"></div>会計科目別集計（全回次合算）
+          </div>
+          <table class="tbl"><thead><tr>
+            <th>会計科目</th>
+            <th style="text-align:right">予算（円）</th>
+            <th style="text-align:right">見積（円）</th>
+            <th style="text-align:right">実数（円）</th>
+            <th style="text-align:right">差異</th>
+          </tr></thead><tbody id="oe-cat-tbody"></tbody></table>
+        </div>
+        <div class="card">
+          <div class="ct"><div class="pip" style="background:var(--yellow)"></div>実数内訳</div>
+          <div class="ch-t"><canvas id="ch-oe-cat"></canvas></div>
+        </div>
+      </div>
       <!-- 回次グリッド -->
       <div class="sg" id="oe-grid"></div>
     </div>
@@ -626,6 +684,269 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       </div>
     </div>
 
+
+    <!-- TOUR -->
+    <div class="pg" id="pg-tour">
+      <div class="g5" id="tour-kpis" style="margin-bottom:14px"></div>
+      <div class="g2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="ct">
+            <div class="pip"></div>会計科目別集計
+            <button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('tour')">✏️ 予算を編集</button>
+          </div>
+          <table class="tbl"><thead><tr>
+            <th>会計科目</th>
+            <th style="text-align:right">予算（円）</th>
+            <th style="text-align:right">見積（円）</th>
+            <th style="text-align:right">実数（円）</th>
+            <th style="text-align:right">差異</th>
+          </tr></thead><tbody id="tour-tbody"></tbody></table>
+        </div>
+        <div class="card">
+          <div class="ct"><div class="pip" style="background:var(--acc)"></div>実数内訳</div>
+          <div class="ch-t"><canvas id="ch-tour"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ct">
+          <div class="pip" style="background:var(--blue)"></div>
+          見積・実績 入力
+          <span style="font-size:9px;font-weight:400;color:var(--t2);margin-left:8px">Excelの明細を確認・修正 / 手動追加も可能 → 上の集計に反映</span>
+          <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+            <button class="btn btn-xs btn-g" onclick="addEstimateRow('tour')">＋ 行を追加</button>
+            <button class="btn btn-xs" onclick="aiClassifyEstimates('tour')"
+              style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">
+              🤖 AIで振り分け
+            </button>
+            <button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('tour')">✅ 集計に反映</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl" id="tour-est-table">
+            <thead><tr>
+              <th style="width:28px"></th>
+              <th>品目名・内容</th>
+              <th style="width:170px">会計科目</th>
+              <th style="text-align:right;width:120px">見積（円）</th>
+              <th style="text-align:right;width:120px">実績（円）</th>
+              <th style="width:80px">支払月<span style="font-size:8px;font-weight:400;color:var(--t3);display:block">CF用</span></th>
+              <th style="width:28px"></th>
+            </tr></thead>
+            <tbody id="tour-est-tbody"></tbody>
+          </table>
+        </div>
+        <div id="tour-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」または Excel取込で明細を入力できます</div>
+        <div id="tour-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div>
+      </div>
+    </div>
+    <!-- CITYFES -->
+    <div class="pg" id="pg-cityfes">
+      <!-- シティフェス全体KPI -->
+      <div class="g5" id="cityfes-kpis" style="margin-bottom:14px"></div>
+      <!-- タブ -->
+      <div class="card" style="margin-bottom:14px">
+        <div style="display:flex;gap:0;border-bottom:2px solid var(--b1);margin-bottom:16px;overflow-x:auto">
+          <button id="cityfes-tab-md" class="cityfes-tab on"
+            onclick="switchCityFesTab('md',this)"
+            style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:12px;font-weight:700;
+                   color:var(--blue);border-bottom:2px solid var(--blue);margin-bottom:-2px;white-space:nowrap">
+            ⚽ マッチデイ
+          </button>
+          <button id="cityfes-tab-sd" class="cityfes-tab"
+            onclick="switchCityFesTab('sd',this)"
+            style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:12px;font-weight:600;
+                   color:var(--t2);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">
+            ✨ スペシャルデイズ
+          </button>
+          <button id="cityfes-tab-cf3" class="cityfes-tab"
+            onclick="switchCityFesTab('cf3',this)"
+            style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:12px;font-weight:600;
+                   color:var(--t2);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">
+            🎪 イベント3
+          </button>
+          <button id="cityfes-tab-cf4" class="cityfes-tab"
+            onclick="switchCityFesTab('cf4',this)"
+            style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:12px;font-weight:600;
+                   color:var(--t2);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">
+            🎪 イベント4
+          </button>
+          <div style="flex:1"></div>
+          <button class="btn btn-xs btn-g admin-only" style="margin:6px 8px"
+            onclick="renameCityFesTab()">✏️ タブ名変更</button>
+        </div>
+
+        <!-- 各タブコンテンツ -->
+        <div id="cityfes-panel-md">
+          <div class="g5" id="md-kpis" style="margin-bottom:14px"></div>
+          <div class="g2" style="margin-bottom:14px">
+            <div class="card">
+              <div class="ct">
+                <div class="pip"></div>会計科目別集計
+                <button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('md')">✏️ 予算を編集</button>
+              </div>
+              <table class="tbl"><thead><tr>
+                <th>会計科目</th><th style="text-align:right">予算（円）</th>
+                <th style="text-align:right">見積（円）</th><th style="text-align:right">実数（円）</th>
+                <th style="text-align:right">差異</th>
+              </tr></thead><tbody id="md-tbody"></tbody></table>
+            </div>
+            <div class="card">
+              <div class="ct"><div class="pip" style="background:var(--green)"></div>実数内訳</div>
+              <div class="ch-t"><canvas id="ch-md"></canvas></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ct">
+              <div class="pip" style="background:var(--blue)"></div>見積・実績 入力
+              <div style="margin-left:auto;display:flex;gap:6px">
+                <button class="btn btn-xs btn-g" onclick="addEstimateRow('md')">＋ 行を追加</button>
+                <button class="btn btn-xs" onclick="aiClassifyEstimates('md')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">🤖 AIで振り分け</button>
+                <button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('md')">✅ 集計に反映</button>
+              </div>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="tbl" id="md-est-table"><thead><tr>
+                <th style="width:28px"></th><th>品目名・内容</th>
+                <th style="width:170px">会計科目</th>
+                <th style="text-align:right;width:120px">見積（円）</th>
+                <th style="text-align:right;width:120px">実績（円）</th>
+                <th style="width:80px">支払月<span style="font-size:8px;font-weight:400;color:var(--t3);display:block">CF用</span></th>
+                <th style="width:28px"></th>
+              </tr></thead><tbody id="md-est-tbody"></tbody></table>
+            </div>
+            <div id="md-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」または Excel取込で明細を入力できます</div>
+            <div id="md-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div>
+          </div>
+        </div>
+        <div id="cityfes-panel-sd" style="display:none">
+          <div class="g5" id="sd-kpis" style="margin-bottom:14px"></div>
+          <div class="g2" style="margin-bottom:14px">
+            <div class="card">
+              <div class="ct">
+                <div class="pip"></div>会計科目別集計
+                <button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('sd')">✏️ 予算を編集</button>
+              </div>
+              <table class="tbl"><thead><tr>
+                <th>会計科目</th><th style="text-align:right">予算（円）</th>
+                <th style="text-align:right">見積（円）</th><th style="text-align:right">実数（円）</th>
+                <th style="text-align:right">差異</th>
+              </tr></thead><tbody id="sd-tbody"></tbody></table>
+            </div>
+            <div class="card">
+              <div class="ct"><div class="pip" style="background:var(--purple)"></div>実数内訳</div>
+              <div class="ch-t"><canvas id="ch-sd"></canvas></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ct">
+              <div class="pip" style="background:var(--blue)"></div>見積・実績 入力
+              <div style="margin-left:auto;display:flex;gap:6px">
+                <button class="btn btn-xs btn-g" onclick="addEstimateRow('sd')">＋ 行を追加</button>
+                <button class="btn btn-xs" onclick="aiClassifyEstimates('sd')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">🤖 AIで振り分け</button>
+                <button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('sd')">✅ 集計に反映</button>
+              </div>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="tbl" id="sd-est-table"><thead><tr>
+                <th style="width:28px"></th><th>品目名・内容</th>
+                <th style="width:170px">会計科目</th>
+                <th style="text-align:right;width:120px">見積（円）</th>
+                <th style="text-align:right;width:120px">実績（円）</th>
+                <th style="width:80px">支払月<span style="font-size:8px;font-weight:400;color:var(--t3);display:block">CF用</span></th>
+                <th style="width:28px"></th>
+              </tr></thead><tbody id="sd-est-tbody"></tbody></table>
+            </div>
+            <div id="sd-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」または Excel取込で明細を入力できます</div>
+            <div id="sd-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div>
+          </div>
+        </div>
+        <div id="cityfes-panel-cf3" style="display:none">
+          <div class="g5" id="cf3-kpis" style="margin-bottom:14px"></div>
+          <div class="g2" style="margin-bottom:14px">
+            <div class="card">
+              <div class="ct">
+                <div class="pip"></div>会計科目別集計
+                <button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('cf3')">✏️ 予算を編集</button>
+              </div>
+              <table class="tbl"><thead><tr>
+                <th>会計科目</th><th style="text-align:right">予算（円）</th>
+                <th style="text-align:right">見積（円）</th><th style="text-align:right">実数（円）</th>
+                <th style="text-align:right">差異</th>
+              </tr></thead><tbody id="cf3-tbody"></tbody></table>
+            </div>
+            <div class="card">
+              <div class="ct"><div class="pip" style="background:var(--yellow)"></div>実数内訳</div>
+              <div class="ch-t"><canvas id="ch-cf3"></canvas></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ct">
+              <div class="pip" style="background:var(--blue)"></div>見積・実績 入力
+              <div style="margin-left:auto;display:flex;gap:6px">
+                <button class="btn btn-xs btn-g" onclick="addEstimateRow('cf3')">＋ 行を追加</button>
+                <button class="btn btn-xs" onclick="aiClassifyEstimates('cf3')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">🤖 AIで振り分け</button>
+                <button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('cf3')">✅ 集計に反映</button>
+              </div>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="tbl" id="cf3-est-table"><thead><tr>
+                <th style="width:28px"></th><th>品目名・内容</th>
+                <th style="width:170px">会計科目</th>
+                <th style="text-align:right;width:120px">見積（円）</th>
+                <th style="text-align:right;width:120px">実績（円）</th>
+                <th style="width:80px">支払月<span style="font-size:8px;font-weight:400;color:var(--t3);display:block">CF用</span></th>
+                <th style="width:28px"></th>
+              </tr></thead><tbody id="cf3-est-tbody"></tbody></table>
+            </div>
+            <div id="cf3-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」または Excel取込で明細を入力できます</div>
+            <div id="cf3-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div>
+          </div>
+        </div>
+        <div id="cityfes-panel-cf4" style="display:none">
+          <div class="g5" id="cf4-kpis" style="margin-bottom:14px"></div>
+          <div class="g2" style="margin-bottom:14px">
+            <div class="card">
+              <div class="ct">
+                <div class="pip"></div>会計科目別集計
+                <button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('cf4')">✏️ 予算を編集</button>
+              </div>
+              <table class="tbl"><thead><tr>
+                <th>会計科目</th><th style="text-align:right">予算（円）</th>
+                <th style="text-align:right">見積（円）</th><th style="text-align:right">実数（円）</th>
+                <th style="text-align:right">差異</th>
+              </tr></thead><tbody id="cf4-tbody"></tbody></table>
+            </div>
+            <div class="card">
+              <div class="ct"><div class="pip" style="background:var(--acc)"></div>実数内訳</div>
+              <div class="ch-t"><canvas id="ch-cf4"></canvas></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ct">
+              <div class="pip" style="background:var(--blue)"></div>見積・実績 入力
+              <div style="margin-left:auto;display:flex;gap:6px">
+                <button class="btn btn-xs btn-g" onclick="addEstimateRow('cf4')">＋ 行を追加</button>
+                <button class="btn btn-xs" onclick="aiClassifyEstimates('cf4')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">🤖 AIで振り分け</button>
+                <button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('cf4')">✅ 集計に反映</button>
+              </div>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="tbl" id="cf4-est-table"><thead><tr>
+                <th style="width:28px"></th><th>品目名・内容</th>
+                <th style="width:170px">会計科目</th>
+                <th style="text-align:right;width:120px">見積（円）</th>
+                <th style="text-align:right;width:120px">実績（円）</th>
+                <th style="width:80px">支払月<span style="font-size:8px;font-weight:400;color:var(--t3);display:block">CF用</span></th>
+                <th style="width:28px"></th>
+              </tr></thead><tbody id="cf4-est-tbody"></tbody></table>
+            </div>
+            <div id="cf4-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」または Excel取込で明細を入力できます</div>
+            <div id="cf4-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- REVENUE -->
     <!-- 発注マスタ -->
     <div class="pg" id="pg-ordermaster">
@@ -638,9 +959,9 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
             <select id="om-filter-cat" class="fi" style="width:150px;padding:5px 9px;font-size:11px" onchange="renderOrderMaster()">
               <option value="">すべての科目</option>
               <option>① 会場・施設費</option><option>② 飲食・ケータリング費</option>
-              <option>③ 出演・キャスティング費</option><option>④ 制作・印刷費</option>
+              <option>③ 出演・キャスティング費</option><option>④ 制作・演出費</option>
               <option>⑤ 運営・人件費</option><option>⑥ 備品・設営費</option>
-              <option>⑦ 広報費</option><option>⑧ デザイン費</option><option>⑨ その他</option>
+              <option>⑦ マーケ・広報費</option><option>⑧ デザイン費</option><option>⑨ その他</option>
             </select>
             <button class="btn btn-sm btn-g" onclick="autoGenerateOrderMaster()" style="white-space:nowrap">🤖 自動生成</button>
             <button class="btn btn-sm btn-p" onclick="addOrderMasterRow()">＋ 追加</button>
@@ -946,7 +1267,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <button class="tab" onclick="switchDefaultsTab('ko',this)">🚀 キックオフ</button>
         <button class="tab" onclick="switchDefaultsTab('aw',this)">🏆 アワード</button>
         <button class="tab" onclick="switchDefaultsTab('ye',this)">🎉 イヤーエンド</button>
-        <button class="tab" onclick="switchDefaultsTab('md',this)">🏟 マッチデイ</button>
+        <button class="tab" onclick="switchDefaultsTab('tour',this)">✈️ ツアー</button>
+        
       </div>
       <div id="defaults-apply-row" style="display:none;margin-bottom:10px">
         <button class="btn btn-sm" onclick="applyDefaultsToEvent()" style="background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.3);color:var(--blue);font-size:10px">
@@ -1087,10 +1409,10 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <button class="tab on" onclick="switchCatTab('① 会場・施設費',this)">① 会場・施設費</button>
         <button class="tab" onclick="switchCatTab('② 飲食・ケータリング費',this)">② 飲食</button>
         <button class="tab" onclick="switchCatTab('③ 出演・キャスティング費',this)">③ 出演</button>
-        <button class="tab" onclick="switchCatTab('④ 制作・印刷費',this)">④ 制作</button>
+        <button class="tab" onclick="switchCatTab('④ 制作・演出費',this)">④ 制作</button>
         <button class="tab" onclick="switchCatTab('⑤ 運営・人件費',this)">⑤ 運営</button>
         <button class="tab" onclick="switchCatTab('⑥ 備品・設営費',this)">⑥ 備品</button>
-        <button class="tab" onclick="switchCatTab('⑦ 広報費',this)">⑦ 広報費</button>
+        <button class="tab" onclick="switchCatTab('⑦ マーケ・広報費',this)">⑦ マーケ・広報費</button>
         <button class="tab" onclick="switchCatTab('⑨ その他',this)">⑨ その他</button>
         <button class="tab" onclick="switchCatTab('⑧ デザイン費',this)">⑧ デザイン費</button>
       </div>
@@ -1207,7 +1529,7 @@ const FEE_TEMPLATE = [
   {name:'会場費',      budget:0,estimate:0,actual:0},
   {name:'講師・演者費',budget:0,estimate:0,actual:0},
   {name:'運営人件費',  budget:0,estimate:0,actual:0},
-  {name:'制作・印刷費',budget:0,estimate:0,actual:0},
+  {name:'④ 制作・演出費',budget:0,estimate:0,actual:0},
   {name:'備品・消耗品',budget:0,estimate:0,actual:0},
   {name:'旅費交通費',  budget:0,estimate:0,actual:0},
   {name:'諸経費',      budget:0,estimate:0,actual:0},
@@ -1234,58 +1556,19 @@ const DEF = {
   ],
   revenues:[], // 新年度は収入ゼロからスタート
   events:{
-    ko:{ label:'キックオフ',   items:[] },
-    aw:{ label:'アワード',     items:[] },
-    ye:{ label:'イヤーエンド', items:[] 
-    },
+    ko:{label:'キックオフ',items:[]},
+    aw:{label:'アワード',items:[]},
+    ye:{label:'イヤーエンド',items:[]},
+    md:{label:'マッチデイ',items:[]},
+    tour:{label:'ツアー',items:[]},
+    sd:{label:'スペシャルデイズ',items:[]},
+    cf3:{label:'イベント3',items:[]},
+    cf4:{label:'イベント4',items:[]},
   },
   sessions:{
-    hm:[
-      {id:'hm1', title:'HOMEROOM第1回 長尾さん',  date:'2025-07-13', memo:'',
-        items:[{id:uid(),name:'会場費',budget:55000,estimate:55000,actual:50000},{id:uid(),name:'講師・演者費',budget:110000,estimate:110000,actual:135140},{id:uid(),name:'備品・消耗品',budget:15000,estimate:0,actual:6270},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:0},{id:uid(),name:'旅費交通費',budget:60000,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:20000,estimate:0,actual:6270}]},
-      {id:'hm2', title:'HOMEROOM第2回 上田さん',  date:'2025-07-15', memo:'',
-        items:[{id:uid(),name:'会場費',budget:55000,estimate:55000,actual:50000},{id:uid(),name:'講師・演者費',budget:110000,estimate:110000,actual:146750},{id:uid(),name:'備品・消耗品',budget:15000,estimate:0,actual:0},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:0},{id:uid(),name:'旅費交通費',budget:60000,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:20000,estimate:0,actual:12707}]},
-      {id:'hm3', title:'HOMEROOM第3回 加藤さん',  date:'2025-07-22', memo:'',
-        items:[{id:uid(),name:'会場費',budget:0,estimate:0,actual:0},{id:uid(),name:'講師・演者費',budget:110000,estimate:0,actual:0},{id:uid(),name:'備品・消耗品',budget:15000,estimate:0,actual:0},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:0},{id:uid(),name:'旅費交通費',budget:60000,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:20000,estimate:0,actual:22000}]},
-      {id:'hm4', title:'HOMEROOM第4回 平田さん',  date:'2025-07-29', memo:'',
-        items:[{id:uid(),name:'会場費',budget:0,estimate:0,actual:0},{id:uid(),name:'講師・演者費',budget:16500,estimate:0,actual:0},{id:uid(),name:'備品・消耗品',budget:0,estimate:0,actual:0},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:0},{id:uid(),name:'旅費交通費',budget:0,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:0,estimate:0,actual:0}]},
-      {id:'hm5', title:'WS① 街歩き',             date:'2025-08-02', memo:'',
-        items:[{id:uid(),name:'会場費',budget:150000,estimate:0,actual:0},{id:uid(),name:'講師・演者費',budget:0,estimate:0,actual:0},{id:uid(),name:'備品・消耗品',budget:0,estimate:0,actual:0},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:55000},{id:uid(),name:'旅費交通費',budget:0,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:0,estimate:0,actual:0}]},
-      {id:'hm6', title:'HOMEROOM第6回 古川さん',  date:'2025-08-19', memo:'',
-        items:[{id:uid(),name:'会場費',budget:55000,estimate:55000,actual:50000},{id:uid(),name:'講師・演者費',budget:0,estimate:0,actual:0},{id:uid(),name:'備品・消耗品',budget:0,estimate:0,actual:0},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:0},{id:uid(),name:'旅費交通費',budget:0,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:20000,estimate:0,actual:6507}]},
-      {id:'hm7', title:'WS② 企業課題マッチング', date:'2025-09-06', memo:'',
-        items:[{id:uid(),name:'会場費',budget:55000,estimate:55000,actual:50000},{id:uid(),name:'講師・演者費',budget:0,estimate:0,actual:0},{id:uid(),name:'備品・消耗品',budget:0,estimate:0,actual:0},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:0},{id:uid(),name:'旅費交通費',budget:0,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:20000,estimate:0,actual:16103}]},
-      {id:'hm8', title:'HOMEROOM第8回 林さん',    date:'2025-09-16', memo:'',
-        items:[{id:uid(),name:'会場費',budget:55000,estimate:55000,actual:50000},{id:uid(),name:'講師・演者費',budget:0,estimate:0,actual:198500},{id:uid(),name:'備品・消耗品',budget:0,estimate:0,actual:0},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:0},{id:uid(),name:'旅費交通費',budget:0,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:20000,estimate:0,actual:10000}]},
-      {id:'hm9', title:'HOMEROOM第9回 えとみほ',  date:'2025-09-30', memo:'',
-        items:[{id:uid(),name:'会場費',budget:50000,estimate:50000,actual:50000},{id:uid(),name:'講師・演者費',budget:0,estimate:0,actual:110000},{id:uid(),name:'備品・消耗品',budget:0,estimate:0,actual:0},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:0},{id:uid(),name:'旅費交通費',budget:0,estimate:0,actual:38000},{id:uid(),name:'諸経費',budget:0,estimate:0,actual:0}]},
-      {id:'hm10',title:'WS③ 最終ホームルーム',   date:'2025-10-11', memo:'',
-        items:[{id:uid(),name:'会場費',budget:150000,estimate:0,actual:0},{id:uid(),name:'講師・演者費',budget:0,estimate:0,actual:0},{id:uid(),name:'備品・消耗品',budget:0,estimate:0,actual:0},{id:uid(),name:'運営人件費',budget:0,estimate:0,actual:44000},{id:uid(),name:'旅費交通費',budget:0,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:0,estimate:0,actual:0}]},
-    ],
-    gk:[
-      {id:'gk1',title:'NEO福岡評議会 第1回',date:'2025-06-20',memo:'',items:[{id:uid(),name:'会場費',budget:55000,estimate:0,actual:55000},{id:uid(),name:'諸経費',budget:5500,estimate:0,actual:5500}]},
-      {id:'gk2',title:'NEO福岡評議会 第2回',date:'2025-07-18',memo:'',items:[{id:uid(),name:'会場費',budget:55000,estimate:0,actual:55000},{id:uid(),name:'諸経費',budget:5500,estimate:0,actual:5500}]},
-      {id:'gk3',title:'NEO福岡評議会 第3回',date:'2025-08-29',memo:'',items:[{id:uid(),name:'会場費',budget:55000,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:5500,estimate:0,actual:0}]},
-      {id:'gk4',title:'NEO福岡評議会 第4回',date:'2025-09-19',memo:'',items:[{id:uid(),name:'会場費',budget:55000,estimate:0,actual:30800},{id:uid(),name:'諸経費',budget:5500,estimate:0,actual:5500}]},
-      {id:'gk5',title:'NEO福岡評議会 第5回',date:'2025-10-17',memo:'',items:[{id:uid(),name:'会場費',budget:88000,estimate:33000,actual:0},{id:uid(),name:'諸経費',budget:5500,estimate:0,actual:0}]},
-      {id:'gk6',title:'NEO福岡評議会 第6回',date:'2025-11-21',memo:'',items:[{id:uid(),name:'会場費',budget:88000,estimate:33000,actual:0},{id:uid(),name:'諸経費',budget:5500,estimate:0,actual:0}]},
-      {id:'gk7',title:'NEO福岡評議会 第7回',date:'2025-12-19',memo:'',items:[{id:uid(),name:'会場費',budget:88000,estimate:33000,actual:0},{id:uid(),name:'諸経費',budget:5500,estimate:0,actual:0}]},
-      {id:'gk8',title:'NEO福岡評議会 第8回',date:'2026-01-16',memo:'',items:[{id:uid(),name:'会場費',budget:88000,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:5500,estimate:0,actual:0}]},
-      {id:'gk9',title:'NEO福岡評議会 第9回',date:'2026-02-20',memo:'',items:[{id:uid(),name:'会場費',budget:91300,estimate:0,actual:0},{id:uid(),name:'諸経費',budget:5500,estimate:0,actual:0}]},
-    ],
-    oe:[
-      {id:'oe1',title:'応援カイギ #1',date:'2025-06-10',memo:'',items:[{id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:5500}]},
-      {id:'oe2',title:'応援カイギ #2',date:'2025-07-08',memo:'',items:[{id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:5500}]},
-      {id:'oe3',title:'応援カイギ #3',date:'2025-08-12',memo:'',items:[{id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:0}]},
-      {id:'oe4',title:'応援カイギ #4',date:'2025-09-09',memo:'',items:[{id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:0}]},
-      {id:'oe5',title:'応援カイギ #5',date:'2025-10-14',memo:'',items:[{id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:0}]},
-      {id:'oe6',title:'応援カイギ #6',date:'2025-11-11',memo:'',items:[{id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:0}]},
-      {id:'oe7',title:'応援カイギ #7',date:'2025-12-09',memo:'',items:[{id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:0}]},
-      {id:'oe8',title:'応援カイギ #8',date:'2026-01-13',memo:'',items:[{id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:0}]},
-      {id:'oe9',title:'応援カイギ #9',date:'2026-02-10',memo:'',items:[{id:uid(),name:'会場・飲食費',budget:5500,estimate:0,actual:0}]},
-    ],
+    hm:[], gk:[], oe:[],
   },
-  categories:[
+    categories:[
     {name:'① イベント費',   budget:5478000, actual:2312226},
     {name:'② 制作・印刷費', budget:8200000, actual:2598763},
     {name:'③ 外部委託費',   budget:3000000, actual:2025848},
@@ -1404,8 +1687,9 @@ async function loadFromDB() {
       if (!S.revenues)     S.revenues     = DEF.revenues;
       if (!S.sessions)     S.sessions     = DEF.sessions;
       // eventsはDBから読んだデータを優先（空の場合のみDEFで補完）
-      if (!S.events) S.events = {ko:{label:'キックオフ',items:[]},aw:{label:'アワード',items:[]},ye:{label:'イヤーエンド',items:[]},md:{label:'マッチデイ',items:[]}};
-      ['ko','aw','ye','md'].forEach(k=>{ if(!S.events[k]) S.events[k]={label:{ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',md:'マッチデイ'}[k],items:[]}; });
+      if (!S.events) S.events = {};
+      const EVT_LABELS = {ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',md:'マッチデイ',tour:'ツアー',sd:'スペシャルデイズ',cf3:'イベント3',cf4:'イベント4'};
+      Object.keys(EVT_LABELS).forEach(k=>{ if(!S.events[k]) S.events[k]={label:EVT_LABELS[k],items:[]}; });
       if (!S.categories)   S.categories   = DEF.categories;
       if (!S.months)       S.months       = DEF.months;
       if (!S.monthlyTotal) S.monthlyTotal = DEF.monthlyTotal;
@@ -1716,11 +2000,20 @@ function matchProg(progStr, id) {
 }
 
 function progActual(id) {
-  // ① イベント費目
-  if (S.events[id]) {
+  // cityfes → サブイベント合算
+  if (id === 'cityfes') {
+    return CITYFES_TABS.reduce((t,k) => {
+      const est = S.estimates?.[k]||[];
+      return t + (est.length ? est.reduce((s,r)=>s+n(r.actual),0) : evtSum(k,'actual'));
+    }, 0);
+  }
+  // ① イベント費目（S.estimatesがあればそちら優先）
+  if (S.events[id] !== undefined) {
+    const estRows = S.estimates?.[id] || [];
+    if (estRows.length > 0) {
+      return estRows.reduce((t,r)=>t+n(r.actual),0);
+    }
     let t = evtSum(id, 'actual');
-    // ② 経費明細（prog一致）
-    t += (S.ledger||[]).filter(i => matchProg(i.prog, id)).reduce((s,i) => s+n(i.actual), 0);
     return t;
   }
   // シリーズ
@@ -1729,6 +2022,7 @@ function progActual(id) {
   // マーケ費用（marketingプログラム）
   if (id === 'marketing') {
     t += (S.mktItems||[]).reduce((s,i) => s+n(i.actual), 0);
+    t += (S.prodItems||[]).filter(i=>i.cat==='マーケ').reduce((s,i) => s+n(i.actual), 0);
   }
   // 製作物（annualプログラム）
   if (id === 'annual') {
@@ -1774,19 +2068,10 @@ function getEventBudget(key) {
 }
 
 function getSeriesBudget(key) {
-  // シリーズ：セッション合計 → デフォルト×回数 → プログラム予算
+  // シリーズ：セッション実データの合計のみ（calcCat8Totalsと同じソース）
   const sessBudget = (S.sessions[key] || []).reduce((t, s) =>
     t + (s.items || []).reduce((tt, it) => tt + n(it.budget), 0), 0);
-  if (sessBudget > 0) return sessBudget;
-
-  // デフォルト費目の合計 × セッション数
-  const defaults = S.defaults?.[key] || [];
-  const defPerSession = defaults.reduce((t, d) => t + n(d.budget), 0);
-  const sessCount = (S.sessions[key] || []).length;
-  if (defPerSession > 0 && sessCount > 0) return defPerSession * sessCount;
-
-  const prog = S.programs.find(p => p.id === key);
-  return prog ? n(prog.budget) : 0;
+  return sessBudget;
 }
 Chart.defaults.color='#3a4255';
 Chart.defaults.font.family="'JetBrains Mono',monospace";
@@ -1798,7 +2083,7 @@ function dc(id){if(_ch[id]){_ch[id].destroy();delete _ch[id];}}
 // ══════════════════════════════════════════════════
 // NAVIGATION
 // ══════════════════════════════════════════════════
-const TITLES={ov:'サマリー',prog:'プログラム別',hm:'ホームルーム',gk:'評議会',oe:'応援カイギ',ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',rev:'収入管理',users:'ユーザー管理',history:'ログイン履歴'};
+const TITLES={ov:'サマリー',prog:'プログラム別',hm:'ホームルーム',gk:'評議会',oe:'応援カイギ',ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',tour:'ツアー',cityfes:'シティフェス',md:'マッチデイ',sd:'スペシャルデイズ',cf3:'イベント3',cf4:'イベント4',rev:'収入管理',users:'ユーザー管理',history:'ログイン履歴'};
 let _curPg='ov';
 function go(id,btn){
   if(id==='users' && !isAdmin()){alert('管理者のみアクセスできます');return;}
@@ -1824,7 +2109,19 @@ function renderOv(){
   // KPI欄を5列に
   const kpiEl=document.getElementById('ov-kpis');
   if(kpiEl) kpiEl.style.gridTemplateColumns='repeat(5,1fr)';
-  const totB=S.programs.reduce((t,p)=>t+n(p.budget),0);
+  // 総予算 = 各イベント・シリーズの実際の予算合計
+  // 優先順: S.events[key].items > デフォルト費目設定 > S.programs.budget
+  const totB = (() => {
+    let total = 0;
+    // 大規模イベント
+    ['ko','aw','ye','md','tour','sd','cf3','cf4'].forEach(k => { total += getEventBudget(k); });
+    // シリーズ
+    ['hm','gk','oe'].forEach(k => { total += getSeriesBudget(k); });
+    // 製作物管理のカテゴリ予算（calcCat8Totalsと同じソース）
+    const prodB = S.prodBudgets || {};
+    PROD_CATS_LIST.forEach(cat => { total += n(prodB[cat]); });
+    return total;
+  })();
   const totA=S.programs.reduce((t,p)=>t+progActual(p.id),0);
   const totE=S.programs.reduce((t,p)=>t+progEstimate(p.id),0);
   const totR=S.revenues.reduce((t,r)=>t+n(r.amount),0);
@@ -1846,9 +2143,9 @@ function renderOv(){
   // 8科目集計（全ソース：ledger + events + sessions）
   const CAT8_COLORS = {
     '① 会場・施設費':'#0369a1','② 飲食・ケータリング費':'#b45309',
-    '③ 出演・キャスティング費':'#7c3aed','④ 制作・印刷費':'#0f766e',
+    '③ 出演・キャスティング費':'#7c3aed','④ 制作・演出費':'#0f766e',
     '⑤ 運営・人件費':'#1d4ed8','⑥ 備品・設営費':'#9a3412',
-    '⑦ 広報費':'#be185d','⑨ その他':'#4b5563','⑧ デザイン費':'#9d174d',
+    '⑦ マーケ・広報費':'#be185d','⑨ その他':'#4b5563','⑧ デザイン費':'#9d174d',
   };
   const totals8 = calcCat8Totals();
   const maxActual8 = Math.max(...ACCOUNTING_CATS.map(cat=>totals8[cat]?.actual||0), 1);
@@ -1930,17 +2227,34 @@ function renderOv(){
 
   // CFチャートを描画
   if (typeof renderCF === 'function') renderCF();
+
 }
 
 // ══════════════════════════════════════════════════
 // PROGRAMS
 // ══════════════════════════════════════════════════
 function renderProg(){
-  document.getElementById('prog-tbody').innerHTML=S.programs.map(p=>{
-    const act=progActual(p.id),est=progEstimate(p.id),diff=n(p.budget)-act;
+  // 各プログラムの実際の予算（デフォルト費目設定またはS.events[key].items優先）
+  function getProgRealBudget(p) {
+    if (['ko','aw','ye','md'].includes(p.id)) return getEventBudget(p.id);
+    if (['hm','gk','oe'].includes(p.id)) return getSeriesBudget(p.id);
+    return n(p.budget);
+  }
+
+  document.getElementById('prog-tbody').innerHTML=S.programs.filter(p=>p.id!=='marketing').map((p,pi)=>{
+    const realBudget = getProgRealBudget(p);
+    const act=progActual(p.id),est=progEstimate(p.id),diff=realBudget-act;
     const tag=diff<0?`<span class="tag tg-o">超過</span>`:act===0?`<span class="tag tg-z">未実施</span>`:`<span class="tag tg-g">正常</span>`;
-    return`<tr><td><span style="font-weight:500">${p.name}</span>${tag}</td>
-      <td class="num-dim">${fmtN(p.budget)}</td>
+    return`<tr>
+      <td><span style="font-weight:500">${p.name}</span>${tag}</td>
+      <td>
+        <input type="number" value="${realBudget||''}" placeholder="0"
+          style="width:110px;padding:5px 8px;border:1.5px solid var(--b2);border-radius:5px;
+                 font-family:var(--mono);font-size:12px;background:var(--s1);color:var(--t2);
+                 outline:none;text-align:right"
+          onfocus="this.style.borderColor='var(--yellow)'" onblur="this.style.borderColor='var(--b2)'"
+          onchange="S.programs[${pi}].budget=parseFloat(this.value)||0;debouncedSave();renderProg()">
+      </td>
       <td style="color:#5a95e8">${fmtN(est)}</td>
       <td>${fmtN(act)}</td>
       <td class="${diff<0?'ng':'ok'}">${diff<0?'▼':'▲'} ${fmtN(Math.abs(diff))}</td></tr>`;
@@ -1955,6 +2269,87 @@ function renderProg(){
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` 消化率: ${ctx.raw}%`}}},
       scales:{x:{grid:g0,ticks:{callback:v=>v+'%'},max:Math.max(350,...sorted.map(p=>p.r+20))},y:{grid:{display:false}}}}});
+}
+
+
+// ══════════════════════════════════════════════════
+// シティフェス（タブ式サブイベント）
+// ══════════════════════════════════════════════════
+const CITYFES_TABS = ['md','sd','cf3','cf4'];
+let _cityFesTab = 'md';
+
+// タブ名をS.cityFesLabelsで管理
+function getCityFesLabel(key) {
+  const defaults = {md:'マッチデイ',sd:'スペシャルデイズ',cf3:'イベント3',cf4:'イベント4'};
+  return (S.cityFesLabels?.[key]) || defaults[key];
+}
+
+function switchCityFesTab(key, btn) {
+  _cityFesTab = key;
+  // タブボタンのスタイル更新
+  document.querySelectorAll('.cityfes-tab').forEach(b => {
+    b.style.color = 'var(--t2)';
+    b.style.borderBottomColor = 'transparent';
+    b.style.fontWeight = '600';
+  });
+  if (btn) {
+    btn.style.color = 'var(--blue)';
+    btn.style.borderBottomColor = 'var(--blue)';
+    btn.style.fontWeight = '700';
+  }
+  // パネル切り替え
+  CITYFES_TABS.forEach(k => {
+    const p = document.getElementById(`cityfes-panel-${k}`);
+    if (p) p.style.display = k === key ? '' : 'none';
+  });
+  // 選択タブのイベントを描画
+  renderEvt(key);
+}
+
+function renderCityFes() {
+  // 全体KPIを集計（全サブイベントの合計）
+  const totB = CITYFES_TABS.reduce((t,k)=>t+evtSum(k,'budget'),0);
+  const totE = CITYFES_TABS.reduce((t,k)=>t+(S.estimates?.[k]||[]).reduce((s,r)=>s+n(r.estimate),0),0);
+  const totA = CITYFES_TABS.reduce((t,k)=>{
+    const est = S.estimates?.[k]||[];
+    return t + (est.length ? est.reduce((s,r)=>s+n(r.actual),0) : evtSum(k,'actual'));
+  },0);
+  const totR = S.revenues.filter(r=>r.prog&&r.prog.includes('シティフェス')).reduce((t,r)=>t+n(r.amount),0);
+  const arari = totR - totA;
+  const pctE = totB ? Math.round(totE/totB*100)+'%' : '—';
+
+  const kpiEl = document.getElementById('cityfes-kpis');
+  if (kpiEl) kpiEl.innerHTML = `
+    <div class="kpi p"><div class="kl">収入</div><div class="kv" style="color:var(--purple)">${fmtN(totR)}<em>円</em></div><div class="ks">参加費・協賛 合計</div></div>
+    <div class="kpi r"><div class="kl">総予算</div><div class="kv">${fmtN(totB)}<em>円</em></div><div class="ks">全サブイベント合計</div></div>
+    <div class="kpi b"><div class="kl">見積合計</div><div class="kv">${fmtN(totE)}<em>円</em></div><div class="ks">消化率 <strong style="color:var(--blue)">${pctE}</strong></div></div>
+    <div class="kpi y"><div class="kl">実績合計</div><div class="kv">${fmtN(totA)}<em>円</em></div><div class="ks">差異 <strong style="color:${totB-totA>=0?'var(--green)':'var(--red)'}">${totB-totA>=0?'▲':'▼'}${fmtN(Math.abs(totB-totA))}</strong></div></div>
+    <div class="kpi ${arari>=0?'g':'r'}"><div class="kl">粗利（収入－実績）</div><div class="kv" style="color:${arari>=0?'var(--green)':'var(--red)'}">${arari>=0?'+':''}${fmtN(arari)}<em>円</em></div><div class="ks">${arari>=0?'✅ 黒字':'⚠️ 赤字'}</div></div>`;
+
+  // タブラベルを更新
+  CITYFES_TABS.forEach(k => {
+    const btn = document.getElementById(`cityfes-tab-${k}`);
+    if (btn) {
+      const icons = {md:'⚽',sd:'✨',cf3:'🎪',cf4:'🎪'};
+      btn.textContent = `${icons[k]||'🎪'} ${getCityFesLabel(k)}`;
+    }
+  });
+
+  // 現在のタブを描画
+  renderEvt(_cityFesTab);
+}
+
+function renameCityFesTab() {
+  const key = _cityFesTab;
+  const current = getCityFesLabel(key);
+  const newName = prompt(`「${current}」の名前を変更:`, current);
+  if (!newName || newName === current) return;
+  if (!S.cityFesLabels) S.cityFesLabels = {};
+  S.cityFesLabels[key] = newName;
+  // S.eventsのlabelも更新
+  if (S.events[key]) S.events[key].label = newName;
+  save();
+  renderCityFes();
 }
 
 // ══════════════════════════════════════════════════
@@ -2003,6 +2398,57 @@ function renderSeries(key){
       <div class="ks">${arari>=0?'✅ 黒字':'⚠️ 赤字'}</div>
     </div>`;
 
+  // 会計科目別集計（全回次のitemsを9科目に合算）
+  const cat9Totals = {};
+  ACCOUNTING_CATS.forEach(cat => { cat9Totals[cat] = {budget:0, estimate:0, actual:0}; });
+  ss.forEach(s => {
+    (s.items||[]).forEach(it => {
+      const cat = ACCOUNTING_CATS.includes(it.name) ? it.name : detectCat(it.name);
+      if (!cat9Totals[cat]) cat9Totals[cat] = {budget:0,estimate:0,actual:0};
+      cat9Totals[cat].budget   += n(it.budget);
+      cat9Totals[cat].estimate += n(it.estimate);
+      cat9Totals[cat].actual   += n(it.actual);
+    });
+  });
+
+  const catTbody = document.getElementById(`${key}-cat-tbody`);
+  if (catTbody) {
+    catTbody.innerHTML = ACCOUNTING_CATS.map(cat => {
+      const t = cat9Totals[cat];
+      if (!t.budget && !t.estimate && !t.actual) return '';
+      const diff = t.estimate - t.actual;
+      const cc = CAT_COLORS[cat] || {fg:'374151',bg:'f3f4f6'};
+      return `<tr>
+        <td><span style="font-size:9px;font-weight:700;color:#${cc.fg};background:#${cc.bg};padding:2px 7px;border-radius:10px">${cat}</span></td>
+        <td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--t2)">${t.budget?fmtN(t.budget):'—'}</td>
+        <td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--blue)">${t.estimate?fmtN(t.estimate):'—'}</td>
+        <td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--green);font-weight:600">${t.actual?fmtN(t.actual):'—'}</td>
+        <td style="font-size:12px;text-align:right;font-weight:600" class="${diff>=0?'ok':'ng'}">${t.estimate||t.actual?(diff>=0?'▲':'▼')+' '+fmtN(Math.abs(diff)):'—'}</td>
+      </tr>`;
+    }).filter(Boolean).join('');
+  }
+
+  // 実数内訳チャート
+  const chartItems = ACCOUNTING_CATS.filter(cat => cat9Totals[cat]?.actual > 0);
+  dc(`ch-${key}-cat`);
+  const cvs = document.getElementById(`ch-${key}-cat`);
+  if (cvs && chartItems.length) {
+    _ch[`ch-${key}-cat`] = new Chart(cvs, {
+      type:'doughnut',
+      data:{
+        labels: chartItems.map(c=>c),
+        datasets:[{
+          data: chartItems.map(c=>cat9Totals[c].actual),
+          backgroundColor: chartItems.map(c=>(CAT_COLORS[c]?`#${CAT_COLORS[c].fg}`:'#374151')+'cc'),
+          borderWidth:1.5, hoverOffset:5
+        }]
+      },
+      options:{responsive:true,maintainAspectRatio:false,cutout:'58%',
+        plugins:{legend:{position:'right',labels:{boxWidth:7,padding:8,font:{size:9}}},
+          tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ¥${Math.round(ctx.raw).toLocaleString()}`}}}}
+    });
+  }
+
   const maxAll=Math.max(...ss.map(s=>Math.max(sessSum(s,'budget'),sessSum(s,'estimate'),sessSum(s,'actual'))),1);
   document.getElementById(`${key}-grid`).innerHTML=ss.map((s,i)=>{
     const b=sessSum(s,'budget'),e=sessSum(s,'estimate'),a=sessSum(s,'actual');
@@ -2036,10 +2482,14 @@ function renderEvt(key){
 
   // このイベントに紐づく収入を計算
   const EVT_PROG_KEYS = {
-    ko: ['キックオフ'],
-    aw: ['アワード','AWARD'],
-    ye: ['イヤーエンド','YEAR END','YearEnd'],
-    md: ['マッチデイ','マッチ'],
+    ko:   ['キックオフ'],
+    aw:   ['アワード','AWARD'],
+    ye:   ['イヤーエンド','YEAR END','YearEnd'],
+    md:   ['マッチデイ','マッチ'],
+    tour: ['ツアー','TOUR'],
+    sd:   ['スペシャルデイズ','スペシャル'],
+    cf3:  ['イベント3'],
+    cf4:  ['イベント4'],
   };
   const evtKeywords = EVT_PROG_KEYS[key] || [];
   const evtRev = S.revenues
@@ -2080,7 +2530,8 @@ function renderEvt(key){
 
   // 経費明細・見積テーブルから詳細を取得
   const EVT_PROG_NAMES = {
-    ko:['キックオフ'], aw:['アワード','AWARD'], ye:['イヤーエンド','YEAR END'], md:['マッチデイ']
+    ko:['キックオフ'], aw:['アワード','AWARD'], ye:['イヤーエンド','YEAR END'],
+    md:['マッチデイ'], tour:['ツアー'], sd:['スペシャルデイズ'], cf3:['イベント3'], cf4:['イベント4']
   };
   const evtProgNames = EVT_PROG_NAMES[key] || [];
   const ledgerForEvt = (S.ledger||[]).filter(item =>
@@ -2130,7 +2581,7 @@ function renderEvt(key){
     const dispB = vals.budget;
     const dispE = details.length ? detailE : vals.estimate;
     const dispA = details.length ? detailA : vals.actual;
-    const diff = dispE - dispA;
+    const diff = dispB ? (dispB - dispA) : (dispE - dispA); // 予算があれば予算差異、なければ見積差異
     const cc = CAT_COLORS[cat] || {fg:'374151', bg:'f3f4f6'};
     const hasDetail = details.length > 0;
 
@@ -2170,7 +2621,7 @@ function renderEvt(key){
       <td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--t2)">${dispB?fmtN(dispB):'—'}</td>
       <td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--blue)">${dispE?fmtN(dispE):'—'}</td>
       <td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--green);font-weight:600">${dispA?fmtN(dispA):'—'}</td>
-      <td style="font-size:12px;text-align:right;font-weight:600" class="${diff>=0?'ok':'ng'}">${dispE||dispA?(diff>=0?'▲':'▼')+' '+fmtN(Math.abs(diff)):'—'}</td>
+      <td style="font-size:12px;text-align:right;font-weight:600" class="${diff>=0?'ok':'ng'}">${dispB||dispE||dispA?(diff>=0?'▲':'▼')+' '+fmtN(Math.abs(diff)):'—'}</td>
     </tr>${detailHTML}`;
   }).filter(Boolean).join('');
 
@@ -2606,7 +3057,7 @@ function importXL(ev){
             }
           });
           // プログラム合計更新
-          const tagToId={'年間共通':'annual','キックオフ':'ko','ホームルーム':'hm','アワード':'aw','シティフェス':'cityfes','イヤーエンド':'ye','評議会':'gk','応援カイギ':'oe','その他':'other','マーケティング':'marketing'};
+          const tagToId={'年間共通':'annual','キックオフ':'ko','ホームルーム':'hm','アワード':'aw','イヤーエンド':'ye','ツアー':'tour','シティフェス':'cityfes','マッチデイ':'md','スペシャルデイズ':'sd','スペシャル':'sd','イベント3':'cf3','イベント4':'cf4','評議会':'gk','応援カイギ':'oe','その他':'other','マーケティング':'marketing'};
           const tagTotals={};
           allEv.forEach(e=>{if(!tagTotals[e.tag])tagTotals[e.tag]={b:0,e:0,a:0};tagTotals[e.tag].b+=e.budget;tagTotals[e.tag].e+=e.estimate;tagTotals[e.tag].a+=e.actual;});
           Object.entries(tagTotals).forEach(([tag,v])=>{
@@ -2719,6 +3170,7 @@ async function onLogin(user) {
   applyRoleUI();
   await loadFromDB();
   // DBロード完了後に現在のページを再描画（ファーストビューのデータ空対策）
+  migrateMktToProd(); // マーケ費用をprodItemsに統合
   updateFYSelectorUI();
   renderPg(_curPg || 'ov');
 }
@@ -2913,6 +3365,7 @@ function importCSV(ev) {
       // プログラムマッピング
       const progMap = {
         'キックオフ':'ko', 'アワード':'aw', 'イヤーエンド':'ye',
+    'ツアー':'tour', 'マッチデイ':'md', 'スペシャルデイズ':'sd', 'イベント3':'cf3', 'イベント4':'cf4',
         'ホームルーム':'hm', '評議会':'gk', '応援カイギ':'oe',
       };
       const seriesKeys = new Set(['hm','gk','oe']);
@@ -3161,10 +3614,10 @@ const ACCOUNTING_CATS = [
   '① 会場・施設費',
   '② 飲食・ケータリング費',
   '③ 出演・キャスティング費',
-  '④ 制作・印刷費',
+  '④ 制作・演出費',
   '⑤ 運営・人件費',
   '⑥ 備品・設営費',
-  '⑦ 広報費',
+  '⑦ マーケ・広報費',
   '⑧ デザイン費',
   '⑨ その他',
 ];
@@ -3174,10 +3627,10 @@ const CAT_SUBCATS = {
   '① 会場・施設費':        ['会場費','施設利用料','前日対応費','延長料金','夜間対応費','時間外料金'],
   '② 飲食・ケータリング費': ['ケータリング費','ドリンクチケット','懇親会費','飲食費','昼ケータリング','夜ケータリング','ゲスト控室関連'],
   '③ 出演・キャスティング費':['講師費','演者費','MC費','DJキャスティング費','審査員費','賞金','キャスティング費'],
-  '④ 制作・印刷費':        ['パネル制作','デザイン費','印刷費','撮影費','映像制作','WEB制作','写真撮影'],
+  '④ 制作・演出費':        ['パネル制作','デザイン費','印刷費','撮影費','映像制作','WEB制作','写真撮影'],
   '⑤ 運営・人件費':        ['運営スタッフ費','進行D','進行AD','受付スタッフ','誘導スタッフ','外部委託費','運営委託費'],
   '⑥ 備品・設営費':        ['設営撤去費','備品購入','機材レンタル','運搬費','養生材費','備品費','消耗品費'],
-  '⑦ 広報費':        ['広告出稿費','SNS広告費','旅費交通費','諸経費','雑費','交通費'],
+  '⑦ マーケ・広報費':        ['広告出稿費','SNS広告費','旅費交通費','諸経費','雑費','交通費'],
 };
 
 // キーワード → 会計科目 マッピング
@@ -3208,32 +3661,32 @@ const CAT_MASTER = {
   '賞金': '③ 出演・キャスティング費', '出演': '③ 出演・キャスティング費',
   '基調講演': '③ 出演・キャスティング費', '特別講義': '③ 出演・キャスティング費',
 
-  // ④ 制作・印刷費
-  'パネル': '④ 制作・印刷費', 'ボード': '④ 制作・印刷費',
-  'バナー': '④ 制作・印刷費', 'フラッグ': '④ 制作・印刷費',
-  'デザイン': '④ 制作・印刷費', 'グラフィック': '④ 制作・印刷費',
-  '印刷': '④ 制作・印刷費', '制作費': '④ 制作・印刷費',
-  '映像': '④ 制作・印刷費', '動画': '④ 制作・印刷費', 'ムービー': '④ 制作・印刷費',
-  '撮影': '④ 制作・印刷費', 'カメラマン': '④ 制作・印刷費',
-  'WEB': '④ 制作・印刷費', 'ウェブ': '④ 制作・印刷費',
-  'トロフィー': '④ 制作・印刷費', '賞品': '④ 制作・印刷費',
-  'パンフ': '④ 制作・印刷費', 'チラシ': '④ 制作・印刷費', 'ポスター': '④ 制作・印刷費',
-  'アルバム': '④ 制作・印刷費', 'グッズ': '④ 制作・印刷費',
+  // ④ 制作・演出費
+  'パネル': '④ 制作・演出費', 'ボード': '④ 制作・演出費',
+  'バナー': '④ 制作・演出費', 'フラッグ': '④ 制作・演出費',
+  'デザイン': '④ 制作・演出費', 'グラフィック': '④ 制作・演出費',
+  '印刷': '④ 制作・演出費', '制作費': '④ 制作・演出費',
+  '映像': '④ 制作・演出費', '動画': '④ 制作・演出費', 'ムービー': '④ 制作・演出費',
+  '撮影': '④ 制作・演出費', 'カメラマン': '④ 制作・演出費',
+  'WEB': '④ 制作・演出費', 'ウェブ': '④ 制作・演出費',
+  'トロフィー': '④ 制作・演出費', '賞品': '④ 制作・演出費',
+  'パンフ': '④ 制作・演出費', 'チラシ': '④ 制作・演出費', 'ポスター': '④ 制作・演出費',
+  'アルバム': '④ 制作・演出費', 'グッズ': '④ 制作・演出費',
   // 製作物シート特有の品目名
-  'マグカップ': '④ 制作・印刷費', 'トートバッグ': '④ 制作・印刷費',
-  'ステッカー': '④ 制作・印刷費', 'クリアファイル': '④ 制作・印刷費',
-  'バインダー': '④ 制作・印刷費', '花装飾': '④ 制作・印刷費',
-  '照明': '④ 制作・印刷費', '演出': '④ 制作・印刷費',
-  'フォトブース': '④ 制作・印刷費', 'ターポリン': '④ 制作・印刷費',
-  'ウェルカムボード': '④ 制作・印刷費', '企業ロゴ': '④ 制作・印刷費',
-  '企業展示': '④ 制作・印刷費', '展示パネル': '④ 制作・印刷費',
-  '装飾パネル': '④ 制作・印刷費', '受賞パネル': '④ 制作・印刷費',
-  'ロゴパネル': '④ 制作・印刷費', 'ステージパネル': '④ 制作・印刷費',
-  '受付パネル': '④ 制作・印刷費', '広告フラッグ': '④ 制作・印刷費',
-  '公式プログラム': '④ 制作・印刷費', 'スタンプラリー': '④ 制作・印刷費',
-  '詰め合わせボックス': '④ 制作・印刷費', '送料（SUZURI）': '④ 制作・印刷費',
-  'ロールアップ': '④ 制作・印刷費', 'バックパネル': '④ 制作・印刷費',
-  '冠企業特設ブース': '④ 制作・印刷費', '企画制作': '④ 制作・印刷費',
+  'マグカップ': '④ 制作・演出費', 'トートバッグ': '④ 制作・演出費',
+  'ステッカー': '④ 制作・演出費', 'クリアファイル': '④ 制作・演出費',
+  'バインダー': '④ 制作・演出費', '花装飾': '④ 制作・演出費',
+  '照明': '④ 制作・演出費', '演出': '④ 制作・演出費',
+  'フォトブース': '④ 制作・演出費', 'ターポリン': '④ 制作・演出費',
+  'ウェルカムボード': '④ 制作・演出費', '企業ロゴ': '④ 制作・演出費',
+  '企業展示': '④ 制作・演出費', '展示パネル': '④ 制作・演出費',
+  '装飾パネル': '④ 制作・演出費', '受賞パネル': '④ 制作・演出費',
+  'ロゴパネル': '④ 制作・演出費', 'ステージパネル': '④ 制作・演出費',
+  '受付パネル': '④ 制作・演出費', '広告フラッグ': '④ 制作・演出費',
+  '公式プログラム': '④ 制作・演出費', 'スタンプラリー': '④ 制作・演出費',
+  '詰め合わせボックス': '④ 制作・演出費', '送料（SUZURI）': '④ 制作・演出費',
+  'ロールアップ': '④ 制作・演出費', 'バックパネル': '④ 制作・演出費',
+  '冠企業特設ブース': '④ 制作・演出費', '企画制作': '④ 制作・演出費',
 
   // ⑤ 運営・人件費
   '運営スタッフ': '⑤ 運営・人件費', '運営D': '⑤ 運営・人件費',
@@ -3259,24 +3712,24 @@ const CAT_MASTER = {
   '電源': '⑥ 備品・設営費', '延長コード': '⑥ 備品・設営費',
 
   // ⑦ 広報・その他
-  '広報': '⑦ 広報費', '広告': '⑦ 広報費',
-  'SNS': '⑦ 広報費', 'PR': '⑦ 広報費',
-  'インフルエンサー': '⑦ 広報費', '駅貼り': '⑦ 広報費',
-  '旅費': '⑦ 広報費', '交通費': '⑦ 広報費',
-  'ガソリン': '⑦ 広報費', '駐車場': '⑦ 広報費',
-  '諸経費': '⑦ 広報費', '雑費': '⑦ 広報費',
-  '送料': '⑦ 広報費', '手数料': '⑦ 広報費',
-  '調整': '⑦ 広報費',
+  '広報': '⑦ マーケ・広報費', '広告': '⑦ マーケ・広報費',
+  'SNS': '⑦ マーケ・広報費', 'PR': '⑦ マーケ・広報費',
+  'インフルエンサー': '⑦ マーケ・広報費', '駅貼り': '⑦ マーケ・広報費',
+  '旅費': '⑦ マーケ・広報費', '交通費': '⑦ マーケ・広報費',
+  'ガソリン': '⑦ マーケ・広報費', '駐車場': '⑦ マーケ・広報費',
+  '諸経費': '⑦ マーケ・広報費', '雑費': '⑦ マーケ・広報費',
+  '送料': '⑦ マーケ・広報費', '手数料': '⑦ マーケ・広報費',
+  '調整': '⑦ マーケ・広報費',
 };
 
 const CAT_COLORS = {
   '① 会場・施設費':         {fg:'0369a1', bg:'e0f2fe'},
   '② 飲食・ケータリング費': {fg:'b45309', bg:'fef3c7'},
   '③ 出演・キャスティング費':{fg:'7c3aed', bg:'ede9fe'},
-  '④ 制作・印刷費':         {fg:'0f766e', bg:'ccfbf1'},
+  '④ 制作・演出費':         {fg:'0f766e', bg:'ccfbf1'},
   '⑤ 運営・人件費':         {fg:'1d4ed8', bg:'dbeafe'},
   '⑥ 備品・設営費':         {fg:'9a3412', bg:'ffedd5'},
-  '⑦ 広報費':               {fg:'be185d', bg:'fce7f3'},
+  '⑦ マーケ・広報費':               {fg:'be185d', bg:'fce7f3'},
   '⑨ その他':               {fg:'4b5563', bg:'f3f4f6'},
   '⑧ デザイン費':           {fg:'be185d', bg:'fdf2f8'},
 };
@@ -3823,20 +4276,7 @@ if (!S.defaults) {
 let _defTab = 'hm';
 let _defItems = {};  // {hm:[...], gk:[...], oe:[...]}
 
-function openSeriesDefaults() {
-  if (!isAdmin()) { alert('デフォルト費目設定は管理者のみ変更できます'); return; }
-  // 現在の設定をコピー
-  _defItems = {
-    hm: JSON.parse(JSON.stringify(S.defaults?.hm || SERIES_DEFAULTS_INIT.hm)),
-    gk: JSON.parse(JSON.stringify(S.defaults?.gk || SERIES_DEFAULTS_INIT.gk)),
-    oe: JSON.parse(JSON.stringify(S.defaults?.oe || SERIES_DEFAULTS_INIT.oe)),
-  };
-  _defTab = 'hm';
-  // タブを初期化
-  document.querySelectorAll('#defaults-tabs .tab').forEach((t,i) => t.className = 'tab' + (i===0?' on':''));
-  renderDefaultsItems();
-  openOv('ov-defaults');
-}
+// openSeriesDefaults: 下の統合版を使用
 
 function switchDefaultsTab(key, btn) {
   _defTab = key;
@@ -3922,27 +4362,24 @@ function switchDefaultsTab(key, btn) {
   if (applyRow) applyRow.style.display = isEvent ? '' : 'none';
   // _defItems にまだなければ初期化
   if (!_defItems[key]) {
-    const src = S.defaults?.[key] || EVENT_DEFAULTS_INIT[key] || [];
+    const src = S.defaults?.[key] || SERIES_DEFAULTS_INIT[key] || [];
     _defItems[key] = JSON.parse(JSON.stringify(src)).map(i=>({...i,id:i.id||uid()}));
   }
   renderDefaultsItems();
 }
 
-// openSeriesDefaults を上書き（全7タブ対応）
-const _origOpenSeriesDefaults = openSeriesDefaults;
+// デフォルト費目設定を開く（全タブ対応）
 function openSeriesDefaults() {
   if (!isAdmin()) { alert('デフォルト費目設定は管理者のみ変更できます'); return; }
-  // 全キーのデータをコピー
-  const allKeys = ['hm','gk','oe','ko','aw','ye','md'];
+  const allKeys = ['hm','gk','oe','ko','aw','ye','tour','sd','cf3','cf4'];
   _defItems = {};
   allKeys.forEach(k => {
-    const src = S.defaults?.[k] || SERIES_DEFAULTS_INIT[k] || EVENT_DEFAULTS_INIT[k] || [];
+    // S.defaults → SERIES_DEFAULTS_INIT → 空配列の順でフォールバック
+    const src = S.defaults?.[k] || SERIES_DEFAULTS_INIT[k] || [];
     _defItems[k] = JSON.parse(JSON.stringify(src)).map(i=>({...i,id:i.id||uid()}));
   });
   _defTab = 'hm';
-  // タブリセット
-  const tabs = document.querySelectorAll('#defaults-tabs .tab');
-  tabs.forEach((t,i) => t.className = 'tab' + (i===0?' on':''));
+  document.querySelectorAll('#defaults-tabs .tab').forEach((t,i) => t.className = 'tab' + (i===0?' on':''));
   const applyRow = document.getElementById('defaults-apply-row');
   if (applyRow) applyRow.style.display = 'none';
   renderDefaultsItems();
@@ -3952,12 +4389,12 @@ function openSeriesDefaults() {
 // saveDefaults を上書き（全7キー保存 + イベント費目予算へ自動反映）
 function saveDefaults() {
   if (!S.defaults) S.defaults = {};
-  ['hm','gk','oe','ko','aw','ye','md'].forEach(k => {
+  ['hm','gk','oe','ko','aw','ye','tour','sd','cf3','cf4'].forEach(k => {
     if (_defItems[k]) S.defaults[k] = _defItems[k];
   });
 
-  // イベント（ko/aw/ye/md）のS.events[key].itemsの予算を自動更新
-  ['ko','aw','ye','md'].forEach(key => {
+  // イベント費目の予算を自動更新
+  ['ko','aw','ye','tour','sd','cf3','cf4'].forEach(key => {
     const defs = S.defaults[key] || [];
     if (!defs.length) return;
     if (!S.events[key]) S.events[key] = {label:key, items:[]};
@@ -3997,7 +4434,7 @@ const _origResetDefaults = resetDefaults;
 function resetDefaults() {
   const label = {hm:'ホームルーム',gk:'評議会',oe:'応援カイギ',ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',md:'マッチデイ'}[_defTab];
   if (!confirm(`${label}のデフォルト設定を初期値にリセットしますか？`)) return;
-  const src = SERIES_DEFAULTS_INIT[_defTab] || EVENT_DEFAULTS_INIT[_defTab] || [];
+  const src = SERIES_DEFAULTS_INIT[_defTab] || [];
   _defItems[_defTab] = JSON.parse(JSON.stringify(src)).map(i=>({...i,id:uid()}));
   renderDefaultsItems();
 }
@@ -4044,54 +4481,16 @@ function renderPg(id){
   else if(id==='hm')   renderSeries('hm');
   else if(id==='gk')   renderSeries('gk');
   else if(id==='oe')   renderSeries('oe');
-  else if(id==='ko')   renderEvt('ko');
-  else if(id==='aw')   renderEvt('aw');
-  else if(id==='ye')   renderEvt('ye');
-  else if(id==='md')   renderEvt('md');
+  else if(['ko','aw','ye','tour'].includes(id)) renderEvt(id);
+  else if(id==='cityfes') renderCityFes();
+  else if(['md','sd','cf3','cf4'].includes(id)) { _cityFesTab=id; renderCityFes(); }
   else if(id==='rev')  renderRev();
-  else if(id==='ledger')    renderLedger();
   else if(id==='mkt')       renderMkt();
   else if(id==='prod')      renderProd();
   else if(id==='changelog')    renderChangelog();
   else if(id==='ordermaster')  renderOrderMaster();
 }
-// マッチデイ用のナビボタンとページがなければ動的追加
-(function initMatchday() {
-  TITLES['md'] = 'マッチデイ';
-  // renderPg に md を追加
-  // renderPg md対応は統合済み
-  // サイドバーに「マッチデイ」ボタンを追加（大規模イベントセクション）
-  const yeBtn = [...document.querySelectorAll('.nb')].find(b => b.textContent.includes('イヤーエンド'));
-  if (yeBtn && !document.getElementById('nb-md')) {
-    const mdBtn = document.createElement('button');
-    mdBtn.className = 'nb';
-    mdBtn.id = 'nb-md';
-    mdBtn.innerHTML = '<span class="ic">🏟</span>マッチデイ';
-    mdBtn.onclick = function(){ go('md', this); };
-    yeBtn.insertAdjacentElement('afterend', mdBtn);
-  }
-  // pg-md ページがなければ追加
-  if (!document.getElementById('pg-md')) {
-    const pgYe = document.getElementById('pg-ye');
-    if (pgYe) {
-      const pgMd = document.createElement('div');
-      pgMd.className = 'pg';
-      pgMd.id = 'pg-md';
-      pgMd.innerHTML = `
-        <div class="g4" id="md-kpis"></div>
-        <div class="g2">
-          <div class="card"><div class="ct"><div class="pip"></div>費目別明細
-            <button class="btn btn-xs btn-g" style="margin-left:auto" onclick="openEvt('md')">✏️ 編集</button>
-          </div>
-          <table class="tbl"><thead><tr><th>費目</th><th>予算</th><th>見積</th><th>実数</th><th>差異</th></tr></thead>
-          <tbody id="md-tbody"></tbody></table></div>
-          <div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>実数内訳</div>
-          <div class="ch-t"><canvas id="ch-md"></canvas></div></div>
-        </div>`;
-      pgYe.insertAdjacentElement('afterend', pgMd);
-    }
-  }
-})();
+// initMatchday: 削除済み（シティフェスのタブに統合）
 
 // ══════════════════════════════════════════════════
 // 変更履歴ロガー
@@ -4588,7 +4987,7 @@ async function importAllSheets(ev) {
       '      "type": "expense_input|event_detail|production|marketing|summary|schedule|master|unknown",\n' +
       '      "header_row": 0,\n' +
       '      "columns": {"program":-1,"fee":-1,"category":-1,"content":-1,"price":-1,"qty":-1,"unit":-1,"budget":-1,"estimate":-1,"actual":-1,"name":-1,"memo":-1},\n' +
-      '      "event_key": "ko|aw|ye|null"\n' +
+      '      "event_key": "ko|aw|ye|tour|md|sd|cf3|cf4|null"\n' +
       '    }\n  }\n}';
 
     // Edge Function経由でAI解析
@@ -4650,12 +5049,16 @@ async function importAllSheets(ev) {
               estimate:row.findIndex(v=>v.includes('見積')),
               actual:  row.findIndex(v=>v.includes('実数')||v.includes('実績')),
             };
-            const evtMap={'キックオフ':'ko','アワード':'aw','イヤーエンド':'ye'};
+            const evtMap={'キックオフ':'ko','アワード':'aw','イヤーエンド':'ye',
+              'ツアー':'tour','マッチデイ':'md','スペシャルデイズ':'sd',
+              'スペシャル':'sd','イベント3':'cf3','イベント4':'cf4'};
             for(const[k,v] of Object.entries(evtMap)){if(sname.includes(k)){type='event_detail';cols.event_key=v;break;}}
             break;
           } else if (row.some(v=>v==='品目'&&!v.includes('品目・'))) {
             type = 'event_detail'; hdrRow = i;
-            const evtMap={'キックオフ':'ko','アワード':'aw','イヤーエンド':'ye'};
+            const evtMap={'キックオフ':'ko','アワード':'aw','イヤーエンド':'ye',
+              'ツアー':'tour','マッチデイ':'md','スペシャルデイズ':'sd',
+              'スペシャル':'sd','イベント3':'cf3','イベント4':'cf4'};
             let ekey = null;
             for(const[k,v] of Object.entries(evtMap)){if(sname.includes(k)){ekey=v;break;}}
             cols = {
@@ -4672,11 +5075,36 @@ async function importAllSheets(ev) {
       }
     }
 
-    // ── AIの解析結果を使ってデータを取込 ──────────────
+    
+// シート名からイベントキーを判定（AI解析のフォールバック用）
+function detectEventKeyFromSheetName(sname) {
+  const map = [
+    ['キックオフ','ko'],['アワード','aw'],['イヤーエンド','ye'],
+    ['ツアー','tour'],['tour','tour'],
+    ['スペシャルデイズ','sd'],['スペシャル','sd'],['special','sd'],
+    ['イベント3','cf3'],['event3','cf3'],['evt3','cf3'],
+    ['イベント4','cf4'],['event4','cf4'],['evt4','cf4'],
+    ['マッチデイ','md'],['matchday','md'],
+  ];
+  const lower = sname.toLowerCase();
+  for (const [kw, key] of map) {
+    if (lower.includes(kw.toLowerCase())) return key;
+  }
+  return null;
+}
+// ── AIの解析結果を使ってデータを取込 ──────────────
     document.getElementById('ai-csv-status').textContent = 'データを取込中...';
 
     for (const sname of wb.SheetNames) {
       const sheetInfo = aiResult.sheets?.[sname];
+      // unknownでもシート名からイベントキーが判定できる場合はevent_detailとして処理
+      if (sheetInfo && sheetInfo.type === 'unknown') {
+        const detectedKey = detectEventKeyFromSheetName(sname);
+        if (detectedKey) {
+          sheetInfo.type = 'event_detail';
+          sheetInfo.event_key = detectedKey;
+        }
+      }
       if (!sheetInfo || sheetInfo.type === 'unknown' || sheetInfo.type === 'summary' || sheetInfo.type === 'master' || sheetInfo.type === 'schedule') continue;
 
       const ws = wb.Sheets[sname];
@@ -4724,8 +5152,8 @@ async function importAllSheets(ev) {
 
       // ── イベント詳細シート（キックオフ/アワード/イヤーエンド） → S.events ──
       else if (type === 'event_detail') {
-        const ekey = ci.event_key || sheetInfo.event_key;
-        if (!ekey) continue;
+        const ekey = ci.event_key || sheetInfo.event_key || detectEventKeyFromSheetName(sname);
+        if (!ekey) { log.push(`⏭ ${sname}: イベントキー不明のためスキップ`); continue; }
         if (!S.events[ekey]) S.events[ekey] = {label:sname, items:[]};
         // 既存費目がある場合は上書き確認
         if (S.events[ekey].items && S.events[ekey].items.length > 0) {
@@ -5297,6 +5725,32 @@ function applyEstimatesToEvt(key) {
 
 // loadFromDB: S.estimatesの補完は本体に統合済み
 
+
+// mktItems → prodItems（マーケカテゴリ）への移行
+function migrateMktToProd() {
+  if (!S.mktItems || S.mktItems.length === 0) return;
+  if (!S.prodItems) S.prodItems = [];
+
+  const alreadyMigrated = S.prodItems.some(i => i._fromMkt);
+  if (alreadyMigrated) return;
+
+  S.mktItems.forEach(m => {
+    S.prodItems.push({
+      id: m.id || uid(),
+      cat: 'マーケ',
+      name: m.name || '',
+      content: m.content || '',
+      price: 0, qty: 1, unit: '式',
+      stockInit: 0, stockUsed: 0, stockAlert: 0,
+      budget: n(m.budget), estimate: n(m.estimate), actual: n(m.actual),
+      status: m.status || '', memo: m.memo || '',
+      _fromMkt: true,
+    });
+  });
+  S.mktItems = []; // 移行後はクリア
+  save();
+  console.log('[migrateMktToProd] migrated', S.prodItems.filter(i=>i._fromMkt).length, 'items');
+}
 // ══════════════════════════════════════════════════
 // マーケ費用 インライン入力
 // ══════════════════════════════════════════════════
@@ -5360,7 +5814,7 @@ function saveMktInline() {
 // ══════════════════════════════════════════════════
 // 製作物 インライン入力
 // ══════════════════════════════════════════════════
-const PROD_CATS_LIST = ['グッズ（外販）','グッズ（内部向け）','イベント装飾','年間共通ツール','その他'];
+const PROD_CATS_LIST = ['グッズ（外販）','グッズ（内部向け）','イベント装飾','年間共通ツール','マーケ','その他'];
 
 function renderProd() {
   const filterCat   = document.getElementById('prod-filter-cat')?.value   || '';
@@ -5469,44 +5923,80 @@ function calcCat8Totals() {
   const totals = {};
   ACCOUNTING_CATS.forEach(cat => { totals[cat] = { budget:0, estimate:0, actual:0 }; });
 
-  function addTo(cat, b, e, a) {
-    const c = ACCOUNTING_CATS.includes(cat) ? cat : '⑨ その他';
-    totals[c].budget   += n(b);
+  function normCat(cat) {
+    if (!cat) return '⑨ その他';
+    if (ACCOUNTING_CATS.includes(cat)) return cat;
+    // 旧名称→9科目に変換
+    const detected = detectCat(cat);
+    return detected || '⑨ その他';
+  }
+  function addBudget(cat, b) {
+    totals[normCat(cat)].budget += n(b);
+  }
+  function addActual(cat, e, a) {
+    const c = normCat(cat);
     totals[c].estimate += n(e);
     totals[c].actual   += n(a);
   }
 
-  // ソース1: 経費明細
-  (S.ledger||[]).forEach(i => addTo(i.cat||'⑨ その他', i.budget, i.estimate, i.actual));
+  // ── 予算：各イベント・シリーズの費目設定から（重複なし） ──
 
-  // ソース2: イベント費目（S.events）
-  ['ko','aw','ye','md'].forEach(key => {
+  // イベント費目の予算
+  ['ko','aw','ye','md','tour','sd','cf3','cf4'].forEach(key => {
     const items = S.events[key]?.items || [];
     if (items.length > 0) {
-      items.forEach(it => addTo(it.name, it.budget, it.estimate, it.actual));
+      items.forEach(it => addBudget(it.name, it.budget));
     } else {
-      // 費目未設定の場合はデフォルト費目設定から予算のみ追加
-      (S.defaults?.[key] || []).forEach(d => addTo(d.name, d.budget, 0, 0));
+      // 費目未設定→デフォルト費目設定から
+      (S.defaults?.[key] || []).forEach(d => addBudget(d.name, d.budget));
     }
   });
 
-  // ソース3: シリーズ費目（S.sessions）
+  // シリーズ費目の予算：常にセッション実データから（デフォルト×回数は使わない）
   ['hm','gk','oe'].forEach(key => {
-    (S.sessions[key]||[]).forEach(sess => {
-      (sess.items||[]).forEach(it => addTo(it.name, it.budget, it.estimate, it.actual));
+    (S.sessions[key]||[]).forEach(sess =>
+      (sess.items||[]).forEach(it => addBudget(it.name, it.budget))
+    );
+  });
+
+  // 製作物管理のカテゴリ予算
+  const prodB = S.prodBudgets || {};
+  PROD_CATS_LIST.forEach(cat => {
+    if (!prodB[cat]) return;
+    const cat9 = cat === 'マーケ' ? '⑦ マーケ・広報費' : '④ 制作・演出費';
+    addBudget(cat9, prodB[cat]);
+  });
+
+  // ── 見積・実績：見積入力テーブル（S.estimates）から ──
+  Object.values(S.estimates||{}).forEach(rows => {
+    (rows||[]).forEach(r => {
+      if (r.name) addActual(r.cat||'⑨ その他', r.estimate, r.actual);
     });
   });
 
-  // ソース4: 見積入力テーブル（S.estimates）
-  Object.values(S.estimates||{}).forEach(rows => {
-    (rows||[]).forEach(r => addTo(r.cat||'⑨ その他', r.budget||0, r.estimate, r.actual));
+  // 製作物管理の見積・実績
+  (S.prodItems||[]).forEach(i => {
+    const cat9 = i.cat === 'マーケ' ? '⑦ マーケ・広報費' : '④ 制作・演出費';
+    addActual(cat9, i.estimate||0, i.actual||0);
+  });
+  (S.mktItems||[]).forEach(i => addActual('⑦ マーケ・広報費', i.estimate||0, i.actual||0));
+
+  // シリーズの実績（セッション費目から）
+  ['hm','gk','oe'].forEach(key => {
+    (S.sessions[key]||[]).forEach(sess =>
+      (sess.items||[]).forEach(it => addActual(it.name, it.estimate, it.actual))
+    );
   });
 
-  // ソース5: マーケ費用管理（S.mktItems）→ ⑦ 広報費
-  (S.mktItems||[]).forEach(i => addTo('⑦ 広報費', i.budget||0, i.estimate||0, i.actual||0));
+  // イベントの実績（S.estimatesがない場合のフォールバック）
+  ['ko','aw','ye','md'].forEach(key => {
+    const hasEst = (S.estimates?.[key]||[]).length > 0;
+    if (!hasEst) {
+      (S.events[key]?.items||[]).forEach(it => addActual(it.name, it.estimate, it.actual));
+    }
+  });
 
-  // ソース6: 製作物管理（S.prodItems）→ ④ 制作・印刷費
-  (S.prodItems||[]).forEach(i => addTo('④ 制作・印刷費', i.budget||0, i.estimate||0, i.actual||0));
+
 
   return totals;
 }
@@ -5522,6 +6012,7 @@ const PROD_SECTION_COLORS = {
   'グッズ（内部向け）':{h:'#be185d', bg:'#fce7f3', fg:'#831843'},
   'イベント装飾':      {h:'#0f766e', bg:'#ccfbf1', fg:'#134e4a'},
   '年間共通ツール':    {h:'#1d4ed8', bg:'#dbeafe', fg:'#1e3a8a'},
+  'マーケ':            {h:'#be185d', bg:'#fce7f3', fg:'#831843'},
   'その他':            {h:'#374151', bg:'#f3f4f6', fg:'#1f2937'},
 };
 
@@ -5547,6 +6038,10 @@ function detectProdCat(name, origCat) {
 
   // デザイン・印刷物
   if (/ポスター|プログラム|チラシ|印刷|公式プログラム|スタンプラリー/.test(n)) return 'イベント装飾';
+
+  // マーケ
+  if (/マーケ|広告|sns|pr|プロモ|lp|ランディング|動画|映像|チラシ|ポスター|パンフ|広報/.test(n)) return 'マーケ';
+  if (/マーケ|広告|プロモ/.test(o)) return 'マーケ';
 
   return 'その他';
 }
@@ -5639,10 +6134,19 @@ function renderProd() {
       const stockColor = !hasStock?'var(--t3)':remain<=0?'var(--red)':alert>0&&remain<=alert?'var(--yellow)':'var(--green)';
       const stOpts = ['','済','未','一部'].map(s=>`<option value="${s}"${it.status===s?' selected':''}>${s||'—'}</option>`).join('');
 
+      const catOpts2 = PROD_CATS_LIST.map(c=>`<option value="${c}"${it.cat===c?' selected':''}>${c}</option>`).join('');
       return `<tr>
-        <td style="padding-left:12px;font-weight:600;font-size:12px">
+        <td style="padding-left:4px;width:130px">
+          <select class="inline-sel"
+            style="font-size:9px;font-weight:700;color:${col.fg};background:${col.bg};
+                   border:1px solid ${col.h}44;border-radius:6px;width:100%"
+            onchange="S.prodItems[${realIdx}].cat=this.value;debouncedSave();renderProd()">
+            ${catOpts2}
+          </select>
+        </td>
+        <td style="font-weight:600;font-size:12px">
           <input class="inline-inp" value="${(it.name||'').replace(/"/g,'&quot;')}" placeholder="品目名を入力"
-            onchange="S.prodItems[${realIdx}].name=this.value" style="font-weight:500;font-size:12px">
+            onchange="S.prodItems[${realIdx}].name=this.value;debouncedSave()" style="font-weight:500;font-size:12px">
         </td>
         <td><input class="inline-inp" value="${(it.content||'').replace(/"/g,'&quot;')}" placeholder="仕様・内容"
             onchange="S.prodItems[${realIdx}].content=this.value" style="font-size:11px;color:var(--t2)"></td>
