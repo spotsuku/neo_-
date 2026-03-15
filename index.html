@@ -1509,6 +1509,8 @@ async function loadFromDB() {
       if (!S.changelog)    S.changelog    = [];
       if (!S.defaults)     S.defaults     = {};
       if (!S.orderMaster)  S.orderMaster  = [];
+      if (!S.estimates)    S.estimates    = {};
+      if (!S.prodBudgets)  S.prodBudgets  = {};
     }
     slbl().textContent = 'DB同期済み';
     sdot().className = 'sdot';
@@ -1556,7 +1558,17 @@ async function save() {
 
     sdot().className = 'sdot';
     slbl().textContent = '保存済み ' + new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
-    console.log('[save] OK, revenues:', S.revenues?.length, 'ledger:', S.ledger?.length);
+    console.log('[save] OK', {
+      revenues: S.revenues?.length,
+      ledger: S.ledger?.length,
+      events_ko: S.events?.ko?.items?.length,
+      events_aw: S.events?.aw?.items?.length,
+      events_ye: S.events?.ye?.items?.length,
+      estimates_ko: S.estimates?.ko?.length,
+      estimates_aw: S.estimates?.aw?.length,
+      prodItems: S.prodItems?.length,
+      mktItems: S.mktItems?.length,
+    });
   } catch(e) {
     sdot().className = 'sdot uns';
     slbl().textContent = '保存エラー: ' + e.message;
@@ -1572,15 +1584,28 @@ async function saveMemberData() {
   if (isAdmin()) { save(); return; }
   try {
     // 実績・見積のみ更新（予算には触れない）
+    const dbId = getFiscalYearDbId(_currentFiscalYear);
     const {error} = await _sb.from('dashboard_data')
       .update({data: S, updated_at: new Date().toISOString()})
-      .eq('id',1);
+      .eq('id', dbId);
     if (error) throw error;
     sdot().className = 'sdot';
     slbl().textContent = '保存済み ' + new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
   } catch(e) {
     sdot().className = 'sdot uns';
     slbl().textContent = '保存エラー';
+  }
+}
+
+// 手動保存（デバッグ・確認用）
+async function manualSave() {
+  const btn = document.getElementById('manual-save-btn');
+  if (btn) { btn.textContent = '💾 保存中...'; btn.disabled = true; }
+  try {
+    await save();
+    if (btn) { btn.textContent = '✅ 保存完了'; setTimeout(()=>{ btn.textContent = '💾 今すぐ保存'; btn.disabled = false; }, 2000); }
+  } catch(e) {
+    if (btn) { btn.textContent = '❌ 保存失敗'; btn.disabled = false; }
   }
 }
 function sdot(){return document.getElementById('sdot');}
@@ -4777,8 +4802,11 @@ Excelの内容で上書きしますか？
       }
     }
 
-    save();
+    // 保存完了を待ってから結果表示
+    document.getElementById('ai-csv-status').textContent = 'Supabaseに保存中...';
+    await save();
     logChange('other', 'Excel一括取込(AI解析)', null, `${totalRows}件`);
+    await save(); // changelogも含めて再保存
 
     // 結果表示
     document.getElementById('ai-csv-loading').style.display = 'none';
