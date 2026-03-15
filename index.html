@@ -435,12 +435,12 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
           <div class="ch-t"><canvas id="ch-ko"></canvas></div>
         </div>
       </div>
-      <!-- ③ 見積入力テーブル（下部） -->
+      <!-- ③ 予算・見積・実績 入力テーブル（下部） -->
       <div class="card">
         <div class="ct">
           <div class="pip" style="background:var(--blue)"></div>
-          見積明細入力
-          <span style="font-size:9px;font-weight:400;color:var(--t2);margin-left:8px">品目名と金額を入力 → AIが会計科目に自動振り分け → 上の集計に反映</span>
+          予算・見積・実績 入力
+          <span style="font-size:9px;font-weight:400;color:var(--t2);margin-left:8px">Excelの明細を確認・修正 / 手動追加も可能 → 上の集計に反映</span>
           <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
             <button class="btn btn-xs btn-g" onclick="addEstimateRow('ko')">＋ 行を追加</button>
             <button class="btn btn-xs" onclick="aiClassifyEstimates('ko')"
@@ -460,15 +460,15 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
                 予算（円）
                 <span style="font-size:8px;font-weight:400;color:var(--t3);display:block">管理者のみ</span>
               </th>
-              <th style="text-align:right;width:110px">見積金額（円）</th>
-              <th style="text-align:right;width:110px">実績金額（円）</th>
+              <th style="text-align:right;width:110px">見積（円）</th>
+              <th style="text-align:right;width:110px">実績（円）</th>
               <th style="width:28px"></th>
             </tr></thead>
             <tbody id="ko-est-tbody"></tbody>
           </table>
         </div>
         <div id="ko-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">
-          「＋ 行を追加」で見積明細を入力できます
+          「＋ 行を追加」または Excel取込で明細を入力できます
         </div>
         <div id="ko-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div>
       </div>
@@ -498,12 +498,12 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
           <div class="ch-t"><canvas id="ch-aw"></canvas></div>
         </div>
       </div>
-      <!-- ③ 見積入力テーブル（下部） -->
+      <!-- ③ 予算・見積・実績 入力テーブル（下部） -->
       <div class="card">
         <div class="ct">
           <div class="pip" style="background:var(--blue)"></div>
-          見積明細入力
-          <span style="font-size:9px;font-weight:400;color:var(--t2);margin-left:8px">品目名と金額を入力 → AIが会計科目に自動振り分け → 上の集計に反映</span>
+          予算・見積・実績 入力
+          <span style="font-size:9px;font-weight:400;color:var(--t2);margin-left:8px">Excelの明細を確認・修正 / 手動追加も可能 → 上の集計に反映</span>
           <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
             <button class="btn btn-xs btn-g" onclick="addEstimateRow('aw')">＋ 行を追加</button>
             <button class="btn btn-xs" onclick="aiClassifyEstimates('aw')"
@@ -523,15 +523,15 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
                 予算（円）
                 <span style="font-size:8px;font-weight:400;color:var(--t3);display:block">管理者のみ</span>
               </th>
-              <th style="text-align:right;width:110px">見積金額（円）</th>
-              <th style="text-align:right;width:110px">実績金額（円）</th>
+              <th style="text-align:right;width:110px">見積（円）</th>
+              <th style="text-align:right;width:110px">実績（円）</th>
               <th style="width:28px"></th>
             </tr></thead>
             <tbody id="aw-est-tbody"></tbody>
           </table>
         </div>
         <div id="aw-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">
-          「＋ 行を追加」で見積明細を入力できます
+          「＋ 行を追加」または Excel取込で明細を入力できます
         </div>
         <div id="aw-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div>
       </div>
@@ -561,12 +561,12 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
           <div class="ch-t"><canvas id="ch-ye"></canvas></div>
         </div>
       </div>
-      <!-- ③ 見積入力テーブル（下部） -->
+      <!-- ③ 予算・見積・実績 入力テーブル（下部） -->
       <div class="card">
         <div class="ct">
           <div class="pip" style="background:var(--blue)"></div>
-          見積明細入力
-          <span style="font-size:9px;font-weight:400;color:var(--t2);margin-left:8px">品目名と金額を入力 → AIが会計科目に自動振り分け → 上の集計に反映</span>
+          予算・見積・実績 入力
+          <span style="font-size:9px;font-weight:400;color:var(--t2);margin-left:8px">Excelの明細を確認・修正 / 手動追加も可能 → 上の集計に反映</span>
           <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
             <button class="btn btn-xs btn-g" onclick="addEstimateRow('ye')">＋ 行を追加</button>
             <button class="btn btn-xs" onclick="aiClassifyEstimates('ye')"
@@ -586,15 +586,15 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
                 予算（円）
                 <span style="font-size:8px;font-weight:400;color:var(--t3);display:block">管理者のみ</span>
               </th>
-              <th style="text-align:right;width:110px">見積金額（円）</th>
-              <th style="text-align:right;width:110px">実績金額（円）</th>
+              <th style="text-align:right;width:110px">見積（円）</th>
+              <th style="text-align:right;width:110px">実績（円）</th>
               <th style="width:28px"></th>
             </tr></thead>
             <tbody id="ye-est-tbody"></tbody>
           </table>
         </div>
         <div id="ye-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">
-          「＋ 行を追加」で見積明細を入力できます
+          「＋ 行を追加」または Excel取込で明細を入力できます
         </div>
         <div id="ye-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div>
       </div>
@@ -4661,43 +4661,57 @@ Excelの内容で上書きしますか？
           if (!ok) { log.push(`⏭ ${sname}: スキップ（既存データを保持）`); continue; }
         }
 
-        // カテゴリ別に合算してS.eventsに登録
-        // ■カテゴリ行 → カテゴリ名として費目に使用
-        // 明細行 → そのカテゴリに合算
+        // ── 全明細を読み取り ──
         let currentCat = '';
-        const catTotals = {}; // {catName: {budget, estimate, actual}}
+        const detailItems = [];   // 個別明細（S.estimatesに保存）
+        const cat9Totals  = {};   // 9科目別合算（S.events[ekey].itemsに保存）
+
         for (let i=hdrRow+1; i<allRows.length; i++) {
           const r = allRows[i]; if (!r) continue;
           const nameVal = cleanStr(r[0]);
           if (!nameVal || nameVal==='-') continue;
-          // ■で始まる行 or インデントなしの行 → カテゴリ
-          if (nameVal.startsWith('■')) {
-            currentCat = nameVal.replace('■','').trim();
-            continue;
-          }
-          // インデントありの行 → 明細（カテゴリに合算）
+          if (nameVal.startsWith('■')) { currentCat = nameVal.replace('■','').trim(); continue; }
+
           const bgt = parseNum(r[ci.budget>=0?ci.budget:5]);
           const est = parseNum(r[ci.estimate>=0?ci.estimate:6]);
           const act = parseNum(r[ci.actual>=0?ci.actual:7]);
           if (!bgt && !est && !act) continue;
-          if (!currentCat) currentCat = nameVal; // カテゴリ未設定なら費目名をそのまま使用
-          if (!catTotals[currentCat]) catTotals[currentCat] = {budget:0, estimate:0, actual:0};
-          catTotals[currentCat].budget   += bgt;
-          catTotals[currentCat].estimate += est;
-          catTotals[currentCat].actual   += act;
+
+          // 費目名から9科目に自動分類
+          const cat9 = detectCat(nameVal) || '⑨ その他';
+
+          // 個別明細として保存
+          detailItems.push({
+            id: uid(),
+            name: nameVal,           // 元の費目名（例:「イベント当日施設利用料」）
+            cat:  cat9,              // 9科目分類（例:「① 会場・施設費」）
+            _origCat: currentCat,    // Excelの元カテゴリ（例:「会場関連」）
+            budget: bgt, estimate: est, actual: act,
+          });
+
+          // 9科目別に合算
+          if (!cat9Totals[cat9]) cat9Totals[cat9] = {budget:0, estimate:0, actual:0};
+          cat9Totals[cat9].budget   += bgt;
+          cat9Totals[cat9].estimate += est;
+          cat9Totals[cat9].actual   += act;
         }
 
-        // catTotalsをS.events[ekey].itemsに反映
-        // 取込前に既存費目をクリアして再構築（重複防止）
-        S.events[ekey].items = [];
-        let updated = 0;
-        for (const [catName, vals] of Object.entries(catTotals)) {
-          if (!vals.budget && !vals.estimate && !vals.actual) continue;
-          S.events[ekey].items.push({id:uid(), name:catName,
-            budget:vals.budget, estimate:vals.estimate, actual:vals.actual});
-          updated++; totalRows++;
-        }
-        log.push(`✅ ${sname}: ${updated}カテゴリを更新`);
+        // ① S.estimates[ekey] に個別明細を保存（▶詳細で表示される）
+        if (!S.estimates) S.estimates = {};
+        S.estimates[ekey] = detailItems;
+
+        // ② S.events[ekey].items を9科目順で再構築
+        S.events[ekey].items = ACCOUNTING_CATS
+          .filter(cat => cat9Totals[cat])
+          .map(cat => ({
+            id: uid(), name: cat,
+            budget:   cat9Totals[cat].budget,
+            estimate: cat9Totals[cat].estimate,
+            actual:   cat9Totals[cat].actual,
+          }));
+
+        totalRows += detailItems.length;
+        log.push(`✅ ${sname}: ${S.events[ekey].items.length}科目 / 明細${detailItems.length}件を取込`);
       }
 
       // ── 製作物シート → S.prodItems ──
@@ -4946,6 +4960,7 @@ function renderEstimateTable(key) {
   if (empty) empty.style.display = 'none';
 
   const admin = isAdmin();
+  const hasExcel = rows.some(r => r._origCat !== undefined);
   const catOpts = ['', ...ACCOUNTING_CATS].map(cat =>
     `<option value="${cat}">${cat || '-- 未分類 --'}</option>`
   ).join('');
@@ -4965,11 +4980,12 @@ function renderEstimateTable(key) {
     return `<tr>
       <td style="color:var(--t3);font-size:10px;text-align:center;width:28px">${i+1}</td>
       <td>
+        ${r._origCat !== undefined ? `<span style="font-size:8px;font-weight:700;background:rgba(16,185,129,.1);color:var(--green);padding:1px 5px;border-radius:3px;margin-right:4px;vertical-align:middle">Excel</span><span style="font-size:9px;color:var(--t3);margin-right:6px">${r._origCat||''}</span>` : ''}
         <input id="est-name-${key}-${i}" value="${(r.name||'').replace(/"/g,'&quot;')}" placeholder="品目名・内容を入力..."
-          style="width:100%;padding:6px 8px;border:1.5px solid var(--b2);border-radius:6px;font-size:12px;background:var(--s1);color:var(--t1);outline:none"
+          style="width:100%;padding:6px 8px;border:1.5px solid ${r._origCat!==undefined?'rgba(16,185,129,.25)':'var(--b2)'};border-radius:6px;font-size:12px;background:${r._origCat!==undefined?'rgba(16,185,129,.03)':'var(--s1)'};color:var(--t1);outline:none"
           oninput="updateEstRow('${key}',${i},'name',this.value);showOrderSuggest(this,null)"
           onfocus="this.style.borderColor='var(--blue)'"
-          onblur="this.style.borderColor='var(--b2)';autoClassifyRow('${key}',${i})"
+          onblur="this.style.borderColor='${r._origCat!==undefined?"rgba(16,185,129,.25)":'var(--b2)'}';autoClassifyRow('${key}',${i})"
           autocomplete="off">
       </td>
       <td>
@@ -5021,11 +5037,17 @@ function updateEstTotal(key) {
   if (!el) return;
   el.style.display = '';
   const diff = totB - totA;
+  const excelCnt = (S.estimates?.[key]||[]).filter(r=>r._origCat!==undefined).length;
+  const manualCnt = (S.estimates?.[key]||[]).filter(r=>r._origCat===undefined).length;
   el.innerHTML = `
-    ${totB ? `<span style="margin-right:16px;color:var(--t2)">予算合計: <strong style="font-family:var(--mono);color:var(--yellow)">${fmtN(totB)}円</strong></span>` : ''}
-    <span style="margin-right:16px">見積合計: <strong style="font-family:var(--mono);color:var(--blue)">${fmtN(totE)}円</strong></span>
-    <span style="margin-right:16px">実績合計: <strong style="font-family:var(--mono);color:var(--green)">${fmtN(totA)}円</strong></span>
-    ${totB ? `<span>差異: <strong style="font-family:var(--mono);color:${diff>=0?'var(--green)':'var(--red)'}">${diff>=0?'▲':'▼'} ${fmtN(Math.abs(diff))}円</strong></span>` : ''}
+    <div style="display:flex;gap:16px;align-items:center;justify-content:flex-end;flex-wrap:wrap">
+      ${excelCnt ? `<span style="font-size:10px;color:var(--green)">📊 Excel明細 ${excelCnt}件</span>` : ''}
+      ${manualCnt ? `<span style="font-size:10px;color:var(--blue)">✏️ 手動入力 ${manualCnt}件</span>` : ''}
+      ${totB ? `<span>予算: <strong style="font-family:var(--mono);color:var(--yellow)">${fmtN(totB)}円</strong></span>` : ''}
+      <span>見積: <strong style="font-family:var(--mono);color:var(--blue)">${fmtN(totE)}円</strong></span>
+      <span>実績: <strong style="font-family:var(--mono);color:var(--green)">${fmtN(totA)}円</strong></span>
+      ${totB ? `<span style="font-weight:700">差異: <strong style="font-family:var(--mono);color:${diff>=0?'var(--green)':'var(--red)'}">${diff>=0?'▲':'▼'} ${fmtN(Math.abs(diff))}円</strong></span>` : ''}
+    </div>
   `;
 }
 
