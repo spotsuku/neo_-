@@ -3150,18 +3150,31 @@ async function doSignup() {
   btn.textContent = '登録申請'; btn.disabled = false;
   if (error) { showLoginError('登録に失敗しました: ' + error.message); return; }
 
-  // profilesテーブルに承認待ち状態で登録（管理者画面に表示される）
-  if (data.user) {
-    await _sb.from('profiles').upsert({
-      id: data.user.id,
+  // Confirm email有効時はdata.userがnullになるためauth.usersから取得
+  const userId = data.user?.id || data.session?.user?.id;
+
+  if (userId) {
+    // userIdが取れた場合はprofilesに書き込む
+    const {error: profErr} = await _sb.from('profiles').upsert({
+      id: userId,
       email: email,
       display_name: name,
       role: 'member',
-      approved: false,  // 管理者承認待ち
+      approved: false,
     });
+    if (profErr) console.error('profiles書き込みエラー:', profErr);
+  } else {
+    // Confirm email有効でuserIdが取れない場合 → pending_signupsテーブルに保存
+    const {error: pendErr} = await _sb.from('pending_signups').upsert({
+      email: email,
+      display_name: name,
+      requested_at: new Date().toISOString(),
+    });
+    if (pendErr) console.error('pending_signups書き込みエラー:', pendErr);
+    console.log('[doSignup] Confirm email有効のためpending_signupsに保存');
   }
 
-  showLoginError('✅ 登録申請を受け付けました。\n管理者の承認後にログインできます。');
+  showLoginError('✅ 登録申請を受け付けました。管理者の承認後にログインできます。');
 }
 
 async function doLogout() {
@@ -3200,6 +3213,23 @@ async function renderUsers() {
   const {data: profiles, error} = await _sb.from('profiles').select('*').order('created_at');
   if (error) { console.error(error); return; }
 
+  // pending_signups（メール未確認申請）も取得
+  const {data: pendingSignups} = await _sb.from('pending_signups').select('*').order('requested_at');
+  const pendingRows = (pendingSignups||[]).map(p => `
+    <tr style="background:rgba(245,158,11,.05);border-left:3px solid var(--yellow)">
+      <td style="font-weight:500">
+        <span style="font-size:9px;background:rgba(245,158,11,.15);color:var(--yellow);padding:1px 6px;border-radius:4px;margin-right:6px">申請中</span>
+        ${p.display_name || '—'}
+      </td>
+      <td style="font-size:11px">${p.email}</td>
+      <td style="font-size:10px;color:var(--t3)">未登録</td>
+      <td style="font-size:11px">${new Date(p.requested_at).toLocaleDateString('ja-JP')}</td>
+      <td>
+        <button class="btn btn-xs btn-p" onclick="approvePendingSignup('${p.email}','${p.display_name||''}','${p.id}')">✅ 承認・作成</button>
+      </td>
+      <td><button class="btn btn-xs" style="background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.3)" onclick="deletePendingSignup('${p.id}')">削除</button></td>
+    </tr>`).join('');
+
   const pending = (profiles||[]).filter(p => p.approved === false);
   const approved = (profiles||[]).filter(p => p.approved !== false);
 
@@ -3210,7 +3240,7 @@ async function renderUsers() {
        </td></tr>`
     : '';
 
-  document.getElementById('users-tbody').innerHTML = pendingBanner + (profiles||[]).map(p => {
+  document.getElementById('users-tbody').innerHTML = pendingRows + pendingBanner + (profiles||[]).map(p => {
     const isPending = p.approved === false;
     return `<tr style="${isPending ? 'background:rgba(245,158,11,.05)' : ''}">
       <td style="font-weight:500">
@@ -3237,6 +3267,42 @@ async function renderUsers() {
   }).join('');
 }
 
+
+// pending_signupsからユーザーを承認（管理者がパスワードを設定してアカウント作成）
+async function approvePendingSignup(email, name, pendingId) {
+  const pass = prompt(`${email} のパスワードを設定してください（8文字以上）:`);
+  if (!pass || pass.length < 8) { alert('パスワードは8文字以上で設定してください'); return; }
+
+  // 1. アカウント作成
+  const {data, error} = await _sb.auth.signUp({
+    email, password: pass,
+    options: { data: { display_name: name } }
+  });
+  if (error) { alert('作成失敗: ' + error.message); return; }
+
+  const userId = data.user?.id;
+  if (userId) {
+    // 2. profilesに承認済みで登録
+    await _sb.from('profiles').upsert({
+      id: userId, email, display_name: name,
+      role: 'member', approved: true,
+    });
+    // 3. pending_signupsから削除
+    await _sb.from('pending_signups').delete().eq('id', pendingId);
+    alert(`✅ ${email} を承認しました。\nパスワード: ${pass}\n\n本人にお知らせください。`);
+  } else {
+    // メール確認が必要な場合
+    await _sb.from('pending_signups').delete().eq('id', pendingId);
+    alert(`✅ ${email} にアカウントを作成しました。\nパスワード: ${pass}\n\n本人にお知らせください。`);
+  }
+  renderUsers();
+}
+
+async function deletePendingSignup(id) {
+  if (!confirm('この申請を削除しますか？')) return;
+  await _sb.from('pending_signups').delete().eq('id', id);
+  renderUsers();
+}
 // ユーザー承認
 async function approveUser(userId, email) {
   if (!isAdmin()) return;
