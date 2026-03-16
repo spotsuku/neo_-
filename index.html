@@ -3150,11 +3150,12 @@ async function doSignup() {
   btn.textContent = '登録申請'; btn.disabled = false;
   if (error) { showLoginError('登録に失敗しました: ' + error.message); return; }
 
-  // Confirm email有効時はdata.userがnullになるためauth.usersから取得
+  // セッションの有無で分岐（メール確認有効時はdata.userは返るがsessionはnull）
+  const hasSession = !!data.session;
   const userId = data.user?.id || data.session?.user?.id;
 
-  if (userId) {
-    // userIdが取れた場合はprofilesに書き込む
+  if (hasSession && userId) {
+    // メール確認無効: セッションありなのでprofilesに書き込める
     const {error: profErr} = await _sb.from('profiles').upsert({
       id: userId,
       email: email,
@@ -3163,15 +3164,17 @@ async function doSignup() {
       approved: false,
     });
     if (profErr) console.error('profiles書き込みエラー:', profErr);
+    // 自動ログインされるがapproved=falseなので即サインアウト
+    await _sb.auth.signOut();
   } else {
-    // Confirm email有効でuserIdが取れない場合 → pending_signupsテーブルに保存
+    // メール確認有効 or セッションなし → pending_signupsテーブルに保存
     const {error: pendErr} = await _sb.from('pending_signups').upsert({
       email: email,
       display_name: name,
       requested_at: new Date().toISOString(),
     });
     if (pendErr) console.error('pending_signups書き込みエラー:', pendErr);
-    console.log('[doSignup] Confirm email有効のためpending_signupsに保存');
+    console.log('[doSignup] セッションなしのためpending_signupsに保存');
   }
 
   showLoginError('✅ 登録申請を受け付けました。管理者の承認後にログインできます。');
@@ -3187,7 +3190,14 @@ async function doLogout() {
 async function onLogin(user) {
   _currentUser = user;
   // プロフィール取得
-  const {data: prof} = await _sb.from('profiles').select('role, display_name').eq('id', user.id).single();
+  const {data: prof} = await _sb.from('profiles').select('role, display_name, approved').eq('id', user.id).single();
+  // 未承認ユーザーはログイン拒否
+  if (prof && prof.approved === false) {
+    await _sb.auth.signOut();
+    _currentUser = null; _currentRole = null; _currentName = '';
+    showLoginError('⏳ 管理者の承認待ちです。承認後にログインできます。');
+    return;
+  }
   _currentRole = prof?.role || 'member';
   _currentName = prof?.display_name || user.email;
   // ログイン履歴を記録
