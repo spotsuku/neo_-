@@ -3141,13 +3141,27 @@ async function doSignup() {
   if (pass.length < 8) { showLoginError('パスワードは8文字以上で設定してください'); return; }
   const btn = document.getElementById('signup-submit-btn');
   btn.textContent = '処理中...'; btn.disabled = true;
+
   const {data, error} = await _sb.auth.signUp({
     email, password: pass,
     options: { data: { display_name: name } }
   });
+
   btn.textContent = '登録申請'; btn.disabled = false;
   if (error) { showLoginError('登録に失敗しました: ' + error.message); return; }
-  showLoginError('✅ 登録申請を受け付けました。管理者の承認後にログインできます。');
+
+  // profilesテーブルに承認待ち状態で登録（管理者画面に表示される）
+  if (data.user) {
+    await _sb.from('profiles').upsert({
+      id: data.user.id,
+      email: email,
+      display_name: name,
+      role: 'member',
+      approved: false,  // 管理者承認待ち
+    });
+  }
+
+  showLoginError('✅ 登録申請を受け付けました。\n管理者の承認後にログインできます。');
 }
 
 async function doLogout() {
@@ -3240,9 +3254,28 @@ async function changeRole(userId, newRole) {
 
 async function deleteUser(userId, email) {
   if (!isAdmin()) return;
-  if (!confirm(`${email} を削除しますか？`)) return;
-  // profilesのみ削除（auth.usersの削除はservice_role keyが必要なため管理画面で行う）
-  await _sb.from('profiles').delete().eq('id', userId);
+  if (!confirm(`${email} を削除しますか？\n\n※ ログイン情報も完全に削除されます。`)) return;
+
+  try {
+    // 1. profilesテーブルから削除
+    const {error: profErr} = await _sb.from('profiles').delete().eq('id', userId);
+    if (profErr) throw profErr;
+
+    // 2. auth.usersからも削除（Edge Function経由）
+    const {error: authErr} = await _sb.functions.invoke('delete-user', {
+      body: { userId }
+    });
+
+    if (authErr) {
+      // Edge Functionがない場合はprofilesのみ削除で対応
+      console.warn('auth.users削除スキップ（Edge Functionなし）:', authErr.message);
+      alert(`✅ ${email} をユーザー一覧から削除しました。\n（完全削除はSupabaseダッシュボードのAuthenticationページから行ってください）`);
+    } else {
+      alert(`✅ ${email} を完全に削除しました。`);
+    }
+  } catch(e) {
+    alert('削除失敗: ' + e.message);
+  }
   renderUsers();
 }
 
