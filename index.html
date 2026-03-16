@@ -3189,17 +3189,30 @@ async function doLogout() {
 
 async function onLogin(user) {
   _currentUser = user;
-  // プロフィール取得
-  const {data: prof} = await _sb.from('profiles').select('role, display_name, approved').eq('id', user.id).single();
-  // 未承認ユーザーはログイン拒否
-  if (prof && prof.approved === false) {
+  // プロフィール取得（.single()は0行で406になるため.maybeSingle()を使用）
+  const {data: prof} = await _sb.from('profiles').select('role, display_name, approved').eq('id', user.id).maybeSingle();
+  // プロフィールが存在しない場合は自動作成（承認済み扱い：ログインできている=auth通過済み）
+  if (!prof) {
+    const displayName = user.user_metadata?.display_name || user.email;
+    await _sb.from('profiles').upsert({
+      id: user.id,
+      email: user.email,
+      display_name: displayName,
+      role: 'member',
+      approved: true,
+    });
+    _currentRole = 'member';
+    _currentName = displayName;
+  } else if (prof.approved === false) {
+    // 未承認ユーザーはログイン拒否
     await _sb.auth.signOut();
     _currentUser = null; _currentRole = null; _currentName = '';
     showLoginError('⏳ 管理者の承認待ちです。承認後にログインできます。');
     return;
+  } else {
+    _currentRole = prof.role || 'member';
+    _currentName = prof.display_name || user.email;
   }
-  _currentRole = prof?.role || 'member';
-  _currentName = prof?.display_name || user.email;
   // ログイン履歴を記録
   await _sb.from('login_history').insert({user_id: user.id, email: user.email});
   // ログイン画面を閉じる
