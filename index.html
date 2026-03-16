@@ -1142,9 +1142,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       <div id="form-signup" style="display:none">
         <div class="frow"><div class="fl">表示名</div><input class="fi" id="signup-name" placeholder="山田 太郎"></div>
         <div class="frow" style="margin-top:8px"><div class="fl">メールアドレス</div><input class="fi" id="signup-email" type="email" placeholder="your@email.com"></div>
-        <div class="frow" style="margin-top:8px"><div class="fl">パスワード（8文字以上）</div><input class="fi" id="signup-pass" type="password" placeholder="••••••••"></div>
         <button class="btn btn-p" style="width:100%;margin-top:16px;padding:10px" onclick="doSignup()" id="signup-submit-btn">登録申請</button>
-        <p style="font-size:10px;color:var(--t3);margin-top:10px;text-align:center">登録後、管理者の承認が必要です</p>
+        <p style="font-size:10px;color:var(--t3);margin-top:10px;text-align:center">登録後、管理者の承認が必要です。パスワードは管理者が設定します。</p>
       </div>
     </div>
   </div>
@@ -3136,47 +3135,23 @@ async function doLogin() {
 async function doSignup() {
   const name  = document.getElementById('signup-name').value.trim();
   const email = document.getElementById('signup-email').value.trim();
-  const pass  = document.getElementById('signup-pass').value;
-  if (!name || !email || !pass) { showLoginError('全項目を入力してください'); return; }
-  if (pass.length < 8) { showLoginError('パスワードは8文字以上で設定してください'); return; }
+  if (!name || !email) { showLoginError('表示名とメールアドレスを入力してください'); return; }
   const btn = document.getElementById('signup-submit-btn');
   btn.textContent = '処理中...'; btn.disabled = true;
 
-  const {data, error} = await _sb.auth.signUp({
-    email, password: pass,
-    options: { data: { display_name: name } }
-  });
+  // auth.signUpは呼ばず、pending_signupsにのみ保存
+  // （管理者の承認時に初めてauth.signUpを呼ぶ）
+  const {error: pendErr} = await _sb.from('pending_signups').upsert(
+    { email: email, display_name: name, requested_at: new Date().toISOString() },
+    { onConflict: 'email' }
+  );
 
   btn.textContent = '登録申請'; btn.disabled = false;
-  if (error) { showLoginError('登録に失敗しました: ' + error.message); return; }
-
-  // セッションの有無で分岐（メール確認有効時はdata.userは返るがsessionはnull）
-  const hasSession = !!data.session;
-  const userId = data.user?.id || data.session?.user?.id;
-
-  if (hasSession && userId) {
-    // メール確認無効: セッションありなのでprofilesに書き込める
-    const {error: profErr} = await _sb.from('profiles').upsert({
-      id: userId,
-      email: email,
-      display_name: name,
-      role: 'member',
-      approved: false,
-    });
-    if (profErr) console.error('profiles書き込みエラー:', profErr);
-    // 自動ログインされるがapproved=falseなので即サインアウト
-    await _sb.auth.signOut();
-  } else {
-    // メール確認有効 or セッションなし → pending_signupsテーブルに保存
-    const {error: pendErr} = await _sb.from('pending_signups').upsert({
-      email: email,
-      display_name: name,
-      requested_at: new Date().toISOString(),
-    });
-    if (pendErr) console.error('pending_signups書き込みエラー:', pendErr);
-    console.log('[doSignup] セッションなしのためpending_signupsに保存');
+  if (pendErr) {
+    console.error('pending_signups書き込みエラー:', pendErr);
+    showLoginError('登録に失敗しました。もう一度お試しください。');
+    return;
   }
-
   showLoginError('✅ 登録申請を受け付けました。管理者の承認後にログインできます。');
 }
 
