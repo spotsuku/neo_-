@@ -3223,19 +3223,56 @@ async function doInviteUser() {
   const role  = document.getElementById('inv-role').value;
   const pass  = document.getElementById('inv-pass').value;
   if (!email || !pass) { alert('メールアドレスとパスワードを入力してください'); return; }
-  // Supabase Admin APIはservice_role keyが必要なため、通常サインアップを利用
-  const {data, error} = await _sb.auth.signUp({
-    email, password: pass,
-    options: { data: { display_name: name } }
-  });
-  if (error) { alert('作成失敗: ' + error.message); return; }
-  // ロールをadminに設定（必要な場合）
-  if (role === 'admin' && data.user) {
-    await _sb.from('profiles').update({role:'admin', display_name: name}).eq('id', data.user.id);
+
+  const btn = document.querySelector('#ov-invite .btn-p');
+  if (btn) { btn.textContent = '作成中...'; btn.disabled = true; }
+
+  try {
+    // メール確認なしで即時作成（Supabase側でEmail confirmを無効化している前提）
+    const {data, error} = await _sb.auth.signUp({
+      email, password: pass,
+      options: {
+        data: { display_name: name },
+        emailRedirectTo: null,
+      }
+    });
+
+    if (error) {
+      // rate limitの場合は分かりやすいメッセージ
+      if (error.message.includes('rate limit')) {
+        alert('⚠️ メール送信の制限に達しました。
+
+【解決方法】
+Supabaseダッシュボード → Authentication → Email Settings
+→「Confirm email」をOFFにしてください。
+
+OFFにすると招待メールなしで即時アカウント作成できます。');
+      } else {
+        alert('作成失敗: ' + error.message);
+      }
+      return;
+    }
+
+    // ロール・表示名をprofilesテーブルに保存
+    if (data.user) {
+      await _sb.from('profiles').upsert({
+        id: data.user.id,
+        email: email,
+        display_name: name,
+        role: role,
+      });
+    }
+
+    alert(`✅ ${name}（${email}）を${role==='admin'?'管理者':'メンバー'}として作成しました
+
+パスワード: ${pass}
+
+本人にパスワード変更を促してください。`);
+    closeOv('ov-invite');
+    renderUsers();
+  } finally {
+    if (btn) { btn.textContent = '作成する'; btn.disabled = false; }
   }
-  alert(`✅ ${email} を${role==='admin'?'管理者':'メンバー'}として招待しました`);
-  closeOv('ov-invite');
-  renderUsers();
 }
 
 // ══════════════════════════════════════════════════
