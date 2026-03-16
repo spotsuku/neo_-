@@ -3296,9 +3296,12 @@ async function approvePendingSignup(email, name, pendingId) {
 
   const userId = data.user?.id;
 
-  // 2. profilesに承認済みで登録
-  const {error: profErr} = await _sb.from('profiles').upsert({
-    id: userId || crypto.randomUUID(), email, display_name: name,
+  // 2. 同じメールの古いprofileがあれば削除（以前のテスト等で残存している場合）
+  await _sb.from('profiles').delete().eq('email', email);
+
+  // 3. profilesに承認済みで登録
+  const {error: profErr} = await _sb.from('profiles').insert({
+    id: userId, email, display_name: name,
     role: 'member', approved: true,
   });
 
