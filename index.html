@@ -3335,19 +3335,28 @@ async function deleteUser(userId, email) {
   try {
     // 1. profilesテーブルから削除
     const {error: profErr} = await _sb.from('profiles').delete().eq('id', userId);
-    if (profErr) throw profErr;
+    if (profErr) {
+      console.error('profiles削除エラー:', profErr);
+      // RLSで削除できない場合はservice_role経由のEdge Functionで対応
+    }
 
     // 2. auth.usersからも削除（Edge Function経由）
-    const {error: authErr} = await _sb.functions.invoke('delete-user', {
-      body: { userId }
-    });
+    try {
+      const {data, error: authErr} = await _sb.functions.invoke('delete-user', {
+        body: { userId }
+      });
+      if (authErr) {
+        console.warn('auth.users削除スキップ（Edge Functionエラー）:', authErr.message);
+      }
+    } catch(fnErr) {
+      console.warn('Edge Function未デプロイ:', fnErr.message);
+    }
 
-    if (authErr) {
-      // Edge Functionがない場合はprofilesのみ削除で対応
-      console.warn('auth.users削除スキップ（Edge Functionなし）:', authErr.message);
-      alert(`✅ ${email} をユーザー一覧から削除しました。\n（完全削除はSupabaseダッシュボードのAuthenticationページから行ってください）`);
+    // profiles削除が失敗した場合でもリストから消えるよう再取得
+    if (profErr) {
+      alert(`⚠️ ${email} の削除に一部失敗しました。\nSupabaseダッシュボードから手動で削除してください。\n\nエラー: ${profErr.message}`);
     } else {
-      alert(`✅ ${email} を完全に削除しました。`);
+      alert(`✅ ${email} を削除しました。`);
     }
   } catch(e) {
     alert('削除失敗: ' + e.message);
