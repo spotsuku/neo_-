@@ -3283,7 +3283,7 @@ async function approvePendingSignup(email, name, pendingId) {
   const pass = prompt(`${email} のパスワードを設定してください（8文字以上）:`);
   if (!pass || pass.length < 8) { alert('パスワードは8文字以上で設定してください'); return; }
 
-  // 1. アカウント作成
+  // 1. アカウント作成（メール確認有効時もユーザーは作成される）
   const {data, error} = await _sb.auth.signUp({
     email, password: pass,
     options: { data: { display_name: name } }
@@ -3291,20 +3291,23 @@ async function approvePendingSignup(email, name, pendingId) {
   if (error) { alert('作成失敗: ' + error.message); return; }
 
   const userId = data.user?.id;
-  if (userId) {
-    // 2. profilesに承認済みで登録
-    await _sb.from('profiles').upsert({
-      id: userId, email, display_name: name,
-      role: 'member', approved: true,
-    });
-    // 3. pending_signupsから削除
-    await _sb.from('pending_signups').delete().eq('id', pendingId);
-    alert(`✅ ${email} を承認しました。\nパスワード: ${pass}\n\n本人にお知らせください。`);
-  } else {
-    // メール確認が必要な場合
-    await _sb.from('pending_signups').delete().eq('id', pendingId);
-    alert(`✅ ${email} にアカウントを作成しました。\nパスワード: ${pass}\n\n本人にお知らせください。`);
+
+  // 2. profilesに承認済みで登録
+  const {error: profErr} = await _sb.from('profiles').upsert({
+    id: userId || crypto.randomUUID(), email, display_name: name,
+    role: 'member', approved: true,
+  });
+
+  if (profErr) {
+    console.error('profiles登録エラー:', profErr);
+    alert('⚠️ プロフィール登録に失敗しました。申請は残します。\nエラー: ' + profErr.message);
+    renderUsers();
+    return;
   }
+
+  // 3. profiles登録成功後にpending_signupsから削除
+  await _sb.from('pending_signups').delete().eq('id', pendingId);
+  alert(`✅ ${email} を承認しました。\nパスワード: ${pass}\n\n本人にお知らせください。`);
   renderUsers();
 }
 
