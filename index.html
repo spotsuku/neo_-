@@ -1102,7 +1102,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <div class="ct"><div class="pip" style="background:var(--blue)"></div>ユーザー一覧
           <button class="btn btn-xs btn-p" style="margin-left:auto" onclick="openInvitePanel()">＋ ユーザーを招待</button>
         </div>
-        <table class="tbl"><thead><tr><th>名前</th><th>メールアドレス</th><th>ロール</th><th>登録日</th><th></th></tr></thead>
+        <table class="tbl"><thead><tr><th>名前</th><th>メールアドレス</th><th>ロール</th><th>登録日</th><th>承認</th><th></th></tr></thead>
         <tbody id="users-tbody"></tbody></table>
       </div>
     </div>
@@ -3180,24 +3180,56 @@ async function onLogin(user) {
 // ══════════════════════════════════════════════════
 async function renderUsers() {
   if (!isAdmin()) {
-    document.getElementById('users-tbody').innerHTML = '<tr><td colspan="5" style="color:var(--t3);text-align:center;padding:20px">管理者のみアクセスできます</td></tr>';
+    document.getElementById('users-tbody').innerHTML = '<tr><td colspan="6" style="color:var(--t3);text-align:center;padding:20px">管理者のみアクセスできます</td></tr>';
     return;
   }
   const {data: profiles, error} = await _sb.from('profiles').select('*').order('created_at');
   if (error) { console.error(error); return; }
-  document.getElementById('users-tbody').innerHTML = (profiles||[]).map(p => `
-    <tr>
-      <td style="font-weight:500">${p.display_name || '—'}</td>
-      <td>${p.email}</td>
+
+  const pending = (profiles||[]).filter(p => p.approved === false);
+  const approved = (profiles||[]).filter(p => p.approved !== false);
+
+  // 承認待ちがいれば上部に通知
+  const pendingBanner = pending.length > 0
+    ? `<tr><td colspan="6" style="background:rgba(245,158,11,.1);border-left:3px solid var(--yellow);padding:10px 14px;font-size:11px;font-weight:700;color:var(--yellow)">
+        ⏳ 承認待ちのユーザーが ${pending.length}名 います
+       </td></tr>`
+    : '';
+
+  document.getElementById('users-tbody').innerHTML = pendingBanner + (profiles||[]).map(p => {
+    const isPending = p.approved === false;
+    return `<tr style="${isPending ? 'background:rgba(245,158,11,.05)' : ''}">
+      <td style="font-weight:500">
+        ${isPending ? '<span style="font-size:9px;background:rgba(245,158,11,.15);color:var(--yellow);padding:1px 6px;border-radius:4px;margin-right:6px">承認待</span>' : ''}
+        ${p.display_name || '—'}
+      </td>
+      <td style="font-size:11px">${p.email}</td>
       <td>
-        <select onchange="changeRole('${p.id}',this.value)" style="background:var(--s2);border:1px solid var(--b2);border-radius:4px;color:var(--t1);font-size:10px;padding:3px 6px;font-family:var(--mono)">
+        <select onchange="changeRole('${p.id}',this.value)"
+          style="background:var(--s2);border:1px solid var(--b2);border-radius:4px;color:var(--t1);font-size:10px;padding:3px 6px;font-family:var(--mono)">
           <option value="member" ${p.role==='member'?'selected':''}>メンバー</option>
           <option value="admin"  ${p.role==='admin' ?'selected':''}>管理者</option>
         </select>
       </td>
       <td>${new Date(p.created_at).toLocaleDateString('ja-JP')}</td>
-      <td><button class="btn btn-xs btn-red" onclick="deleteUser('${p.id}','${p.email}')">削除</button></td>
-    </tr>`).join('');
+      <td>
+        ${isPending
+          ? `<button class="btn btn-xs btn-p" onclick="approveUser('${p.id}','${p.email}')">✅ 承認</button>`
+          : '<span style="font-size:10px;color:var(--green)">✓ 承認済</span>'
+        }
+      </td>
+      <td><button class="btn btn-xs" style="background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.3)" onclick="deleteUser('${p.id}','${p.email}')">削除</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ユーザー承認
+async function approveUser(userId, email) {
+  if (!isAdmin()) return;
+  const {error} = await _sb.from('profiles').update({approved: true}).eq('id', userId);
+  if (error) { alert('承認失敗: ' + error.message); return; }
+  alert(`✅ ${email} を承認しました。このユーザーはログインできるようになります。`);
+  renderUsers();
 }
 
 async function changeRole(userId, newRole) {
