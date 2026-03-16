@@ -3296,11 +3296,23 @@ async function approvePendingSignup(email, name, pendingId) {
   const pass = prompt(`${email} のパスワードを設定してください（8文字以上）:`);
   if (!pass || pass.length < 8) { alert('パスワードは8文字以上で設定してください'); return; }
 
+  // 管理者セッションを保存（signUpでセッションが上書きされるため）
+  const {data: {session: adminSession}} = await _sb.auth.getSession();
+
   // 1. アカウント作成（メール確認有効時もユーザーは作成される）
   const {data, error} = await _sb.auth.signUp({
     email, password: pass,
     options: { data: { display_name: name } }
   });
+
+  // 管理者セッションを復元
+  if (adminSession) {
+    await _sb.auth.setSession({
+      access_token: adminSession.access_token,
+      refresh_token: adminSession.refresh_token,
+    });
+  }
+
   if (error) { alert('作成失敗: ' + error.message); return; }
 
   const userId = data.user?.id;
@@ -3394,6 +3406,9 @@ async function doInviteUser() {
   if (btn) { btn.textContent = '作成中...'; btn.disabled = true; }
 
   try {
+    // 管理者セッションを保存（signUpでセッションが上書きされるため）
+    const {data: {session: adminSession}} = await _sb.auth.getSession();
+
     // メール確認なしで即時作成（Supabase側でEmail confirmを無効化している前提）
     const {data, error} = await _sb.auth.signUp({
       email, password: pass,
@@ -3402,6 +3417,14 @@ async function doInviteUser() {
         emailRedirectTo: null,
       }
     });
+
+    // 管理者セッションを復元
+    if (adminSession) {
+      await _sb.auth.setSession({
+        access_token: adminSession.access_token,
+        refresh_token: adminSession.refresh_token,
+      });
+    }
 
     if (error) {
       // rate limitの場合は分かりやすいメッセージ
@@ -3416,6 +3439,7 @@ async function doInviteUser() {
         email: email,
         display_name: name,
         role: role,
+        approved: true,
       });
     }
 
