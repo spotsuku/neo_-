@@ -3240,13 +3240,7 @@ async function doInviteUser() {
     if (error) {
       // rate limitの場合は分かりやすいメッセージ
       if (error.message.includes('rate limit')) {
-        alert('⚠️ メール送信の制限に達しました。
-
-【解決方法】
-Supabaseダッシュボード → Authentication → Email Settings
-→「Confirm email」をOFFにしてください。
-
-OFFにすると招待メールなしで即時アカウント作成できます。');
+        alert('⚠️ メール送信の制限に達しました。\n\n【解決方法】\nSupabaseダッシュボード → Authentication → Providers → Email\n→ Confirm email を OFF にしてください。\n\nOFFにすると招待メールなしで即時アカウント作成できます。');
       } else {
         alert('作成失敗: ' + error.message);
       }
