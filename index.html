@@ -3275,31 +3275,77 @@ async function approvePendingSignup(email, name, pendingId) {
   const pass = prompt(`${email} のパスワードを設定してください（8文字以上）:`);
   if (!pass || pass.length < 8) { alert('パスワードは8文字以上で設定してください'); return; }
 
+  // Edge Function経由を試行、失敗時はクライアント側フォールバック
+  let edgeOk = false;
   try {
-    // Edge Function経由でユーザー作成（service_role使用、セッション切替なし）
     const {data, error} = await _sb.functions.invoke('create-user', {
       body: { email, password: pass, display_name: name, pending_id: pendingId }
     });
-
-    if (error) {
-      alert('作成失敗: ' + error.message);
+    if (!error && !data?.error) {
+      edgeOk = true;
+      if (data?.existed) {
+        alert(`✅ ${email} は既存アカウントでした。\nパスワードを更新しました。`);
+      } else {
+        alert(`✅ ${email} を承認しました。\nパスワード: ${pass}\n\n本人にお知らせください。`);
+      }
+      renderUsers();
       return;
     }
-    if (data?.error) {
-      alert('作成失敗: ' + data.error);
-      return;
-    }
-
-    if (data?.existed) {
-      alert(`✅ ${email} は既存アカウントでした。\nパスワードを更新しました。`);
-    } else {
-      alert(`✅ ${email} を承認しました。\nパスワード: ${pass}\n\n本人にお知らせください。`);
-    }
-    renderUsers();
+    console.warn('Edge Function応答エラー:', error || data?.error);
   } catch (fnErr) {
-    console.error('create-user Edge Function エラー:', fnErr);
-    alert('⚠️ Edge Function未デプロイの可能性があります。\nSupabaseダッシュボードからデプロイしてください。\n\nsupabase functions deploy create-user');
+    console.warn('Edge Function未使用（フォールバック）:', fnErr.message);
   }
+
+  // フォールバック: クライアント側でsignUp
+  const {data: {session: adminSession}} = await _sb.auth.getSession();
+
+  const {data: signUpData, error: signUpErr} = await _sb.auth.signUp({
+    email, password: pass,
+    options: { data: { display_name: name } }
+  });
+
+  // 管理者セッションを即座に復元
+  if (adminSession) {
+    await _sb.auth.setSession({
+      access_token: adminSession.access_token,
+      refresh_token: adminSession.refresh_token,
+    });
+  }
+
+  if (signUpErr) {
+    alert('作成失敗: ' + signUpErr.message + '\n\nしばらく待ってから再試行してください（レート制限の可能性）');
+    return;
+  }
+
+  // 既にauth.usersに存在する場合
+  if (signUpData.user && (!signUpData.user.identities || signUpData.user.identities.length === 0)) {
+    alert('このユーザーは既にアカウントが存在します。\nSupabaseダッシュボードからパスワードをリセットしてください。');
+    return;
+  }
+
+  const userId = signUpData.user?.id;
+  if (!userId) {
+    alert('ユーザーIDが取得できませんでした。');
+    return;
+  }
+
+  // profilesに登録（upsertで安全に）
+  const {error: profErr} = await _sb.from('profiles').upsert({
+    id: userId, email, display_name: name,
+    role: 'member', approved: true,
+  }, { onConflict: 'id' });
+
+  if (profErr) {
+    console.error('profiles登録エラー:', profErr);
+    alert('⚠️ プロフィール登録に失敗しました。申請は残します。\nエラー: ' + profErr.message);
+    renderUsers();
+    return;
+  }
+
+  // 成功後にpending_signupsから削除
+  await _sb.from('pending_signups').delete().eq('id', pendingId);
+  alert(`✅ ${email} を承認しました。\nパスワード: ${pass}\n\n本人にお知らせください。`);
+  renderUsers();
 }
 
 async function deletePendingSignup(id) {
