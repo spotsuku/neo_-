@@ -3370,6 +3370,11 @@ async function changeRole(userId, newRole) {
 
 async function deleteUser(userId, email) {
   if (!isAdmin()) return;
+  // 自分自身の削除を防止
+  if (userId === _currentUser?.id) {
+    alert('⚠️ 自分自身は削除できません。');
+    return;
+  }
   if (!confirm(`${email} を削除しますか？\n\n※ ログイン情報も完全に削除されます。`)) return;
 
   try {
