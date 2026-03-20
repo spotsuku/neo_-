@@ -1662,37 +1662,11 @@ function loadS(){
   return JSON.parse(JSON.stringify(DEF));
 }
 
-// 診断用関数（コンソールから diagnose() で実行）
-async function diagnose() {
-  console.log('=== NEO DIAGNOSTIC ===');
-  console.log('1. CurrentUser:', _currentUser?.email || 'NULL');
-  console.log('2. CurrentRole:', _currentRole);
-  console.log('3. FiscalYear:', _currentFiscalYear, '→ dbId:', getFiscalYearDbId(_currentFiscalYear));
-  const {data:{session}} = await _sb.auth.getSession();
-  console.log('4. Session:', session ? 'EXISTS' : 'NULL');
-  console.log('5. Session user:', session?.user?.email);
-  console.log('6. Auth role:', session?.user?.role);
-  const dbId = getFiscalYearDbId(_currentFiscalYear);
-  const {data, error} = await _sb.from('dashboard_data').select('data').eq('id', dbId).maybeSingle();
-  console.log('7. DB query error:', error);
-  console.log('8. DB data exists:', !!data?.data);
-  console.log('9. DB data keys:', data?.data ? Object.keys(data.data).length : 0);
-  console.log('10. S keys:', Object.keys(S).length);
-  console.log('11. S.programs:', S.programs?.length);
-  console.log('12. S.events:', Object.keys(S.events || {}));
-  console.log('13. S.revenues:', S.revenues?.length);
-  const {data: profData, error: profErr} = await _sb.from('profiles').select('*').eq('id', _currentUser?.id).maybeSingle();
-  console.log('14. Profile:', profData);
-  console.log('15. Profile error:', profErr);
-  console.log('=== END DIAGNOSTIC ===');
-}
-
 // Supabaseからデータ読み込み
 async function loadFromDB() {
   try {
     const dbId = getFiscalYearDbId(_currentFiscalYear);
     const {data, error} = await _sb.from('dashboard_data').select('data').eq('id',dbId).maybeSingle();
-    console.log('[loadFromDB] dbId:', dbId, 'data:', !!data?.data, 'error:', error);
     if (error && error.code !== 'PGRST116') throw error;
     if (data?.data && Object.keys(data.data).length > 0) {
       S = data.data;
@@ -1719,27 +1693,7 @@ async function loadFromDB() {
     localStorage.setItem(`neo_v5_${_currentFiscalYear}`, JSON.stringify(S));
     slbl().textContent = 'DB同期済み';
     sdot().className = 'sdot';
-    console.log('[loadFromDB] OK', {
-      ko_items: S.events?.ko?.items?.length,
-      ko_estimates: S.estimates?.ko?.length,
-      aw_items: S.events?.aw?.items?.length,
-      orderMaster: S.orderMaster?.length,
-      prodItems: S.prodItems?.length,
-      mktItems: S.mktItems?.length,
-    });
-    // デバッグ: awアイテムの構造を確認
-    if (S.events?.aw?.items?.length > 0) {
-      console.log('[DEBUG] aw item[0] keys:', Object.keys(S.events.aw.items[0]));
-      console.log('[DEBUG] aw item[0]:', JSON.stringify(S.events.aw.items[0]));
-    }
-    // デバッグ: programs構造
-    if (S.programs?.length > 0) {
-      console.log('[DEBUG] programs[0]:', JSON.stringify(S.programs[0]));
-    }
-    // デバッグ: monthlyTotal
-    console.log('[DEBUG] monthlyTotal:', S.monthlyTotal);
-    // デバッグ: revenues
-    console.log('[DEBUG] revenues:', JSON.stringify(S.revenues));
+    console.log('[loadFromDB] OK');
   } catch(e) {
     console.warn('[loadFromDB] failed, using local:', e.message);
     slbl().textContent = 'ローカルデータ使用中';
@@ -2148,8 +2102,11 @@ function renderOv(){
     PROD_CATS_LIST.forEach(cat => { total += n(prodB[cat]); });
     return total;
   })();
-  const totA=S.programs.reduce((t,p)=>t+progActual(p.id),0);
-  const totE=S.programs.reduce((t,p)=>t+progEstimate(p.id),0);
+  let totA=S.programs.reduce((t,p)=>t+progActual(p.id),0);
+  let totE=S.programs.reduce((t,p)=>t+progEstimate(p.id),0);
+  // 個別アイテムの合計が0でもmonthlyTotalに実績がある場合はフォールバック
+  const monthlySum = (S.monthlyTotal||[]).reduce((t,v)=>t+n(v),0);
+  if (totA === 0 && monthlySum > 0) totA = monthlySum;
   const totR=S.revenues.reduce((t,r)=>t+n(r.amount),0);
   const diff=totB-totA;
 
@@ -3161,10 +3118,8 @@ async function doLogout() {
 
 async function onLogin(user) {
   _currentUser = user;
-  console.log('[onLogin] user:', user.email, 'id:', user.id);
   // プロフィール取得（.single()は0行で406になるため.maybeSingle()を使用）
-  const {data: prof, error: profErr} = await _sb.from('profiles').select('role, display_name, approved').eq('id', user.id).maybeSingle();
-  console.log('[onLogin] profile:', prof, 'error:', profErr);
+  const {data: prof} = await _sb.from('profiles').select('role, display_name, approved').eq('id', user.id).maybeSingle();
   // プロフィールが存在しない場合は自動作成（承認済み扱い：ログインできている=auth通過済み）
   if (!prof) {
     const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.display_name || user.email;
@@ -4583,7 +4538,7 @@ function openSeriesDefaults() {
 }
 
 // saveDefaults を上書き（全7キー保存 + イベント費目予算へ自動反映）
-function saveDefaults() {
+async function saveDefaults() {
   if (!S.defaults) S.defaults = {};
   ['hm','gk','oe','ko','aw','ye','tour','sd','cf3','cf4'].forEach(k => {
     if (_defItems[k]) S.defaults[k] = _defItems[k];
@@ -4614,7 +4569,7 @@ function saveDefaults() {
     });
   });
 
-  save();
+  await save();
   closeOv('ov-defaults');
 
   const btn = document.getElementById('nb-defaults');
