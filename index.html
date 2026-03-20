@@ -3016,7 +3016,9 @@ async function onLogin(user) {
   _currentUser = user;
   // プロフィール取得（RLSに依存しないRPC関数を使用）
   const {data: profRows, error: profErr} = await _sb.rpc('get_my_profile');
+  console.log('[onLogin] user.id:', user.id, 'rpc result:', JSON.stringify(profRows), 'error:', profErr);
   const prof = profRows && profRows.length > 0 ? profRows[0] : null;
+  console.log('[onLogin] resolved prof:', JSON.stringify(prof));
   if (profErr) console.warn('[onLogin] get_my_profile error:', profErr.message);
   // プロフィールが存在しない場合のみ新規作成
   if (!prof) {
