@@ -314,10 +314,10 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
   <button class="nb" onclick="go('history',this)"><span class="ic">🕐</span>ログイン履歴</button>
   <div class="sb-foot">
 
-    <button class="upload-area" style="margin-top:6px;background:rgba(45,212,160,.08);border-color:rgba(45,212,160,.2);color:var(--green)" onclick="document.getElementById('xlImportFile').click()">
+    <label class="upload-area" style="margin-top:6px;background:rgba(45,212,160,.08);border-color:rgba(45,212,160,.2);color:var(--green)" for="xlImportFile">
       <span>📊</span> Excel全シート取込
     </button>
-    <input type="file" id="xlImportFile" accept=".xlsx,.xls" style="display:none" onchange="importAllSheets(event)">
+    <input type="file" id="xlImportFile" accept=".xlsx,.xls" style="display:none" onchange="importExcel(event)">
     <button class="upload-area" style="margin-top:4px;background:rgba(79,142,247,.08);border-color:rgba(79,142,247,.25);color:var(--blue)" onclick="document.getElementById('csvFile').click()">
       <span>🤖</span> AIでCSV解析・取込
     </button>
