@@ -1727,6 +1727,19 @@ async function loadFromDB() {
       prodItems: S.prodItems?.length,
       mktItems: S.mktItems?.length,
     });
+    // デバッグ: awアイテムの構造を確認
+    if (S.events?.aw?.items?.length > 0) {
+      console.log('[DEBUG] aw item[0] keys:', Object.keys(S.events.aw.items[0]));
+      console.log('[DEBUG] aw item[0]:', JSON.stringify(S.events.aw.items[0]));
+    }
+    // デバッグ: programs構造
+    if (S.programs?.length > 0) {
+      console.log('[DEBUG] programs[0]:', JSON.stringify(S.programs[0]));
+    }
+    // デバッグ: monthlyTotal
+    console.log('[DEBUG] monthlyTotal:', S.monthlyTotal);
+    // デバッグ: revenues
+    console.log('[DEBUG] revenues:', JSON.stringify(S.revenues));
   } catch(e) {
     console.warn('[loadFromDB] failed, using local:', e.message);
     slbl().textContent = 'ローカルデータ使用中';
