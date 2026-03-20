@@ -52,11 +52,13 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 .sdot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px rgba(5,150,105,.4);}
 .sdot.uns{background:var(--yellow);box-shadow:0 0 6px rgba(217,119,6,.4);}
 .upload-area{
+  position:relative;
   display:flex;align-items:center;gap:7px;padding:9px 11px;
   background:linear-gradient(135deg,rgba(37,99,235,.08),rgba(37,99,235,.05));
   border:1px solid rgba(37,99,235,.2);
   border-radius:8px;cursor:pointer;font-size:10px;color:var(--blue);
   font-weight:700;font-family:var(--sans);transition:all .15s;width:100%;
+  overflow:hidden;
 }
 .upload-area:hover{background:rgba(37,99,235,.14);border-color:rgba(37,99,235,.35);}
 
@@ -316,11 +318,11 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 
     <label class="upload-area" style="margin-top:6px;background:rgba(45,212,160,.08);border-color:rgba(45,212,160,.2);color:var(--green);cursor:pointer">
       <span>📊</span> Excel全シート取込
-      <input type="file" id="xlImportFile" accept=".xlsx,.xls" style="position:absolute;width:0;height:0;opacity:0;overflow:hidden" onchange="importAllSheets(event)">
+      <input type="file" id="xlImportFile" accept=".xlsx,.xls" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer" onchange="importAllSheets(event)">
     </label>
     <label class="upload-area" style="margin-top:4px;background:rgba(79,142,247,.08);border-color:rgba(79,142,247,.25);color:var(--blue);cursor:pointer">
       <span>🤖</span> AIでCSV解析・取込
-      <input type="file" id="csvFile" accept=".csv" style="position:absolute;width:0;height:0;opacity:0;overflow:hidden" onchange="aiImportCSV(event)">
+      <input type="file" id="csvFile" accept=".csv" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer" onchange="aiImportCSV(event)">
     </label>
 
     <div id="user-info-bar" style="display:none;background:var(--s2);border:1px solid var(--b1);border-radius:7px;padding:8px 10px;margin:6px 0">
