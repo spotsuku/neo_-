@@ -3275,29 +3275,11 @@ async function approvePendingSignup(email, name, pendingId) {
   const pass = prompt(`${email} のパスワードを設定してください（8文字以上）:`);
   if (!pass || pass.length < 8) { alert('パスワードは8文字以上で設定してください'); return; }
 
-  // Edge Function経由を試行、失敗時はクライアント側フォールバック
-  let edgeOk = false;
-  try {
-    const {data, error} = await _sb.functions.invoke('create-user', {
-      body: { email, password: pass, display_name: name, pending_id: pendingId }
-    });
-    if (!error && !data?.error) {
-      edgeOk = true;
-      if (data?.existed) {
-        alert(`✅ ${email} は既存アカウントでした。\nパスワードを更新しました。`);
-      } else {
-        alert(`✅ ${email} を承認しました。\nパスワード: ${pass}\n\n本人にお知らせください。`);
-      }
-      renderUsers();
-      return;
-    }
-    console.warn('Edge Function応答エラー:', error || data?.error);
-  } catch (fnErr) {
-    console.warn('Edge Function未使用（フォールバック）:', fnErr.message);
-  }
-
-  // フォールバック: クライアント側でsignUp
+  // 管理者セッションを保存
   const {data: {session: adminSession}} = await _sb.auth.getSession();
+
+  // onAuthStateChangeが反応しないようフラグ設定
+  window._suppressAuthEvent = true;
 
   const {data: signUpData, error: signUpErr} = await _sb.auth.signUp({
     email, password: pass,
@@ -3311,6 +3293,7 @@ async function approvePendingSignup(email, name, pendingId) {
       refresh_token: adminSession.refresh_token,
     });
   }
+  window._suppressAuthEvent = false;
 
   if (signUpErr) {
     alert('作成失敗: ' + signUpErr.message + '\n\nしばらく待ってから再試行してください（レート制限の可能性）');
@@ -3375,36 +3358,13 @@ async function deleteUser(userId, email) {
     alert('⚠️ 自分自身は削除できません。');
     return;
   }
-  if (!confirm(`${email} を削除しますか？\n\n※ ログイン情報も完全に削除されます。`)) return;
+  if (!confirm(`${email} を削除しますか？\n\nprofilesから削除します。\nauth.usersはSupabaseダッシュボードから手動削除してください。`)) return;
 
-  try {
-    // 1. profilesテーブルから削除
-    const {error: profErr} = await _sb.from('profiles').delete().eq('id', userId);
-    if (profErr) {
-      console.error('profiles削除エラー:', profErr);
-      // RLSで削除できない場合はservice_role経由のEdge Functionで対応
-    }
-
-    // 2. auth.usersからも削除（Edge Function経由）
-    try {
-      const {data, error: authErr} = await _sb.functions.invoke('delete-user', {
-        body: { userId }
-      });
-      if (authErr) {
-        console.warn('auth.users削除スキップ（Edge Functionエラー）:', authErr.message);
-      }
-    } catch(fnErr) {
-      console.warn('Edge Function未デプロイ:', fnErr.message);
-    }
-
-    // profiles削除が失敗した場合でもリストから消えるよう再取得
-    if (profErr) {
-      alert(`⚠️ ${email} の削除に一部失敗しました。\nSupabaseダッシュボードから手動で削除してください。\n\nエラー: ${profErr.message}`);
-    } else {
-      alert(`✅ ${email} を削除しました。`);
-    }
-  } catch(e) {
-    alert('削除失敗: ' + e.message);
+  const {error: profErr} = await _sb.from('profiles').delete().eq('id', userId);
+  if (profErr) {
+    alert('削除失敗: ' + profErr.message + '\n\nSupabaseダッシュボードのSQL Editorで削除してください:\nDELETE FROM profiles WHERE id = \'' + userId + '\';\nDELETE FROM auth.users WHERE id = \'' + userId + '\';');
+  } else {
+    alert(`✅ ${email} をprofilesから削除しました。\n\n※ auth.usersからも削除する場合は、SupabaseダッシュボードのAuthentication→Usersから手動削除してください。`);
   }
   renderUsers();
 }
@@ -3518,6 +3478,7 @@ const SUPABASE_ANON_KEY = 'eyJ...';</pre>
   }
   // セッション変化を監視
   _sb.auth.onAuthStateChange(async (event, session) => {
+    if (window._suppressAuthEvent) return;
     if (event === 'SIGNED_OUT') {
       document.getElementById('login-screen').style.display = 'flex';
     }
