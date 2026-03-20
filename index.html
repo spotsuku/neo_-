@@ -315,14 +315,14 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
   <button class="nb" onclick="go('history',this)"><span class="ic">🕐</span>ログイン履歴</button>
   <div class="sb-foot">
 
-    <div class="upload-area" onclick="document.getElementById('xlImportFile').click()" style="margin-top:6px;background:rgba(45,212,160,.08);border-color:rgba(45,212,160,.2);color:var(--green);cursor:pointer">
+    <div class="upload-area" id="btn-xl-import" style="margin-top:6px;background:rgba(45,212,160,.08);border-color:rgba(45,212,160,.2);color:var(--green);cursor:pointer">
       <span>📊</span> Excel全シート取込
     </div>
-    <input type="file" id="xlImportFile" accept=".xlsx,.xls" style="display:none" onchange="importAllSheets(event)">
-    <div class="upload-area" onclick="document.getElementById('csvFile').click()" style="margin-top:4px;background:rgba(79,142,247,.08);border-color:rgba(79,142,247,.25);color:var(--blue);cursor:pointer">
+    <input type="file" id="xlImportFile" accept=".xlsx,.xls" style="display:none">
+    <div class="upload-area" id="btn-csv-import" style="margin-top:4px;background:rgba(79,142,247,.08);border-color:rgba(79,142,247,.25);color:var(--blue);cursor:pointer">
       <span>🤖</span> AIでCSV解析・取込
     </div>
-    <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="aiImportCSV(event)">
+    <input type="file" id="csvFile" accept=".csv" style="display:none">
 
     <div id="user-info-bar" style="display:none;background:var(--s2);border:1px solid var(--b1);border-radius:7px;padding:8px 10px;margin:6px 0">
       <div style="font-size:9px;color:var(--t3);letter-spacing:.06em;margin-bottom:3px">ログイン中</div>
@@ -3441,6 +3441,24 @@ const SUPABASE_ANON_KEY = 'eyJ...';</pre>
     }
   });
 })();
+
+// ══════════════════════════════════════════════════
+// UPLOAD BUTTON EVENT LISTENERS
+// ══════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function() {
+  var btnXl = document.getElementById('btn-xl-import');
+  var btnCsv = document.getElementById('btn-csv-import');
+  var xlInput = document.getElementById('xlImportFile');
+  var csvInput = document.getElementById('csvFile');
+  if (btnXl && xlInput) {
+    btnXl.addEventListener('click', function() { console.log('[upload] Excel button clicked'); xlInput.click(); });
+    xlInput.addEventListener('change', function(ev) { importAllSheets(ev); });
+  }
+  if (btnCsv && csvInput) {
+    btnCsv.addEventListener('click', function() { console.log('[upload] CSV button clicked'); csvInput.click(); });
+    csvInput.addEventListener('change', function(ev) { aiImportCSV(ev); });
+  }
+});
 
 // ══════════════════════════════════════════════════
 // CSV IMPORT / EXPORT
