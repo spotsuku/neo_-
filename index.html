@@ -3014,28 +3014,22 @@ async function doLogout() {
 
 async function onLogin(user) {
   _currentUser = user;
-  // プロフィール取得（.single()は0行で406になるため.maybeSingle()を使用）
-  const {data: prof} = await _sb.from('profiles').select('role, display_name, approved').eq('id', user.id).maybeSingle();
-  // プロフィールが存在しない場合のみ新規作成（upsertだと既存のroleを上書きしてしまうためinsertを使用）
+  // プロフィール取得（RLSに依存しないRPC関数を使用）
+  const {data: profRows, error: profErr} = await _sb.rpc('get_my_profile');
+  const prof = profRows && profRows.length > 0 ? profRows[0] : null;
+  if (profErr) console.warn('[onLogin] get_my_profile error:', profErr.message);
+  // プロフィールが存在しない場合のみ新規作成
   if (!prof) {
     const displayName = user.user_metadata?.display_name || user.email;
-    const {error: insertErr} = await _sb.from('profiles').insert({
+    await _sb.from('profiles').insert({
       id: user.id,
       email: user.email,
       display_name: displayName,
       role: 'member',
       approved: true,
     });
-    // 既にprofileが存在する場合（SELECTのRLS制限で読めなかっただけ）はinsertが失敗する
-    // その場合はservice_role経由で取得を試みず、user_metadataから判定
-    if (insertErr) {
-      console.warn('profile insert skipped (may already exist):', insertErr.message);
-      _currentRole = 'member';
-      _currentName = displayName;
-    } else {
-      _currentRole = 'member';
-      _currentName = displayName;
-    }
+    _currentRole = 'member';
+    _currentName = displayName;
   } else if (prof.approved === false) {
     // 未承認ユーザーはログイン拒否
     await _sb.auth.signOut();
