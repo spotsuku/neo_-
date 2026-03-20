@@ -3521,6 +3521,20 @@ const SUPABASE_ANON_KEY = 'eyJ...';</pre>
     if (event === 'SIGNED_OUT') {
       document.getElementById('login-screen').style.display = 'flex';
     }
+    if (event === 'PASSWORD_RECOVERY') {
+      // パスワードリセットリンクからのアクセス → 再設定フォームを表示
+      const newPass = prompt('新しいパスワードを入力してください（8文字以上）:');
+      if (newPass && newPass.length >= 8) {
+        const {error} = await _sb.auth.updateUser({ password: newPass });
+        if (error) {
+          alert('パスワード更新に失敗しました: ' + error.message);
+        } else {
+          alert('✅ パスワードを更新しました。新しいパスワードでログインできます。');
+        }
+      } else {
+        alert('パスワードは8文字以上で設定してください。\nページを再読み込みして再度お試しください。');
+      }
+    }
   });
 })();
 
