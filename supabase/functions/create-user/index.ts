@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     }
 
     // リクエストボディ
-    const { email, password, display_name, pending_id } = await req.json()
+    const { email, password, display_name, role: requestedRole, pending_id } = await req.json()
     if (!email || !password) {
       return new Response(JSON.stringify({ error: 'email and password are required' }), {
         status: 400,
@@ -84,9 +84,10 @@ Deno.serve(async (req) => {
         if (existingUser) {
           await supabaseAdmin.auth.admin.updateUser(existingUser.id, { password })
           // profilesを更新
+          const existingRole = (requestedRole === 'admin' || requestedRole === 'member') ? requestedRole : 'member'
           await supabaseAdmin.from('profiles').upsert({
             id: existingUser.id, email, display_name,
-            role: 'member', approved: true,
+            role: existingRole, approved: true,
           }, { onConflict: 'id' })
           // pending_signupsから削除
           if (pending_id) {
@@ -106,10 +107,11 @@ Deno.serve(async (req) => {
 
     const userId = userData.user.id
 
-    // 2. profilesに登録
+    // 2. profilesに登録（roleが指定されていればそれを使用、なければmember）
+    const userRole = (requestedRole === 'admin' || requestedRole === 'member') ? requestedRole : 'member'
     const { error: profErr } = await supabaseAdmin.from('profiles').upsert({
       id: userId, email, display_name,
-      role: 'member', approved: true,
+      role: userRole, approved: true,
     }, { onConflict: 'id' })
 
     if (profErr) {
