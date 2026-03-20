@@ -3124,20 +3124,58 @@ async function approvePendingSignup(email, name, pendingId) {
   const pass = prompt(`${email} のパスワードを設定してください（8文字以上）:`);
   if (!pass || pass.length < 8) { alert('パスワードは8文字以上で設定してください'); return; }
 
-  // Edge Functionでユーザー作成（admin APIでメール確認を自動スキップ）
-  const {data, error} = await _sb.functions.invoke('create-user', {
-    body: { email, password: pass, display_name: name, pending_id: pendingId }
+  // 管理者セッションを保存
+  const {data: {session: adminSession}} = await _sb.auth.getSession();
+  window._suppressAuthEvent = true;
+
+  const {data: signUpData, error: signUpErr} = await _sb.auth.signUp({
+    email, password: pass,
+    options: { data: { display_name: name } }
   });
 
-  if (error) {
-    alert('作成失敗: ' + error.message + '\n\nしばらく待ってから再試行してください。');
-    return;
+  // 管理者セッションを即座に復元
+  if (adminSession) {
+    await _sb.auth.setSession({
+      access_token: adminSession.access_token,
+      refresh_token: adminSession.refresh_token,
+    });
   }
-  if (data?.error) {
-    alert('作成失敗: ' + data.error);
+  window._suppressAuthEvent = false;
+
+  if (signUpErr) {
+    alert('作成失敗: ' + signUpErr.message + '\n\nしばらく待ってから再試行してください。');
     return;
   }
 
+  // 既にauth.usersに存在する場合
+  if (signUpData.user && (!signUpData.user.identities || signUpData.user.identities.length === 0)) {
+    alert('このユーザーは既にアカウントが存在します。');
+    return;
+  }
+
+  const userId = signUpData.user?.id;
+  if (!userId) {
+    alert('ユーザーIDが取得できませんでした。');
+    return;
+  }
+
+  // メール確認を即座に完了（RPC関数でauth.usersを更新）
+  await _sb.rpc('admin_confirm_user', { target_email: email });
+
+  // profilesに登録
+  const {error: profErr} = await _sb.from('profiles').upsert({
+    id: userId, email, display_name: name,
+    role: 'member', approved: true,
+  }, { onConflict: 'id' });
+
+  if (profErr) {
+    console.error('profiles登録エラー:', profErr);
+    alert('⚠️ プロフィール登録に失敗しました。\nエラー: ' + profErr.message);
+    return;
+  }
+
+  // pending_signupsから削除
+  await _sb.from('pending_signups').delete().eq('id', pendingId);
   alert(`✅ ${email} を承認しました。\nパスワード: ${pass}\n\n本人にお知らせください。`);
   renderUsers();
 }
@@ -3194,18 +3232,41 @@ async function doInviteUser() {
   if (btn) { btn.textContent = '作成中...'; btn.disabled = true; }
 
   try {
-    // Edge Functionでユーザー作成（admin APIでメール確認を自動スキップ）
-    const {data, error} = await _sb.functions.invoke('create-user', {
-      body: { email, password: pass, display_name: name, role }
+    // 管理者セッションを保存（signUpでセッションが上書きされるため）
+    const {data: {session: adminSession}} = await _sb.auth.getSession();
+    window._suppressAuthEvent = true;
+
+    const {data, error} = await _sb.auth.signUp({
+      email, password: pass,
+      options: { data: { display_name: name } }
     });
+
+    // 管理者セッションを即座に復元
+    if (adminSession) {
+      await _sb.auth.setSession({
+        access_token: adminSession.access_token,
+        refresh_token: adminSession.refresh_token,
+      });
+    }
+    window._suppressAuthEvent = false;
 
     if (error) {
       alert('作成失敗: ' + error.message);
       return;
     }
-    if (data?.error) {
-      alert('作成失敗: ' + data.error);
-      return;
+
+    // メール確認を即座に完了（RPC関数でauth.usersを更新）
+    await _sb.rpc('admin_confirm_user', { target_email: email });
+
+    // profilesに登録
+    if (data.user) {
+      await _sb.from('profiles').upsert({
+        id: data.user.id,
+        email: email,
+        display_name: name,
+        role: role,
+        approved: true,
+      });
     }
 
     alert(`✅ ${name}（${email}）を${role==='admin'?'管理者':'メンバー'}として作成しました
