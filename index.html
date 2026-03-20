@@ -3294,6 +3294,30 @@ async function approvePendingSignup(email, name, pendingId) {
 
   if (error) { alert('作成失敗: ' + error.message); return; }
 
+  // 既にauth.usersに存在する場合、identitiesが空で返る
+  if (data.user && (!data.user.identities || data.user.identities.length === 0)) {
+    // 既存ユーザー → パスワードリセットメールを送信
+    await _sb.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + window.location.pathname
+    });
+    // profilesは既存のものを更新
+    const {error: updErr} = await _sb.from('profiles')
+      .update({ display_name: name, role: 'member', approved: true })
+      .eq('email', email);
+    if (updErr) {
+      // profileが無い場合はinsert（emailでupsert）
+      await _sb.from('profiles').upsert(
+        { email, display_name: name, role: 'member', approved: true },
+        { onConflict: 'email' }
+      );
+    }
+    // pending_signupsから削除
+    await _sb.from('pending_signups').delete().eq('id', pendingId);
+    alert('このユーザーは既にアカウントが存在します。\nパスワードリセットメールを送信しました。\nユーザーにメール内のリンクから新しいパスワードを設定してもらってください。');
+    renderUsers();
+    return;
+  }
+
   const userId = data.user?.id;
 
   // 2. 同じメールの古いprofileがあれば削除（以前のテスト等で残存している場合）
