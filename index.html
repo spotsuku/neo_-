@@ -3016,9 +3016,7 @@ async function onLogin(user) {
   _currentUser = user;
   // プロフィール取得（RLSに依存しないRPC関数を使用）
   const {data: profRows, error: profErr} = await _sb.rpc('get_my_profile');
-  console.log('[onLogin] user.id:', user.id, 'rpc result:', JSON.stringify(profRows), 'error:', profErr);
   const prof = profRows && profRows.length > 0 ? profRows[0] : null;
-  console.log('[onLogin] resolved prof:', JSON.stringify(prof));
   if (profErr) console.warn('[onLogin] get_my_profile error:', profErr.message);
   // プロフィールが存在しない場合のみ新規作成
   if (!prof) {
@@ -3062,7 +3060,8 @@ async function renderUsers() {
     document.getElementById('users-tbody').innerHTML = '<tr><td colspan="6" style="color:var(--t3);text-align:center;padding:20px">管理者のみアクセスできます</td></tr>';
     return;
   }
-  const {data: profiles, error} = await _sb.from('profiles').select('*').order('created_at');
+  // 管理者用RPC関数で全ユーザーを取得（SELECTポリシーは自分のみのため）
+  const {data: profiles, error} = await _sb.rpc('get_all_profiles');
   if (error) { console.error(error); return; }
 
   // pending_signups（メール未確認申請）も取得
