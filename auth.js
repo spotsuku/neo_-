@@ -72,14 +72,19 @@ function showLoginError(msg) {
 }
 
 // ── ログイン ──
+let _loginInProgress = false;
 async function doLogin() {
+  // 重複呼び出しを防止（ボタン連打対策）
+  if (_loginInProgress) return;
   const email = document.getElementById('login-email').value.trim();
   const pass  = document.getElementById('login-pass').value;
   if (!email || !pass) { showLoginError('メールアドレスとパスワードを入力してください'); return; }
+  _loginInProgress = true;
   const btn = document.getElementById('login-submit-btn');
   btn.textContent = 'ログイン中...'; btn.disabled = true;
   const {data, error} = await _sb.auth.signInWithPassword({email, password: pass});
   btn.textContent = 'ログイン'; btn.disabled = false;
+  _loginInProgress = false;
   if (error) {
     // 422エラーの詳細な日本語メッセージ
     let msg = 'ログインに失敗しました。';
@@ -111,7 +116,26 @@ async function doLogin() {
     showLoginError(msg);
     return;
   }
+  // ログイン成功 → 手動でトークンリフレッシュタイマーを起動
+  startTokenRefresh();
   await onLogin(data.user);
+}
+
+// ── トークン自動リフレッシュ（手動管理） ──
+let _refreshTimer = null;
+function startTokenRefresh() {
+  if (_refreshTimer) clearInterval(_refreshTimer);
+  // 10分ごとにトークンをリフレッシュ（Supabase JWTのデフォルト有効期限は1時間）
+  _refreshTimer = setInterval(async () => {
+    try {
+      const {error} = await _sb.auth.refreshSession();
+      if (error) {
+        console.warn('[tokenRefresh] リフレッシュ失敗:', error.message);
+        clearInterval(_refreshTimer);
+        _refreshTimer = null;
+      }
+    } catch(_) {}
+  }, 10 * 60 * 1000);
 }
 
 // ── サインアップ（登録申請） ──
@@ -144,6 +168,7 @@ async function doSignup() {
 
 // ── ログアウト ──
 async function doLogout() {
+  if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
   await _sb.auth.signOut();
   _currentUser = null; _currentRole = null; _currentName = '';
   document.getElementById('login-screen').style.display = 'flex';
@@ -234,7 +259,13 @@ const SUPABASE_ANON_KEY = 'eyJ...';</pre>
     }
 
     // Supabaseクライアントを設定取得後に生成
-    _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // autoRefreshTokenを無効化し、セッション復元を手動で制御（422ループ防止）
+    _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: true,
+      }
+    });
 
     // 既存セッション確認（期限切れセッションのエラーをハンドリング）
     try {
@@ -249,6 +280,7 @@ const SUPABASE_ANON_KEY = 'eyJ...';</pre>
         // セッション復旧済みの通知を表示
         showLoginError('セッションの有効期限が切れました。再度ログインしてください。');
       } else if (session?.user) {
+        startTokenRefresh();
         await onLogin(session.user);
       } else {
         document.getElementById('login-screen').style.display = 'flex';
