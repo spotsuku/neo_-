@@ -80,7 +80,21 @@ async function doLogin() {
   btn.textContent = 'ログイン中...'; btn.disabled = true;
   const {data, error} = await _sb.auth.signInWithPassword({email, password: pass});
   btn.textContent = 'ログイン'; btn.disabled = false;
-  if (error) { showLoginError('ログインに失敗しました: ' + error.message); return; }
+  if (error) {
+    // 422エラーの詳細な日本語メッセージ
+    let msg = 'ログインに失敗しました。';
+    if (error.message?.includes('Invalid login credentials')) {
+      msg = 'メールアドレスまたはパスワードが正しくありません。';
+    } else if (error.message?.includes('Email not confirmed')) {
+      msg = 'メールアドレスが未確認です。管理者にお問い合わせください。';
+    } else if (error.status === 422 || error.message?.includes('422')) {
+      msg = '認証エラーが発生しました。ページを再読み込みしてお試しください。';
+    } else {
+      msg += ' ' + error.message;
+    }
+    showLoginError(msg);
+    return;
+  }
   await onLogin(data.user);
 }
 
@@ -189,13 +203,19 @@ const SUPABASE_ANON_KEY = 'eyJ...';</pre>
       const raw = localStorage.getItem(storageKey);
       if (raw) {
         const stored = JSON.parse(raw);
-        const exp = stored?.expires_at;  // UNIXタイムスタンプ（秒）
-        if (exp && exp < Math.floor(Date.now() / 1000)) {
-          console.log('[initAuth] 期限切れセッションをクリア');
+        // expires_at はトップレベルまたは currentSession 内にある場合がある
+        const exp = stored?.expires_at || stored?.currentSession?.expires_at;
+        const now = Math.floor(Date.now() / 1000);
+        // 期限切れ、またはリフレッシュトークンが存在しない場合はクリア
+        if ((exp && exp < now) || (!stored?.refresh_token && !stored?.currentSession?.refresh_token)) {
+          console.log('[initAuth] 無効なセッションをクリア');
           localStorage.removeItem(storageKey);
         }
       }
-    } catch(_) { /* パース失敗時は無視 */ }
+    } catch(_) {
+      // パース失敗時はセッションデータが破損しているためクリア
+      localStorage.removeItem(storageKey);
+    }
 
     // Supabaseクライアントを設定取得後に生成
     _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -205,6 +225,8 @@ const SUPABASE_ANON_KEY = 'eyJ...';</pre>
       const {data:{session}, error: sessErr} = await _sb.auth.getSession();
       if (sessErr) {
         console.warn('[initAuth] セッション取得エラー（期限切れの可能性）:', sessErr.message);
+        // 422エラー時はlocalStorageのセッションも確実にクリア
+        localStorage.removeItem(storageKey);
         await _sb.auth.signOut();
         document.getElementById('login-screen').style.display = 'flex';
         slbl().textContent = '未ログイン';
@@ -216,7 +238,9 @@ const SUPABASE_ANON_KEY = 'eyJ...';</pre>
       }
     } catch(e) {
       console.warn('[initAuth] セッション復元に失敗:', e.message);
-      await _sb.auth.signOut();
+      // セッションデータを確実にクリアして422ループを防止
+      localStorage.removeItem(storageKey);
+      try { await _sb.auth.signOut(); } catch(_) { /* signOut失敗は無視 */ }
       document.getElementById('login-screen').style.display = 'flex';
       slbl().textContent = '未ログイン';
     }
