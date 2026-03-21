@@ -92,12 +92,19 @@ async function doLogin() {
       msg = 'メールアドレスが未確認です。管理者にお問い合わせください。\n（管理者向け: Supabase SQL Editorで UPDATE auth.users SET email_confirmed_at=now() WHERE email=\'' + email + '\'; を実行してください）';
     } else if (error.status === 422 || em.includes('422')) {
       // 422は通常メール未確認またはセッション破損
-      msg = '認証エラー（422）が発生しました。\n考えられる原因:\n・メールアドレスが未確認（管理者に確認してください）\n・セッション破損（ページを再読み込みしてください）';
       // セッションデータが残っている場合はクリアを試行
       try {
         const storageKey = 'sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token';
         localStorage.removeItem(storageKey);
       } catch(_) {}
+      // メール未確認の可能性を判定（422 + credentials系エラー）
+      if (em.includes('confirm') || em.includes('verify') || em.includes('not confirmed')) {
+        msg = 'メールアドレスが未確認のため認証できません。管理者にメール確認を依頼してください。';
+      } else {
+        // セッション破損の可能性 → 自動復旧を試みる
+        msg = 'セッションに問題がありました。キャッシュをクリアしました。もう一度ログインしてください。';
+        try { await _sb.auth.signOut(); } catch(_) {}
+      }
     } else {
       msg += ' ' + em;
     }
@@ -236,9 +243,11 @@ const SUPABASE_ANON_KEY = 'eyJ...';</pre>
         console.warn('[initAuth] セッション取得エラー（期限切れの可能性）:', sessErr.message);
         // 422エラー時はlocalStorageのセッションも確実にクリア
         localStorage.removeItem(storageKey);
-        await _sb.auth.signOut();
+        try { await _sb.auth.signOut(); } catch(_) {}
         document.getElementById('login-screen').style.display = 'flex';
         slbl().textContent = '未ログイン';
+        // セッション復旧済みの通知を表示
+        showLoginError('セッションの有効期限が切れました。再度ログインしてください。');
       } else if (session?.user) {
         await onLogin(session.user);
       } else {
@@ -252,6 +261,7 @@ const SUPABASE_ANON_KEY = 'eyJ...';</pre>
       try { await _sb.auth.signOut(); } catch(_) { /* signOut失敗は無視 */ }
       document.getElementById('login-screen').style.display = 'flex';
       slbl().textContent = '未ログイン';
+      showLoginError('セッションの復元に失敗しました。再度ログインしてください。');
     }
 
     // セッション変化を監視
