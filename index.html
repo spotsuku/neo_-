@@ -582,7 +582,10 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       </div>
     </div>
     <div class="pf" style="justify-content:space-between">
-      <button class="btn btn-g" onclick="closeOv('ov-xl-import')">キャンセル</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-g" onclick="closeOv('ov-xl-import')">キャンセル</button>
+        <button class="btn btn-red btn-sm" id="xl-restore-btn" onclick="restoreSnapshot()" style="display:none">⏪ 前のバージョンに戻す</button>
+      </div>
       <button class="btn btn-p" id="xl-import-btn" onclick="executeXlImport()" style="display:none">✅ インポート実行</button>
     </div>
   </div>
@@ -1357,7 +1360,21 @@ function renderEvt(key){
 function renderRev(){const totR=S.revenues.reduce((t,r)=>t+n(r.amount),0);const totB=S.programs.reduce((t,p)=>t+n(p.budget),0);const totA=S.programs.reduce((t,p)=>t+progActual(p.id),0);const diff=totB-totA;const byProg={};S.revenues.forEach(r=>{const key=r.prog||'その他';if(!byProg[key])byProg[key]=[];byProg[key].push(r);});const TYPE_COLORS={'参加費':'var(--green)','協賛・協力金':'var(--blue)','補助金':'var(--yellow)','その他':'var(--t2)'};let html='';Object.entries(byProg).forEach(([prog,items])=>{const subtotal=items.reduce((t,r)=>t+n(r.amount),0);html+=`<div style="font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;padding:10px 0 4px;border-bottom:1px solid var(--b1);margin-bottom:4px">${prog}</div>`;items.forEach(r=>{const tc=TYPE_COLORS[r.type||'']||'var(--t2)';html+=`<div class="rev-row" style="padding:6px 0"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:9px;font-weight:700;color:${tc};padding:1px 5px;border-radius:3px">${r.type||'収入'}</span><span class="rev-name">${r.name}</span></div><div class="rev-val">${fmt(r.amount)}</div></div>`;});html+=`<div style="text-align:right;font-size:10px;font-family:var(--mono);color:var(--green);padding:2px 0 8px">小計 ${fmt(subtotal)}</div>`;});html+=`<div class="rev-row" style="border-top:2px solid var(--b2);margin-top:6px;padding-top:10px"><strong style="font-size:13px">収入合計</strong><span style="font-family:var(--mono);font-size:16px;color:var(--green);font-weight:700">${fmt(totR)}</span></div>`;document.getElementById('rev-detail').innerHTML=html;document.getElementById('net-summary').innerHTML=`<div class="rev-row"><div class="rev-name">総予算</div><div style="font-family:var(--mono)">${fmt(totB)}</div></div><div class="rev-row"><div class="rev-name">実績合計</div><div style="font-family:var(--mono)">${fmt(totA)}</div></div><div class="rev-row"><div class="rev-name">予実差額</div><div style="font-family:var(--mono);color:${diff>=0?'var(--green)':'var(--red)'}">${diff>=0?'+':''}${fmt(diff)}</div></div><div class="rev-row"><div class="rev-name">収入合計</div><div style="font-family:var(--mono);color:var(--green)">${fmt(totR)}</div></div><div class="net-box"><div style="font-size:10px;color:var(--t2)">実質余剰（予実差額＋収入）</div><div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--green)">+${fmt(diff+totR)}</div></div>`;}
 
 // ── パネル開閉 ──
-function openOv(id){document.getElementById(id).classList.add('open');}
+function openOv(id){
+  document.getElementById(id).classList.add('open');
+  // Excelインポートパネルを開いたとき、スナップショットがあれば戻すボタンを表示
+  if (id === 'ov-xl-import') {
+    const restoreBtn = document.getElementById('xl-restore-btn');
+    if (restoreBtn) {
+      const snap = loadSnapshot();
+      restoreBtn.style.display = snap ? '' : 'none';
+      if (snap) {
+        const dt = new Date(snap.ts).toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+        restoreBtn.textContent = `⏪ ${dt} の状態に戻す`;
+      }
+    }
+  }
+}
 function closeOv(id){document.getElementById(id).classList.remove('open');}
 document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));});
 
@@ -1781,22 +1798,66 @@ function showXlPreview(data) {
   document.getElementById('xl-preview').innerHTML = lines.join('') || '<span style="color:var(--t3);font-size:11px">読み込めるデータがありませんでした</span>';
 }
 
+// ══════════════════════════════════════════════════
+// スナップショット（バージョン管理）
+// ══════════════════════════════════════════════════
+function saveSnapshot(label) {
+  const snapKey = `neo_snapshot_${_currentFiscalYear}`;
+  const snap = {
+    label,
+    ts: new Date().toISOString(),
+    data: JSON.parse(JSON.stringify(S)),
+  };
+  localStorage.setItem(snapKey, JSON.stringify(snap));
+  console.log('[snapshot] 保存:', label);
+}
+
+function loadSnapshot() {
+  const snapKey = `neo_snapshot_${_currentFiscalYear}`;
+  try {
+    const raw = localStorage.getItem(snapKey);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
+function restoreSnapshot() {
+  const snap = loadSnapshot();
+  if (!snap) { alert('戻せるバージョンがありません'); return; }
+  const dt = new Date(snap.ts).toLocaleString('ja-JP');
+  if (!confirm(`「${snap.label}」(${dt}) の状態に戻します。\n現在のデータは失われます。\n\nよろしいですか？`)) return;
+  S = snap.data;
+  save();
+  renderPg(_curPg || 'ov');
+  alert('✅ 前のバージョンに戻しました');
+}
+
 function executeXlImport() {
   if (!_xlImportData) return;
   const d = _xlImportData;
 
-  // ── 新規追加分のみ抽出 ──
-  const toAdd = { sessions: {}, estimates: {}, estimatesFromSheet: {}, prodItems: [] };
   const SESS_LABELS = {hm:'ホームルーム', gk:'評議会', oe:'応援カイギ'};
   const EVT_LABELS  = {ko:'キックオフ', aw:'アワード', ye:'イヤーエンド', tour:'ツアー', md:'シティフェス'};
 
-  // シリーズ：タイトルが既存にない回次のみ
+  // ── 変更内容を集計 ──
+  const toAdd    = { sessions: {}, estimates: {}, estimatesFromSheet: {}, prodItems: [] };
+  const toUpdate = { sessions: {} }; // 既存回次の見積・実績更新
+
+  // シリーズ：既存タイトルは更新、新規は追加
   for (const [key, sessions] of Object.entries(d.sessions)) {
-    const existTitles = new Set((S.sessions[key]||[]).map(s => s.title));
-    toAdd.sessions[key] = sessions.filter(s => !existTitles.has(s.title));
+    const existing = S.sessions[key] || [];
+    toAdd.sessions[key]    = [];
+    toUpdate.sessions[key] = [];
+    for (const sess of sessions) {
+      const found = existing.find(s => s.title === sess.title);
+      if (found) {
+        toUpdate.sessions[key].push({ existing: found, newData: sess });
+      } else {
+        toAdd.sessions[key].push(sess);
+      }
+    }
   }
 
-  // イベント見積：name+catが既存にない行のみ
+  // イベント見積：name+catが既存にない行のみ追加
   for (const [key, rows] of Object.entries(d.estimates)) {
     const existing = S.estimates?.[key] || [];
     toAdd.estimates[key] = rows.filter(r =>
@@ -1804,7 +1865,7 @@ function executeXlImport() {
     );
   }
 
-  // 個別シート：catが既存にない行のみ
+  // 個別シート：catが既存にない行のみ追加
   if (d.estimatesFromSheet) {
     for (const [key, rows] of Object.entries(d.estimatesFromSheet)) {
       const existing = S.estimates?.[key] || [];
@@ -1814,7 +1875,7 @@ function executeXlImport() {
     }
   }
 
-  // 製作物：name+catが既存にない品目のみ
+  // 製作物：name+catが既存にない品目のみ追加
   if (d.prodItems?.length) {
     toAdd.prodItems = d.prodItems.filter(item =>
       !(S.prodItems||[]).some(p => p.name === item.name && p.cat === item.cat)
@@ -1822,33 +1883,40 @@ function executeXlImport() {
   }
 
   // ── 確認ダイアログ ──
-  const lines = ['以下の新規データを追加します。\n既存データは変更しません。\n'];
+  const lines = ['【新規追加】'];
+  let addCount = 0, updateCount = 0;
 
   for (const [key, sessions] of Object.entries(toAdd.sessions)) {
-    if (sessions.length) lines.push(`・${SESS_LABELS[key]} ${sessions.length}回次を追加`);
+    if (sessions.length) { lines.push(`・${SESS_LABELS[key]} ${sessions.length}回次を追加`); addCount += sessions.length; }
   }
   for (const [key, rows] of Object.entries(toAdd.estimates)) {
-    if (rows.length) lines.push(`・${EVT_LABELS[key]||key} 見積/実績 ${rows.length}行を追加`);
+    if (rows.length) { lines.push(`・${EVT_LABELS[key]||key} 見積/実績 ${rows.length}行を追加`); addCount += rows.length; }
   }
   for (const [key, rows] of Object.entries(toAdd.estimatesFromSheet||{})) {
-    if (rows.length) lines.push(`・${EVT_LABELS[key]||key}（個別シート） ${rows.length}科目を追加`);
+    if (rows.length) { lines.push(`・${EVT_LABELS[key]||key}（個別シート） ${rows.length}科目を追加`); addCount += rows.length; }
   }
-  if (toAdd.prodItems.length) lines.push(`・製作物管理 ${toAdd.prodItems.length}件を追加`);
+  if (toAdd.prodItems.length) { lines.push(`・製作物管理 ${toAdd.prodItems.length}件を追加`); addCount += toAdd.prodItems.length; }
 
-  const newCount = Object.values(toAdd.sessions).reduce((t,a)=>t+a.length,0)
-    + Object.values(toAdd.estimates).reduce((t,a)=>t+a.length,0)
-    + Object.values(toAdd.estimatesFromSheet||{}).reduce((t,a)=>t+a.length,0)
-    + toAdd.prodItems.length;
+  lines.push('\n【既存データの更新（見積・実績のみ）】');
+  for (const [key, updates] of Object.entries(toUpdate.sessions)) {
+    if (updates.length) { lines.push(`・${SESS_LABELS[key]} ${updates.length}回次の見積・実績を更新`); updateCount += updates.length; }
+  }
 
-  if (newCount === 0) {
-    alert('追加する新規データはありませんでした。\n\n既存データと重複しているため、すべてスキップされます。');
+  if (addCount === 0 && updateCount === 0) {
+    alert('変更するデータはありませんでした。\nすべて既存データと一致しています。');
     return;
   }
 
-  lines.push(`\n合計 ${newCount} 件を追加します。よろしいですか？`);
+  lines.push(`\n合計: 追加 ${addCount}件 / 更新 ${updateCount}件`);
+  lines.push('\n※ インポート前の状態は自動保存されます（元に戻せます）');
+  lines.push('\n実行しますか？');
+
   if (!confirm(lines.join('\n'))) return;
 
-  // ── 新規追加のみ実行 ──
+  // ── インポート前にスナップショット保存 ──
+  saveSnapshot(`Excelインポート前 ${new Date().toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`);
+
+  // ── 新規追加 ──
   for (const [key, sessions] of Object.entries(toAdd.sessions)) {
     if (!S.sessions[key]) S.sessions[key] = [];
     S.sessions[key].push(...sessions);
@@ -1868,10 +1936,26 @@ function executeXlImport() {
     S.prodItems.push(...toAdd.prodItems);
   }
 
+  // ── 既存回次の見積・実績を更新 ──
+  for (const [key, updates] of Object.entries(toUpdate.sessions)) {
+    for (const { existing, newData } of updates) {
+      for (const newItem of newData.items) {
+        const existItem = existing.items?.find(it => it.name === newItem.name);
+        if (existItem) {
+          if (newItem.estimate) existItem.estimate = newItem.estimate;
+          if (newItem.actual)   existItem.actual   = newItem.actual;
+        } else {
+          if (!existing.items) existing.items = [];
+          existing.items.push(newItem);
+        }
+      }
+    }
+  }
+
   save();
   closeOv('ov-xl-import');
   renderPg(_curPg || 'ov');
-  alert(`✅ インポート完了\n\n${newCount}件の新規データを追加しました。`);
+  alert(`✅ インポート完了\n\n追加: ${addCount}件 / 更新: ${updateCount}件\n\n⏪ 元に戻す場合は「Excelインポート」→「前のバージョンに戻す」から復元できます。`);
 }
 
 </script>
