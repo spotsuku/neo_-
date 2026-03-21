@@ -6,6 +6,7 @@
 <title>NEO福岡 経費ダッシュボード</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Syne:wght@700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -186,6 +187,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
   <button class="nb" onclick="go('ordermaster',this)"><span class="ic">📋</span>発注マスタ</button>
   <button class="nb" onclick="go('prod',this)"><span class="ic">📦</span>製作物管理</button>
   <button class="nb" onclick="go('rev',this)"><span class="ic">💰</span>収入管理</button>
+  <div class="sb-sec">データ</div>
+  <button class="nb admin-only" onclick="openOv('ov-xl-import')"><span class="ic">📥</span>Excelインポート</button>
   <div class="sb-sec">設定</div>
   <button class="nb" id="nb-defaults" onclick="openSeriesDefaults()"><span class="ic">⚙️</span>デフォルト費目設定</button>
   <button class="nb" onclick="openCatMaster()"><span class="ic">🗂</span>カテゴリ判定設定</button>
@@ -536,6 +539,54 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 <div class="ov" id="ov-cat-master"><div class="panel wide"><div class="ph"><h2>🗂 カテゴリ判定設定</h2><button class="xbtn" onclick="closeOv('ov-cat-master')">×</button></div><div class="pb-body"><p style="font-size:11px;color:var(--t2);margin-bottom:14px">費目名にこのキーワードが含まれると自動でカテゴリが判定されます。</p><div class="tabs" id="cat-tabs" style="flex-wrap:wrap;gap:4px"><button class="tab on" onclick="switchCatTab('① 会場・施設費',this)">① 会場・施設費</button><button class="tab" onclick="switchCatTab('② 飲食・ケータリング費',this)">② 飲食</button><button class="tab" onclick="switchCatTab('③ 出演・キャスティング費',this)">③ 出演</button><button class="tab" onclick="switchCatTab('④ 制作・演出費',this)">④ 制作</button><button class="tab" onclick="switchCatTab('⑤ 運営・人件費',this)">⑤ 運営</button><button class="tab" onclick="switchCatTab('⑥ 備品・設営費',this)">⑥ 備品</button><button class="tab" onclick="switchCatTab('⑦ マーケ・広報費',this)">⑦ マーケ</button><button class="tab" onclick="switchCatTab('⑨ その他',this)">⑨ その他</button><button class="tab" onclick="switchCatTab('⑧ デザイン費',this)">⑧ デザイン</button></div><div id="cat-master-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:120px;padding:10px 0"></div><div style="margin-top:12px;display:flex;gap:8px;align-items:center"><input class="fi" id="cat-new-keyword" placeholder="新しいキーワードを入力..." style="flex:1" onkeydown="if(event.key==='Enter')addCatKeyword()"><button class="btn btn-p btn-sm" onclick="addCatKeyword()">＋ 追加</button></div><div style="margin-top:14px;padding:10px 12px;background:var(--s2);border-radius:8px;border:1px solid var(--b1)"><div style="font-size:10px;color:var(--t2)">💡 テスト</div><div style="display:flex;gap:8px;margin-top:8px;align-items:center"><input class="fi" id="cat-test-input" placeholder="例: カメラマン" style="flex:1" oninput="testCatDetect()"><div id="cat-test-result" style="font-size:12px;font-weight:700;min-width:140px;text-align:center;padding:6px 10px;border-radius:6px;background:var(--s3)">判定結果</div></div></div></div><div class="pf" style="justify-content:space-between"><button class="btn btn-red btn-sm" onclick="resetCatMaster()">初期値に戻す</button><div style="display:flex;gap:7px"><button class="btn btn-g" onclick="closeOv('ov-cat-master')">キャンセル</button><button class="btn btn-p" onclick="saveCatMaster()">保存する</button></div></div></div></div>
 <div class="ov" id="ov-fiscal-year"><div class="panel" style="width:520px"><div class="ph"><h2>📅 年度管理</h2><button class="xbtn" onclick="closeOv('ov-fiscal-year')">×</button></div><div class="pb-body"><p style="font-size:11px;color:var(--t2);margin-bottom:16px">年度ごとにデータを分けて管理できます。</p><div style="font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">利用可能な年度</div><div id="fy-list" style="margin-bottom:20px"></div><div style="border-top:1px solid var(--b1);padding-top:16px" class="admin-only"><div style="font-size:10px;font-weight:700;color:var(--t3);margin-bottom:10px">新年度を作成</div><div style="display:flex;gap:8px;align-items:center"><input id="new-fy-input" type="number" class="fi" placeholder="例: 2026" style="width:120px" min="2024" max="2040" value="2026"><span style="font-size:11px;color:var(--t2)">年度（4月〜翌3月）</span><button class="btn btn-p btn-sm" onclick="createNewFiscalYear()">＋ 新年度作成</button></div></div></div><div class="pf"><button class="btn btn-g" onclick="closeOv('ov-fiscal-year')">閉じる</button></div></div></div>
 
+
+<!-- ═══ Excel インポートパネル ═══ -->
+<div class="ov" id="ov-xl-import">
+  <div class="panel wide">
+    <div class="ph">
+      <h2>📊 Excelからデータをインポート</h2>
+      <button class="xbtn" onclick="closeOv('ov-xl-import')">×</button>
+    </div>
+    <div class="pb-body">
+      <div id="xl-import-error" style="display:none;background:rgba(232,64,96,.1);border:1px solid rgba(232,64,96,.3);border-radius:6px;padding:8px 12px;font-size:11px;color:#e84060;margin-bottom:12px"></div>
+
+      <!-- ステップ1: ファイル選択 -->
+      <div id="xl-step1">
+        <div style="border:2px dashed var(--b2);border-radius:10px;padding:32px;text-align:center;margin-bottom:14px;cursor:pointer;transition:all .2s" id="xl-drop-zone" onclick="document.getElementById('xl-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--blue)'" ondragleave="this.style.borderColor='var(--b2)'" ondrop="handleXlDrop(event)">
+          <div style="font-size:28px;margin-bottom:8px">📎</div>
+          <div style="font-size:13px;font-weight:600;color:var(--t1)">Excelファイルをドロップ</div>
+          <div style="font-size:11px;color:var(--t2);margin-top:4px">または クリックして選択（.xlsx）</div>
+        </div>
+        <input type="file" id="xl-file-input" accept=".xlsx" style="display:none" onchange="handleXlFile(this.files[0])">
+        <p style="font-size:10px;color:var(--t3);line-height:1.8">
+          ※ 「年間イベントスケジュール」シートから読み込みます<br>
+          ※ 予算は上書きしません（見積・実績のみ更新）<br>
+          ※ シリーズ（ホームルーム・評議会・応援カイギ）の回次は新規追加されます
+        </p>
+      </div>
+
+      <!-- ステップ2: 解析中 -->
+      <div id="xl-step2" style="display:none;text-align:center;padding:32px">
+        <div style="font-size:24px;margin-bottom:12px">⏳</div>
+        <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:8px" id="xl-analyzing-msg">AIで解析中...</div>
+        <div style="font-size:11px;color:var(--t2)" id="xl-analyzing-sub">しばらくお待ちください</div>
+      </div>
+
+      <!-- ステップ3: プレビュー -->
+      <div id="xl-step3" style="display:none">
+        <div style="background:var(--s2);border-radius:8px;padding:12px 16px;margin-bottom:12px;border:1px solid var(--b1)">
+          <div style="font-size:11px;font-weight:700;color:var(--t1);margin-bottom:8px">📋 インポート内容プレビュー</div>
+          <div id="xl-preview"></div>
+        </div>
+        <p style="font-size:10px;color:var(--acc);font-weight:600">⚠️ 既存のシリーズデータは保持され、回次が追加されます。見積・実績は上書きされます。</p>
+      </div>
+    </div>
+    <div class="pf" style="justify-content:space-between">
+      <button class="btn btn-g" onclick="closeOv('ov-xl-import')">キャンセル</button>
+      <button class="btn btn-p" id="xl-import-btn" onclick="executeXlImport()" style="display:none">✅ インポート実行</button>
+    </div>
+  </div>
+</div>
 <!-- ═══ JavaScript ═══ -->
 <script>
 // ══════════════════════════════════════════════════
@@ -1436,6 +1487,503 @@ function renderPg(id){
 
 // ── インラインスタイル注入 ──
 (function injectInlineStyles(){const style=document.createElement('style');style.textContent=`.inline-inp{width:100%;padding:5px 7px;border:1.5px solid transparent;border-radius:5px;font-size:11px;font-family:var(--mono);background:transparent;color:var(--t1);outline:none;transition:all .15s;}.inline-inp:hover{border-color:var(--b2);background:var(--s2);}.inline-inp:focus{border-color:var(--blue);background:var(--s1);box-shadow:0 0 0 2px rgba(37,99,235,.1);}.inline-inp.num{text-align:right;}.inline-sel{width:100%;padding:4px 6px;border:1.5px solid transparent;border-radius:5px;font-size:10px;background:transparent;color:var(--t1);outline:none;cursor:pointer;transition:all .15s;}.inline-sel:hover{border-color:var(--b2);background:var(--s2);}.inline-sel:focus{border-color:var(--blue);background:var(--s1);}`;document.head.appendChild(style);})();
+
+
+// ══════════════════════════════════════════════════
+// Excel インポート機能
+// ══════════════════════════════════════════════════
+let _xlImportData = null;
+
+function handleXlDrop(e) {
+  e.preventDefault();
+  document.getElementById('xl-drop-zone').style.borderColor = 'var(--b2)';
+  const file = e.dataTransfer.files[0];
+  if (file) handleXlFile(file);
+}
+
+async function handleXlFile(file) {
+  if (!file || !file.name.endsWith('.xlsx')) {
+    showXlError('xlsx ファイルを選択してください');
+    return;
+  }
+  showXlStep(2, 'Excelを読み込み中...');
+  try {
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, { type: 'array' });
+
+    // 「年間イベントスケジュール」シートを探す
+    const sheetName = wb.SheetNames.find(s => s.includes('イベントスケジュール') || s.includes('スケジュール'));
+    if (!sheetName) throw new Error('「年間イベントスケジュール」シートが見つかりません');
+
+    showXlStep(2, 'AIで解析中...', 'データを解析しています');
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+    _xlImportData = parseXlSchedule(rows);
+    showXlPreview(_xlImportData);
+    showXlStep(3);
+    document.getElementById('xl-import-btn').style.display = '';
+  } catch(e) {
+    showXlStep(1);
+    showXlError('読み込みエラー: ' + e.message);
+  }
+}
+
+function parseXlSchedule(rows) {
+  const CAT_MAP = [
+    { fee: '会場費',       cat: '① 会場・施設費',          estCol: 5, actCol: 6 },
+    { fee: '講師・演者費',  cat: '③ 出演・キャスティング費', estCol: 9, actCol: 10 },
+    { fee: '人件費',       cat: '⑤ 運営・人件費',           estCol: 13, actCol: 14 },
+    { fee: '製作費',       cat: '④ 制作・演出費',           estCol: 17, actCol: 18 },
+    { fee: 'デザイン費',   cat: '⑧ デザイン費',            estCol: 21, actCol: 22 },
+    { fee: '演出費',       cat: '④ 制作・演出費',           estCol: 25, actCol: 26 },
+    { fee: '広告宣伝費',   cat: '⑦ マーケ・広報費',        estCol: 29, actCol: 30 },
+    { fee: '旅費交通費',   cat: '⑦ マーケ・広報費',        estCol: 33, actCol: 34 },
+    { fee: '諸経費',       cat: '⑨ その他',                estCol: 37, actCol: 38 },
+  ];
+
+  const TAG_SERIES  = { 'ホームルーム': 'hm', '評議会': 'gk', '応援カイギ': 'oe' };
+  const TAG_EVENTS  = { 'キックオフ': 'ko', 'アワード': 'aw', 'イヤーエンド': 'ye', 'ツアー': 'tour' };
+  const TAG_CITYFES = { 'シティフェス': 'md' };
+
+  const result = {
+    sessions:  { hm: [], gk: [], oe: [] },
+    estimates: { ko: [], aw: [], ye: [], tour: [], md: [] },
+  };
+
+  let uidN = 0;
+  const mkId = () => `xl_${++uidN}_${Date.now().toString(36)}`;
+  const safeN = v => (v == null || v === '' || isNaN(Number(v))) ? 0 : Math.round(Number(v));
+
+  for (const row of rows) {
+    const no = row[0];
+    if (!no || !/^\d+$/.test(String(no).trim())) continue;
+
+    const date = row[1] ? String(row[1]).slice(0, 10) : '';
+    const tag  = row[2] ? String(row[2]).trim() : '';
+    const name = row[3] ? String(row[3]).trim() : '';
+
+    // 費目集計（同カテゴリマージ）
+    const catTotals = {};
+    for (const { cat, estCol, actCol } of CAT_MAP) {
+      const est = safeN(row[estCol]);
+      const act = safeN(row[actCol]);
+      if (est || act) {
+        if (!catTotals[cat]) catTotals[cat] = { estimate: 0, actual: 0 };
+        catTotals[cat].estimate += est;
+        catTotals[cat].actual   += act;
+      }
+    }
+
+    if (TAG_SERIES[tag]) {
+      const key = TAG_SERIES[tag];
+      result.sessions[key].push({
+        id: mkId(), title: name, date, memo: '',
+        items: Object.entries(catTotals).map(([cat, v]) => ({
+          id: mkId(), name: cat, budget: 0, estimate: v.estimate, actual: v.actual
+        }))
+      });
+    } else if (TAG_EVENTS[tag]) {
+      const key = TAG_EVENTS[tag];
+      for (const [cat, v] of Object.entries(catTotals)) {
+        result.estimates[key].push({
+          id: mkId(), name, cat, budget: 0,
+          estimate: v.estimate, actual: v.actual, payMonth: ''
+        });
+      }
+    } else if (TAG_CITYFES[tag]) {
+      for (const [cat, v] of Object.entries(catTotals)) {
+        result.estimates.md.push({
+          id: mkId(), name, cat, budget: 0,
+          estimate: v.estimate, actual: v.actual, payMonth: ''
+        });
+      }
+    }
+  }
+  return result;
+}
+
+function showXlStep(step, msg, sub) {
+  document.getElementById('xl-step1').style.display = step === 1 ? '' : 'none';
+  document.getElementById('xl-step2').style.display = step === 2 ? '' : 'none';
+  document.getElementById('xl-step3').style.display = step === 3 ? '' : 'none';
+  if (msg) document.getElementById('xl-analyzing-msg').textContent = msg;
+  if (sub) document.getElementById('xl-analyzing-sub').textContent = sub;
+}
+
+function showXlError(msg) {
+  const el = document.getElementById('xl-import-error');
+  el.textContent = msg; el.style.display = msg ? '' : 'none';
+}
+
+function showXlPreview(data) {
+  const lines = [];
+  for (const [key, sessions] of Object.entries(data.sessions)) {
+    const label = {hm:'ホームルーム', gk:'評議会', oe:'応援カイギ'}[key];
+    if (sessions.length) lines.push(`<div style="margin-bottom:6px"><span style="font-size:10px;font-weight:700;color:var(--blue)">${label}</span> <span style="font-size:11px;color:var(--t2)">${sessions.length}回次を追加</span></div>`);
+  }
+  const evtLabels = {ko:'キックオフ', aw:'アワード', ye:'イヤーエンド', tour:'ツアー', md:'シティフェス（マッチデイ）'};
+  for (const [key, rows] of Object.entries(data.estimates)) {
+    if (rows.length) lines.push(`<div style="margin-bottom:6px"><span style="font-size:10px;font-weight:700;color:var(--green)">${evtLabels[key]||key}</span> <span style="font-size:11px;color:var(--t2)">${rows.length}行の見積・実績を更新</span></div>`);
+  }
+  document.getElementById('xl-preview').innerHTML = lines.join('') || '<span style="color:var(--t3);font-size:11px">読み込めるデータがありませんでした</span>';
+}
+
+function executeXlImport() {
+  if (!_xlImportData) return;
+  const d = _xlImportData;
+
+  // シリーズ回次を追加（既存は保持、重複タイトルはスキップ）
+  for (const [key, sessions] of Object.entries(d.sessions)) {
+    if (!S.sessions[key]) S.sessions[key] = [];
+    const existTitles = new Set(S.sessions[key].map(s => s.title));
+    for (const sess of sessions) {
+      if (!existTitles.has(sess.title)) {
+        S.sessions[key].push(sess);
+      } else {
+        // 既存回次の見積・実績を更新（予算は上書きしない）
+        const existing = S.sessions[key].find(s => s.title === sess.title);
+        if (existing) {
+          for (const newItem of sess.items) {
+            const existItem = existing.items?.find(it => it.name === newItem.name);
+            if (existItem) {
+              existItem.estimate = newItem.estimate;
+              existItem.actual   = newItem.actual;
+            } else {
+              if (!existing.items) existing.items = [];
+              existing.items.push(newItem);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // イベント見積・実績を追加（予算は上書きしない）
+  for (const [key, rows] of Object.entries(d.estimates)) {
+    if (!S.estimates) S.estimates = {};
+    if (!S.estimates[key]) S.estimates[key] = [];
+    // 既存行のname+catが一致するものは更新、なければ追加
+    for (const newRow of rows) {
+      const existing = S.estimates[key].find(r => r.name === newRow.name && r.cat === newRow.cat);
+      if (existing) {
+        existing.estimate = newRow.estimate;
+        existing.actual   = newRow.actual;
+      } else {
+        S.estimates[key].push(newRow);
+      }
+    }
+  }
+
+  save();
+  closeOv('ov-xl-import');
+  renderPg(_curPg || 'ov');
+
+  const total = Object.values(d.sessions).reduce((t,a)=>t+a.length,0)
+              + Object.values(d.estimates).reduce((t,a)=>t+a.length,0);
+  alert(`✅ インポート完了\n\n${total}件のデータを読み込みました`);
+}
+
+</script>
+<!-- ═══ Excelインポートパネル ═══ -->
+<div class="ov" id="ov-excel-import">
+  <div class="panel" style="width:520px">
+    <div class="ph"><h2>📥 Excelから読み込む</h2><button class="xbtn" onclick="closeOv('ov-excel-import')">×</button></div>
+    <div class="pb-body">
+      <p style="font-size:11px;color:var(--t2);margin-bottom:16px;line-height:1.7">
+        「新AIver_NEO福岡_経費管理_第１期.xlsx」をアップロードすると、<br>
+        シリーズの回次・イベントの見積・実績を自動で読み込みます。<br>
+        <strong style="color:var(--acc)">予算はデフォルト費目設定の値を保持します。</strong>
+      </p>
+      <div style="border:2px dashed var(--b2);border-radius:10px;padding:28px;text-align:center;margin-bottom:14px;transition:all .2s"
+           id="excel-drop-zone"
+           ondragover="event.preventDefault();this.style.borderColor='var(--blue)'"
+           ondragleave="this.style.borderColor='var(--b2)'"
+           ondrop="event.preventDefault();this.style.borderColor='var(--b2)';handleExcelFile(event.dataTransfer.files[0])">
+        <div style="font-size:32px;margin-bottom:8px">📊</div>
+        <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:4px">ここにファイルをドロップ</div>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:12px">または</div>
+        <label style="cursor:pointer">
+          <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleExcelFile(this.files[0])">
+          <span class="btn btn-g btn-sm" style="pointer-events:none">ファイルを選択</span>
+        </label>
+      </div>
+      <div id="excel-import-status" style="font-size:11px;color:var(--t2);min-height:40px;padding:8px;background:var(--s2);border-radius:7px;border:1px solid var(--b1)">
+        ファイルを選択してください
+      </div>
+    </div>
+    <div class="pf" style="justify-content:space-between">
+      <div style="font-size:9px;color:var(--t3)">※ 読み込み後に保存されます</div>
+      <div style="display:flex;gap:7px">
+        <button class="btn btn-g" onclick="closeOv('ov-excel-import')">キャンセル</button>
+        <button class="btn btn-p" id="excel-apply-btn" disabled onclick="">読み込む</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// excel-import.js — Excelデータ取り込み機能
+// アップロードしたExcelを解析してSに反映する
+// ══════════════════════════════════════════════
+
+// Excelファイルアップロードボタンを追加する関数
+function addExcelImportButton() {
+  // サイドバーの設定セクションに追加
+  const btn = document.createElement('button');
+  btn.className = 'nb';
+  btn.innerHTML = '<span class="ic">📥</span>Excelから読み込む';
+  btn.onclick = openExcelImport;
+  
+  // nb-defaults の前に挿入
+  const target = document.getElementById('nb-defaults');
+  if (target) target.parentNode.insertBefore(btn, target);
+}
+
+// Excelインポートパネルを開く
+function openExcelImport() {
+  if (!isAdmin()) { alert('管理者のみ実行できます'); return; }
+  openOv('ov-excel-import');
+}
+
+// Excelファイルを読み込んで解析
+async function handleExcelFile(file) {
+  if (!file) return;
+  
+  const statusEl = document.getElementById('excel-import-status');
+  statusEl.innerHTML = '🔄 解析中...';
+  statusEl.style.color = 'var(--blue)';
+  
+  try {
+    // SheetJSを使ってExcel読み込み
+    const XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.0/package/xlsx.mjs');
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array', cellDates:true});
+    
+    // 解析実行
+    const result = parseExcelWorkbook(wb, XLSX);
+    
+    // 結果を表示
+    const summary = [];
+    if (result.sessions) {
+      Object.entries(result.sessions).forEach(([k,v]) => {
+        if (v.length > 0) {
+          const names = {hm:'ホームルーム',gk:'評議会',oe:'応援カイギ'};
+          summary.push(`${names[k]}: ${v.length}回次`);
+        }
+      });
+    }
+    if (result.events) {
+      Object.entries(result.events).forEach(([k,v]) => {
+        if (v.length > 0) {
+          const names = {ko:'キックオフ',aw:'アワード',ye:'イヤーエンド'};
+          const totalAct = v.reduce((t,i)=>t+i.actual,0);
+          summary.push(`${names[k]}: ${v.length}費目 実績${Math.round(totalAct).toLocaleString()}円`);
+        }
+      });
+    }
+    
+    statusEl.innerHTML = '✅ 解析完了！
+' + summary.join('
+');
+    statusEl.style.color = 'var(--green)';
+    statusEl.style.whiteSpace = 'pre';
+    
+    // 確認ボタンを有効化
+    const applyBtn = document.getElementById('excel-apply-btn');
+    if (applyBtn) {
+      applyBtn.disabled = false;
+      applyBtn.onclick = () => applyExcelData(result);
+    }
+    
+  } catch(e) {
+    statusEl.innerHTML = '❌ エラー: ' + e.message;
+    statusEl.style.color = 'var(--red)';
+    console.error(e);
+  }
+}
+
+// ExcelワークブックをパースしてSに入れるデータ構造に変換
+function parseExcelWorkbook(wb, XLSX) {
+  const n = v => (v !== null && v !== undefined && v !== '' && !isNaN(parseFloat(v))) ? parseFloat(v) : 0;
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  
+  const detect = (name) => {
+    const nm = (name||'').replace(/[　\s]/g,'');
+    if (/会場|施設|カンファレンス|前日|夜間|延長|ゴミ|ゲスト控室|控室|ケータリング|ドリンク|懇親会費|備品一式/.test(nm)) return '① 会場・施設費';
+    if (/審査員|MC|DJ|キャスティング|基調講演|賞金|鼓舞猿/.test(nm)) return '③ 出演・キャスティング費';
+    if (/運営|進行|受付|誘導|人件|SAKAZUKI|スタッフ|固定カメラ|カメラマン/.test(nm)) return '⑤ 運営・人件費';
+    if (/パネル|バナー|製作|制作|印刷|映像|動画|パンフ|トロフィー|ステージ|フォト|ウェルカム|ロゴ|装飾|受賞|案内|登壇|振り返り|EZフレーム|自立資材|ハイサイン|養生部材|花装飾|撮影スタジオ|宣材|台本|照明|演出/.test(nm)) return '④ 制作・演出費';
+    if (/設営|撤去|運搬|備品|消耗品|機材|レンタル|テーブル|チェア|カーペット|タープ|テント|マイク|スピーカー|音響|ハイテーブル|円形テーブル|宴会|チェアーカバー|パンチカーペット|モバイル|延長コード|電源|バケツ|ウェイト|レシーバー|軽トラック|車両|両面テープ/.test(nm)) return '⑥ 備品・設営費';
+    if (/デザイン/.test(nm)) return '⑧ デザイン費';
+    if (/広告|SNS|PR|ガソリン|駐車場/.test(nm)) return '⑦ マーケ・広報費';
+    return '⑨ その他';
+  };
+  
+  const sessions = {hm:[],gk:[],oe:[]};
+  const events = {ko:[],aw:[],ye:[]};
+  const estimates = {ko:[],aw:[],ye:[]};
+  
+  const TAG_MAP = {'ホームルーム':'hm','評議会':'gk','応援カイギ':'oe'};
+  const FEE_COLS = {
+    '会場費':      [4,5,6], '講師・演者費': [8,9,10], 'イベント人件費':[12,13,14],
+    '製作費':      [16,17,18], 'デザイン費':[20,21,22], '演出費':      [24,25,26],
+    '広告宣伝費':  [28,29,30], '旅費交通費': [32,33,34], '諸経費':      [36,37,38],
+  };
+  const COL_TO_CAT = {
+    '会場費':'① 会場・施設費', '講師・演者費':'③ 出演・キャスティング費',
+    'イベント人件費':'⑤ 運営・人件費', '製作費':'④ 制作・演出費',
+    'デザイン費':'⑧ デザイン費', '演出費':'④ 制作・演出費',
+    '広告宣伝費':'⑦ マーケ・広報費', '旅費交通費':'⑦ マーケ・広報費', '諸経費':'⑨ その他',
+  };
+  
+  // 年間イベントスケジュールシート
+  if (wb.SheetNames.includes('年間イベントスケジュール')) {
+    const ws = wb.Sheets['年間イベントスケジュール'];
+    const data = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+    
+    for (let idx = 3; idx < data.length; idx++) {
+      const row = data[idx];
+      if (!row) continue;
+      const tag = (row[2]||'').toString().trim();
+      const title = (row[3]||'').toString().trim();
+      if (!tag || !title || tag.startsWith('▶')) continue;
+      
+      const seriesKey = TAG_MAP[tag];
+      if (!seriesKey) continue;
+      
+      let dateStr = '';
+      if (row[1]) {
+        try {
+          const d = row[1] instanceof Date ? row[1] : new Date(row[1]);
+          if (!isNaN(d)) dateStr = d.toISOString().slice(0,10);
+        } catch(_) {}
+      }
+      
+      const itemsMap = {};
+      Object.entries(FEE_COLS).forEach(([feeName,[bi,ei,ai]]) => {
+        const e = n(row[ei]), a = n(row[ai]);
+        if (e > 0 || a > 0) {
+          const cat = COL_TO_CAT[feeName];
+          if (!itemsMap[cat]) itemsMap[cat] = {estimate:0,actual:0};
+          itemsMap[cat].estimate += e;
+          itemsMap[cat].actual += a;
+        }
+      });
+      
+      sessions[seriesKey].push({
+        id: uid(), title, date: dateStr, memo: '',
+        items: Object.entries(itemsMap).map(([cat,v]) => ({
+          id:uid(), name:cat, budget:0,
+          estimate:Math.round(v.estimate), actual:Math.round(v.actual)
+        }))
+      });
+    }
+  }
+  
+  // イベント個別シート
+  const EVT_SHEETS = {ko:'キックオフ', aw:'アワード', ye:'イヤーエンド'};
+  Object.entries(EVT_SHEETS).forEach(([key, sheetName]) => {
+    if (!wb.SheetNames.includes(sheetName)) return;
+    const ws = wb.Sheets[sheetName];
+    const data = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+    const cats = {};
+    
+    for (let idx = 4; idx < data.length; idx++) {
+      const row = data[idx];
+      if (!row) continue;
+      const item = (row[0]||'').toString().trim();
+      if (!item || item.startsWith('■')) continue;
+      const estimate = n(row[6]), actual = n(row[7]);
+      if (estimate === 0 && actual === 0) continue;
+      
+      const cat = detect(item);
+      if (!cats[cat]) cats[cat] = {estimate:0,actual:0};
+      cats[cat].estimate += estimate;
+      cats[cat].actual += actual;
+      
+      estimates[key].push({
+        id:uid(), name:item, cat, budget:0,
+        estimate:Math.round(estimate), actual:Math.round(actual), payMonth:''
+      });
+    }
+    
+    events[key] = Object.entries(cats).map(([cat,v]) => ({
+      id:uid(), name:cat, budget:0,
+      estimate:Math.round(v.estimate), actual:Math.round(v.actual)
+    }));
+  });
+  
+  return {sessions, events, estimates};
+}
+
+// 解析データをSに適用
+function applyExcelData(result) {
+  const {sessions, events, estimates} = result;
+  
+  // 予算は上書きしない
+  // セッション：既存を上書き（回次追加）
+  if (sessions) {
+    Object.entries(sessions).forEach(([key, newSessions]) => {
+      if (newSessions.length > 0) {
+        // タイトルで重複チェック → 新しいものだけ追加
+        const existing = S.sessions[key] || [];
+        const existingTitles = new Set(existing.map(s => s.title));
+        const toAdd = newSessions.filter(s => !existingTitles.has(s.title));
+        S.sessions[key] = [...existing, ...toAdd];
+      }
+    });
+  }
+  
+  // イベント費目：見積・実績のみ更新（予算は保持）
+  if (events) {
+    Object.entries(events).forEach(([key, newItems]) => {
+      if (!S.events[key]) S.events[key] = {label:key, items:[]};
+      newItems.forEach(newItem => {
+        const existing = S.events[key].items.find(i => i.name === newItem.name);
+        if (existing) {
+          // 予算は上書きしない
+          if (newItem.estimate > 0) existing.estimate = newItem.estimate;
+          if (newItem.actual > 0) existing.actual = newItem.actual;
+        } else {
+          S.events[key].items.push({...newItem, budget:0});
+        }
+      });
+    });
+  }
+  
+  // 見積明細
+  if (estimates) {
+    Object.entries(estimates).forEach(([key, rows]) => {
+      if (rows.length > 0 && (!S.estimates[key] || S.estimates[key].length === 0)) {
+        S.estimates[key] = rows;
+      }
+    });
+  }
+  
+  save();
+  closeOv('ov-excel-import');
+  renderPg(_curPg || 'ov');
+  
+  const counts = [];
+  Object.entries(sessions||{}).forEach(([k,v]) => {
+    if(v.length) counts.push(`${{hm:'ホームルーム',gk:'評議会',oe:'応援カイギ'}[k]}: ${v.length}回次`);
+  });
+  Object.entries(events||{}).forEach(([k,v]) => {
+    if(v.length) counts.push(`${{ko:'キックオフ',aw:'アワード',ye:'イヤーエンド'}[k]}: ${v.length}費目`);
+  });
+  
+  alert('✅ 読み込み完了！
+
+' + counts.join('
+') + '
+
+予算はデフォルト費目設定の値を保持しています。');
+}
+
+// DOM読み込み後にボタンを追加
+document.addEventListener('DOMContentLoaded', addExcelImportButton);
 
 </script>
 </body>
