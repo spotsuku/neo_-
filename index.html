@@ -1535,6 +1535,25 @@ async function handleXlFile(file) {
       _xlImportData.prodItems = parseXlProdItems(prodRows);
     }
 
+    // 個別イベントシート（キックオフ・アワード・イヤーエンド）
+    const EVT_SHEETS = [
+      { names: ['キックオフ'], key: 'ko' },
+      { names: ['アワード'],   key: 'aw' },
+      { names: ['イヤーエンド'], key: 'ye' },
+    ];
+    for (const { names, key } of EVT_SHEETS) {
+      const sn = wb.SheetNames.find(s => names.some(n => s.includes(n)));
+      if (sn) {
+        showXlStep(2, `${sn}シートを解析中...`, '個別イベントデータを読み込んでいます');
+        const evtWs = wb.Sheets[sn];
+        const evtRows = XLSX.utils.sheet_to_json(evtWs, { header: 1, defval: null });
+        const evtData = parseXlEventSheet(evtRows);
+        // 既存の年間スケジュール由来データに上書きマージ
+        if (!_xlImportData.estimatesFromSheet) _xlImportData.estimatesFromSheet = {};
+        _xlImportData.estimatesFromSheet[key] = evtData;
+      }
+    }
+
     showXlPreview(_xlImportData);
     showXlStep(3);
     document.getElementById('xl-import-btn').style.display = '';
@@ -1618,6 +1637,59 @@ function parseXlSchedule(rows) {
   return result;
 }
 
+function parseXlEventSheet(rows) {
+  const SECTION_TO_CAT = {
+    '会場関連':      '① 会場・施設費',
+    'ケータリング':   '② 飲食・ケータリング費',
+    'キャスティング': '③ 出演・キャスティング費',
+    '制作':          '④ 制作・演出費',
+    '演出':          '④ 制作・演出費',
+    '運営':          '⑤ 運営・人件費',
+    '人件費':         '⑤ 運営・人件費',
+    '備品':          '⑥ 備品・設営費',
+    'その他':         '⑩ その他',
+  };
+
+  const safeN = v => (v == null || v === '' || isNaN(Number(v))) ? 0 : Math.round(Number(v));
+  const safeS = v => (v == null || String(v).trim() === '' || String(v) === 'null') ? '' : String(v).replace(/　/g,'').trim();
+
+  let currentCat = '⑩ その他';
+  const catTotals = {};
+
+  for (const row of rows) {
+    const cell0 = safeS(row[0]);
+    if (!cell0) continue;
+
+    if (cell0.startsWith('■')) {
+      const sec = cell0.replace('■','').trim();
+      currentCat = '⑩ その他';
+      for (const [key, cat] of Object.entries(SECTION_TO_CAT)) {
+        if (sec.includes(key)) { currentCat = cat; break; }
+      }
+      continue;
+    }
+
+    if (cell0.includes('予算総額') || cell0 === '品目') continue;
+
+    const name = cell0;
+    const est  = safeN(row[6]);
+    const act  = safeN(row[7]);
+    if (!est && !act) continue;
+
+    if (!catTotals[currentCat]) catTotals[currentCat] = { estimate: 0, actual: 0 };
+    catTotals[currentCat].estimate += est;
+    catTotals[currentCat].actual   += act;
+  }
+
+  // estimate行として返す
+  let uidN = 0;
+  const mkId = () => `xl_evt_${++uidN}_${Date.now().toString(36)}`;
+  return Object.entries(catTotals).map(([cat, v]) => ({
+    id: mkId(), name: '個別シートより', cat, budget: 0,
+    estimate: v.estimate, actual: v.actual, payMonth: '',
+  }));
+}
+
 function parseXlProdItems(rows) {
   const SECTION_MAP = {
     'グッズ（配布キット）':       'グッズ（外販）',
@@ -1697,6 +1769,12 @@ function showXlPreview(data) {
   for (const [key, rows] of Object.entries(data.estimates)) {
     if (rows.length) lines.push(`<div style="margin-bottom:6px"><span style="font-size:10px;font-weight:700;color:var(--green)">${evtLabels[key]||key}</span> <span style="font-size:11px;color:var(--t2)">${rows.length}行の見積・実績を更新</span></div>`);
   }
+  if (data.estimatesFromSheet) {
+    const evtLabels = {ko:'キックオフ', aw:'アワード', ye:'イヤーエンド'};
+    for (const [key, rows] of Object.entries(data.estimatesFromSheet)) {
+      if (rows.length) lines.push(`<div style="margin-bottom:6px"><span style="font-size:10px;font-weight:700;color:var(--acc)">📋 ${evtLabels[key]||key}（個別シート）</span> <span style="font-size:11px;color:var(--t2)">${rows.length}科目の実績を反映</span></div>`);
+    }
+  }
   if (data.prodItems?.length) {
     lines.push(`<div style="margin-bottom:6px"><span style="font-size:10px;font-weight:700;color:var(--purple)">製作物管理</span> <span style="font-size:11px;color:var(--t2)">${data.prodItems.length}件を追加・更新</span></div>`);
   }
@@ -1707,75 +1785,93 @@ function executeXlImport() {
   if (!_xlImportData) return;
   const d = _xlImportData;
 
-  // シリーズ回次を追加（既存は保持、重複タイトルはスキップ）
+  // ── 新規追加分のみ抽出 ──
+  const toAdd = { sessions: {}, estimates: {}, estimatesFromSheet: {}, prodItems: [] };
+  const SESS_LABELS = {hm:'ホームルーム', gk:'評議会', oe:'応援カイギ'};
+  const EVT_LABELS  = {ko:'キックオフ', aw:'アワード', ye:'イヤーエンド', tour:'ツアー', md:'シティフェス'};
+
+  // シリーズ：タイトルが既存にない回次のみ
   for (const [key, sessions] of Object.entries(d.sessions)) {
-    if (!S.sessions[key]) S.sessions[key] = [];
-    const existTitles = new Set(S.sessions[key].map(s => s.title));
-    for (const sess of sessions) {
-      if (!existTitles.has(sess.title)) {
-        S.sessions[key].push(sess);
-      } else {
-        // 既存回次の見積・実績を更新（予算は上書きしない）
-        const existing = S.sessions[key].find(s => s.title === sess.title);
-        if (existing) {
-          for (const newItem of sess.items) {
-            const existItem = existing.items?.find(it => it.name === newItem.name);
-            if (existItem) {
-              existItem.estimate = newItem.estimate;
-              existItem.actual   = newItem.actual;
-            } else {
-              if (!existing.items) existing.items = [];
-              existing.items.push(newItem);
-            }
-          }
-        }
-      }
+    const existTitles = new Set((S.sessions[key]||[]).map(s => s.title));
+    toAdd.sessions[key] = sessions.filter(s => !existTitles.has(s.title));
+  }
+
+  // イベント見積：name+catが既存にない行のみ
+  for (const [key, rows] of Object.entries(d.estimates)) {
+    const existing = S.estimates?.[key] || [];
+    toAdd.estimates[key] = rows.filter(r =>
+      !existing.some(e => e.name === r.name && e.cat === r.cat)
+    );
+  }
+
+  // 個別シート：catが既存にない行のみ
+  if (d.estimatesFromSheet) {
+    for (const [key, rows] of Object.entries(d.estimatesFromSheet)) {
+      const existing = S.estimates?.[key] || [];
+      toAdd.estimatesFromSheet[key] = rows.filter(r =>
+        !existing.some(e => e.cat === r.cat)
+      );
     }
   }
 
-  // イベント見積・実績を追加（予算は上書きしない）
-  for (const [key, rows] of Object.entries(d.estimates)) {
+  // 製作物：name+catが既存にない品目のみ
+  if (d.prodItems?.length) {
+    toAdd.prodItems = d.prodItems.filter(item =>
+      !(S.prodItems||[]).some(p => p.name === item.name && p.cat === item.cat)
+    );
+  }
+
+  // ── 確認ダイアログ ──
+  const lines = ['以下の新規データを追加します。\n既存データは変更しません。\n'];
+
+  for (const [key, sessions] of Object.entries(toAdd.sessions)) {
+    if (sessions.length) lines.push(`・${SESS_LABELS[key]} ${sessions.length}回次を追加`);
+  }
+  for (const [key, rows] of Object.entries(toAdd.estimates)) {
+    if (rows.length) lines.push(`・${EVT_LABELS[key]||key} 見積/実績 ${rows.length}行を追加`);
+  }
+  for (const [key, rows] of Object.entries(toAdd.estimatesFromSheet||{})) {
+    if (rows.length) lines.push(`・${EVT_LABELS[key]||key}（個別シート） ${rows.length}科目を追加`);
+  }
+  if (toAdd.prodItems.length) lines.push(`・製作物管理 ${toAdd.prodItems.length}件を追加`);
+
+  const newCount = Object.values(toAdd.sessions).reduce((t,a)=>t+a.length,0)
+    + Object.values(toAdd.estimates).reduce((t,a)=>t+a.length,0)
+    + Object.values(toAdd.estimatesFromSheet||{}).reduce((t,a)=>t+a.length,0)
+    + toAdd.prodItems.length;
+
+  if (newCount === 0) {
+    alert('追加する新規データはありませんでした。\n\n既存データと重複しているため、すべてスキップされます。');
+    return;
+  }
+
+  lines.push(`\n合計 ${newCount} 件を追加します。よろしいですか？`);
+  if (!confirm(lines.join('\n'))) return;
+
+  // ── 新規追加のみ実行 ──
+  for (const [key, sessions] of Object.entries(toAdd.sessions)) {
+    if (!S.sessions[key]) S.sessions[key] = [];
+    S.sessions[key].push(...sessions);
+  }
+  for (const [key, rows] of Object.entries(toAdd.estimates)) {
     if (!S.estimates) S.estimates = {};
     if (!S.estimates[key]) S.estimates[key] = [];
-    // 既存行のname+catが一致するものは更新、なければ追加
-    for (const newRow of rows) {
-      const existing = S.estimates[key].find(r => r.name === newRow.name && r.cat === newRow.cat);
-      if (existing) {
-        existing.estimate = newRow.estimate;
-        existing.actual   = newRow.actual;
-      } else {
-        S.estimates[key].push(newRow);
-      }
-    }
+    S.estimates[key].push(...rows);
   }
-
-  // 製作物インポート（名前が一致すれば更新、なければ追加）
-  if (d.prodItems?.length) {
+  for (const [key, rows] of Object.entries(toAdd.estimatesFromSheet||{})) {
+    if (!S.estimates) S.estimates = {};
+    if (!S.estimates[key]) S.estimates[key] = [];
+    S.estimates[key].push(...rows);
+  }
+  if (toAdd.prodItems.length) {
     if (!S.prodItems) S.prodItems = [];
-    for (const newItem of d.prodItems) {
-      const existing = S.prodItems.find(p => p.name === newItem.name && p.cat === newItem.cat);
-      if (existing) {
-        // 実績のみ更新（予算・見積は上書きしない）
-        existing.actual  = newItem.actual;
-        existing.price   = newItem.price;
-        existing.qty     = newItem.qty;
-        existing.unit    = newItem.unit;
-        existing.content = newItem.content;
-        if (newItem.actual > 0) existing.status = '済';
-      } else {
-        S.prodItems.push(newItem);
-      }
-    }
+    S.prodItems.push(...toAdd.prodItems);
   }
 
   save();
   closeOv('ov-xl-import');
   renderPg(_curPg || 'ov');
-
-  const total = Object.values(d.sessions).reduce((t,a)=>t+a.length,0)
-              + Object.values(d.estimates).reduce((t,a)=>t+a.length,0)
-              + (d.prodItems?.length || 0);
-  alert(`✅ インポート完了\n\n${total}件のデータを読み込みました`);
+  alert(`✅ インポート完了\n\n${newCount}件の新規データを追加しました。`);
 }
 
 </script>
