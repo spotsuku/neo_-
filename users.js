@@ -107,7 +107,11 @@ async function approvePendingSignup(email, name, pendingId) {
   }
 
   // メール確認を即座に完了（RPC関数でauth.usersを更新）
-  await _sb.rpc('admin_confirm_user', { target_email: email });
+  const {error: confirmErr} = await _sb.rpc('admin_confirm_user', { target_email: email });
+  if (confirmErr) {
+    console.error('メール確認エラー:', confirmErr);
+    alert('⚠️ メール確認の自動完了に失敗しました。\nエラー: ' + confirmErr.message + '\n\nSupabase SQL Editorで以下を実行してください:\nUPDATE auth.users SET email_confirmed_at = now() WHERE email = \'' + email + '\';');
+  }
 
   // profilesに登録
   const {error: profErr} = await _sb.from('profiles').upsert({
@@ -208,7 +212,11 @@ async function doInviteUser() {
     }
 
     // メール確認を即座に完了（RPC関数でauth.usersを更新）
-    await _sb.rpc('admin_confirm_user', { target_email: email });
+    const {error: confirmErr} = await _sb.rpc('admin_confirm_user', { target_email: email });
+    if (confirmErr) {
+      console.error('メール確認エラー:', confirmErr);
+      alert('⚠️ メール確認の自動完了に失敗しました。\nエラー: ' + confirmErr.message + '\n\nSupabase SQL Editorで以下を実行してください:\nUPDATE auth.users SET email_confirmed_at = now() WHERE email = \'' + email + '\';');
+    }
 
     // profilesに登録
     if (data.user) {

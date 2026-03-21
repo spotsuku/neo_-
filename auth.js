@@ -83,14 +83,21 @@ async function doLogin() {
   if (error) {
     // 422エラーの詳細な日本語メッセージ
     let msg = 'ログインに失敗しました。';
-    if (error.message?.includes('Invalid login credentials')) {
+    const em = error.message || '';
+    if (em.includes('Invalid login credentials')) {
       msg = 'メールアドレスまたはパスワードが正しくありません。';
-    } else if (error.message?.includes('Email not confirmed')) {
-      msg = 'メールアドレスが未確認です。管理者にお問い合わせください。';
-    } else if (error.status === 422 || error.message?.includes('422')) {
-      msg = '認証エラーが発生しました。ページを再読み込みしてお試しください。';
+    } else if (em.includes('Email not confirmed')) {
+      msg = 'メールアドレスが未確認です。管理者にお問い合わせください。\n（管理者向け: Supabase SQL Editorで UPDATE auth.users SET email_confirmed_at=now() WHERE email=\'' + email + '\'; を実行してください）';
+    } else if (error.status === 422 || em.includes('422')) {
+      // 422は通常メール未確認またはセッション破損
+      msg = '認証エラー（422）が発生しました。\n考えられる原因:\n・メールアドレスが未確認（管理者に確認してください）\n・セッション破損（ページを再読み込みしてください）';
+      // セッションデータが残っている場合はクリアを試行
+      try {
+        const storageKey = 'sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token';
+        localStorage.removeItem(storageKey);
+      } catch(_) {}
     } else {
-      msg += ' ' + error.message;
+      msg += ' ' + em;
     }
     showLoginError(msg);
     return;
