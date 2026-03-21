@@ -84,7 +84,9 @@ async function doLogin() {
     // 422エラーの詳細な日本語メッセージ
     let msg = 'ログインに失敗しました。';
     const em = error.message || '';
-    if (em.includes('Invalid login credentials')) {
+    if (error.status === 429) {
+      msg = 'リクエスト回数の制限に達しました。1分ほど待ってから再試行してください。';
+    } else if (em.includes('Invalid login credentials')) {
       msg = 'メールアドレスまたはパスワードが正しくありません。';
     } else if (em.includes('Email not confirmed')) {
       msg = 'メールアドレスが未確認です。管理者にお問い合わせください。\n（管理者向け: Supabase SQL Editorで UPDATE auth.users SET email_confirmed_at=now() WHERE email=\'' + email + '\'; を実行してください）';
