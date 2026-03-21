@@ -23,7 +23,8 @@ async function initConfig() {
   }
 }
 
-const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// クライアントは initAuth() 内で initConfig() 完了後に生成
+let _sb = null;
 
 // ── 現在のログインユーザー ──
 let _currentUser  = null;   // supabase Userオブジェクト
@@ -71,16 +72,70 @@ function showLoginError(msg) {
 }
 
 // ── ログイン ──
+let _loginInProgress = false;
 async function doLogin() {
+  // 重複呼び出しを防止（ボタン連打対策）
+  if (_loginInProgress) return;
   const email = document.getElementById('login-email').value.trim();
   const pass  = document.getElementById('login-pass').value;
   if (!email || !pass) { showLoginError('メールアドレスとパスワードを入力してください'); return; }
+  _loginInProgress = true;
   const btn = document.getElementById('login-submit-btn');
   btn.textContent = 'ログイン中...'; btn.disabled = true;
   const {data, error} = await _sb.auth.signInWithPassword({email, password: pass});
   btn.textContent = 'ログイン'; btn.disabled = false;
-  if (error) { showLoginError('ログインに失敗しました: ' + error.message); return; }
+  _loginInProgress = false;
+  if (error) {
+    // 422エラーの詳細な日本語メッセージ
+    let msg = 'ログインに失敗しました。';
+    const em = error.message || '';
+    if (error.status === 429) {
+      msg = 'リクエスト回数の制限に達しました。1分ほど待ってから再試行してください。';
+    } else if (em.includes('Invalid login credentials')) {
+      msg = 'メールアドレスまたはパスワードが正しくありません。';
+    } else if (em.includes('Email not confirmed')) {
+      msg = 'メールアドレスが未確認です。管理者にお問い合わせください。\n（管理者向け: Supabase SQL Editorで UPDATE auth.users SET email_confirmed_at=now() WHERE email=\'' + email + '\'; を実行してください）';
+    } else if (error.status === 422 || em.includes('422')) {
+      // 422は通常メール未確認またはセッション破損
+      // セッションデータが残っている場合はクリアを試行
+      try {
+        const storageKey = 'sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token';
+        localStorage.removeItem(storageKey);
+      } catch(_) {}
+      // メール未確認の可能性を判定（422 + credentials系エラー）
+      if (em.includes('confirm') || em.includes('verify') || em.includes('not confirmed')) {
+        msg = 'メールアドレスが未確認のため認証できません。管理者にメール確認を依頼してください。';
+      } else {
+        // セッション破損の可能性 → 自動復旧を試みる
+        msg = 'セッションに問題がありました。キャッシュをクリアしました。もう一度ログインしてください。';
+        try { await _sb.auth.signOut(); } catch(_) {}
+      }
+    } else {
+      msg += ' ' + em;
+    }
+    showLoginError(msg);
+    return;
+  }
+  // ログイン成功 → 手動でトークンリフレッシュタイマーを起動
+  startTokenRefresh();
   await onLogin(data.user);
+}
+
+// ── トークン自動リフレッシュ（手動管理） ──
+let _refreshTimer = null;
+function startTokenRefresh() {
+  if (_refreshTimer) clearInterval(_refreshTimer);
+  // 10分ごとにトークンをリフレッシュ（Supabase JWTのデフォルト有効期限は1時間）
+  _refreshTimer = setInterval(async () => {
+    try {
+      const {error} = await _sb.auth.refreshSession();
+      if (error) {
+        console.warn('[tokenRefresh] リフレッシュ失敗:', error.message);
+        clearInterval(_refreshTimer);
+        _refreshTimer = null;
+      }
+    } catch(_) {}
+  }, 10 * 60 * 1000);
 }
 
 // ── サインアップ（登録申請） ──
@@ -113,6 +168,7 @@ async function doSignup() {
 
 // ── ログアウト ──
 async function doLogout() {
+  if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
   await _sb.auth.signOut();
   _currentUser = null; _currentRole = null; _currentName = '';
   document.getElementById('login-screen').style.display = 'flex';
@@ -163,6 +219,9 @@ async function onLogin(user) {
 // ── セッション初期化 & 監視 ──
 function initAuth() {
   (async () => {
+    // /api/config から設定を取得（Vercel環境のみ）
+    await initConfig();
+
     // 設定未完了チェック
     if (SUPABASE_URL === '__PLACEHOLDER__') {
       document.getElementById('login-screen').innerHTML = `
@@ -177,14 +236,66 @@ const SUPABASE_ANON_KEY = 'eyJ...';</pre>
         </div>`;
       return;
     }
-    // 既存セッション確認
-    const {data:{session}} = await _sb.auth.getSession();
-    if (session?.user) {
-      await onLogin(session.user);
-    } else {
+
+    // 期限切れセッションの自動リフレッシュによる422エラーを防止
+    // Supabaseクライアント生成前に、staleなトークンをクリアする
+    const storageKey = 'sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token';
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const stored = JSON.parse(raw);
+        // expires_at はトップレベルまたは currentSession 内にある場合がある
+        const exp = stored?.expires_at || stored?.currentSession?.expires_at;
+        const now = Math.floor(Date.now() / 1000);
+        // 期限切れ、またはリフレッシュトークンが存在しない場合はクリア
+        if ((exp && exp < now) || (!stored?.refresh_token && !stored?.currentSession?.refresh_token)) {
+          console.log('[initAuth] 無効なセッションをクリア');
+          localStorage.removeItem(storageKey);
+        }
+      }
+    } catch(_) {
+      // パース失敗時はセッションデータが破損しているためクリア
+      localStorage.removeItem(storageKey);
+    }
+
+    // Supabaseクライアントを設定取得後に生成
+    // autoRefreshTokenを無効化し、セッション復元を手動で制御（422ループ防止）
+    _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: true,
+      }
+    });
+
+    // 既存セッション確認（期限切れセッションのエラーをハンドリング）
+    try {
+      const {data:{session}, error: sessErr} = await _sb.auth.getSession();
+      if (sessErr) {
+        console.warn('[initAuth] セッション取得エラー（期限切れの可能性）:', sessErr.message);
+        // 422エラー時はlocalStorageのセッションも確実にクリア
+        localStorage.removeItem(storageKey);
+        try { await _sb.auth.signOut(); } catch(_) {}
+        document.getElementById('login-screen').style.display = 'flex';
+        slbl().textContent = '未ログイン';
+        // セッション復旧済みの通知を表示
+        showLoginError('セッションの有効期限が切れました。再度ログインしてください。');
+      } else if (session?.user) {
+        startTokenRefresh();
+        await onLogin(session.user);
+      } else {
+        document.getElementById('login-screen').style.display = 'flex';
+        slbl().textContent = '未ログイン';
+      }
+    } catch(e) {
+      console.warn('[initAuth] セッション復元に失敗:', e.message);
+      // セッションデータを確実にクリアして422ループを防止
+      localStorage.removeItem(storageKey);
+      try { await _sb.auth.signOut(); } catch(_) { /* signOut失敗は無視 */ }
       document.getElementById('login-screen').style.display = 'flex';
       slbl().textContent = '未ログイン';
+      showLoginError('セッションの復元に失敗しました。再度ログインしてください。');
     }
+
     // セッション変化を監視
     _sb.auth.onAuthStateChange(async (event, session) => {
       if (window._suppressAuthEvent) return;

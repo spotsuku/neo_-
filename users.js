@@ -2,6 +2,22 @@
 // users.js — ユーザー管理（管理者向け：承認・招待・削除・ロール変更・ログイン履歴）
 // ══════════════════════════════════════════════════
 
+// ── auth.signUp を429レート制限対応でリトライ ──
+async function signUpWithRetry(sb, email, password, options, maxRetries = 3) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const {data, error} = await sb.auth.signUp({email, password, options});
+    if (!error) return {data, error: null};
+    // 429: レート制限 → 待機してリトライ
+    if (error.status === 429 && attempt < maxRetries) {
+      const wait = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
+      console.warn(`[signUp] 429レート制限、${wait/1000}秒後にリトライ (${attempt+1}/${maxRetries})`);
+      await new Promise(r => setTimeout(r, wait));
+      continue;
+    }
+    return {data, error};
+  }
+}
+
 // ── ユーザー一覧表示（管理者専用） ──
 async function renderUsers() {
   if (!isAdmin()) {
@@ -75,10 +91,9 @@ async function approvePendingSignup(email, name, pendingId) {
   const {data: {session: adminSession}} = await _sb.auth.getSession();
   window._suppressAuthEvent = true;
 
-  const {data: signUpData, error: signUpErr} = await _sb.auth.signUp({
-    email, password: pass,
-    options: { data: { display_name: name } }
-  });
+  const {data: signUpData, error: signUpErr} = await signUpWithRetry(
+    _sb, email, pass, { data: { display_name: name } }
+  );
 
   // 管理者セッションを即座に復元
   if (adminSession) {
@@ -90,7 +105,10 @@ async function approvePendingSignup(email, name, pendingId) {
   window._suppressAuthEvent = false;
 
   if (signUpErr) {
-    alert('作成失敗: ' + signUpErr.message + '\n\nしばらく待ってから再試行してください。');
+    const msg = signUpErr.status === 429
+      ? '作成失敗: リクエスト回数の制限に達しました。\n1分ほど待ってから再試行してください。'
+      : '作成失敗: ' + signUpErr.message;
+    alert(msg);
     return;
   }
 
@@ -107,7 +125,11 @@ async function approvePendingSignup(email, name, pendingId) {
   }
 
   // メール確認を即座に完了（RPC関数でauth.usersを更新）
-  await _sb.rpc('admin_confirm_user', { target_email: email });
+  const {error: confirmErr} = await _sb.rpc('admin_confirm_user', { target_email: email });
+  if (confirmErr) {
+    console.error('メール確認エラー:', confirmErr);
+    alert('⚠️ メール確認の自動完了に失敗しました。\nエラー: ' + confirmErr.message + '\n\nSupabase SQL Editorで以下を実行してください:\nUPDATE auth.users SET email_confirmed_at = now() WHERE email = \'' + email + '\';');
+  }
 
   // profilesに登録
   const {error: profErr} = await _sb.from('profiles').upsert({
@@ -188,10 +210,9 @@ async function doInviteUser() {
     const {data: {session: adminSession}} = await _sb.auth.getSession();
     window._suppressAuthEvent = true;
 
-    const {data, error} = await _sb.auth.signUp({
-      email, password: pass,
-      options: { data: { display_name: name } }
-    });
+    const {data, error} = await signUpWithRetry(
+      _sb, email, pass, { data: { display_name: name } }
+    );
 
     // 管理者セッションを即座に復元
     if (adminSession) {
@@ -203,12 +224,19 @@ async function doInviteUser() {
     window._suppressAuthEvent = false;
 
     if (error) {
-      alert('作成失敗: ' + error.message);
+      const msg = error.status === 429
+        ? '作成失敗: リクエスト回数の制限に達しました。\n1分ほど待ってから再試行してください。'
+        : '作成失敗: ' + error.message;
+      alert(msg);
       return;
     }
 
     // メール確認を即座に完了（RPC関数でauth.usersを更新）
-    await _sb.rpc('admin_confirm_user', { target_email: email });
+    const {error: confirmErr} = await _sb.rpc('admin_confirm_user', { target_email: email });
+    if (confirmErr) {
+      console.error('メール確認エラー:', confirmErr);
+      alert('⚠️ メール確認の自動完了に失敗しました。\nエラー: ' + confirmErr.message + '\n\nSupabase SQL Editorで以下を実行してください:\nUPDATE auth.users SET email_confirmed_at = now() WHERE email = \'' + email + '\';');
+    }
 
     // profilesに登録
     if (data.user) {
