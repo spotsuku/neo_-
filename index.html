@@ -1557,6 +1557,7 @@ async function handleXlFile(file) {
       { names: ['キックオフ'], key: 'ko' },
       { names: ['アワード'],   key: 'aw' },
       { names: ['イヤーエンド'], key: 'ye' },
+      { names: ['ツアー'],     key: 'tour' },
     ];
     for (const { names, key } of EVT_SHEETS) {
       const sn = wb.SheetNames.find(s => names.some(n => s.includes(n)));
@@ -1657,6 +1658,7 @@ function parseXlSchedule(rows) {
 }
 
 function parseXlEventSheet(rows) {
+  // セクション → 会計科目のデフォルトマッピング
   const SECTION_TO_CAT = {
     '会場関連':      '① 会場・施設費',
     'ケータリング':   '② 飲食・ケータリング費',
@@ -1669,34 +1671,19 @@ function parseXlEventSheet(rows) {
     'その他':         '⑩ その他',
   };
 
-  // 品目名での上書きマッピング（セクション分類より品目名を優先）
-  const ITEM_OVERRIDE = {
-    'ケータリング': '② 飲食・ケータリング費',
-    'ドリンク':     '② 飲食・ケータリング費',
-    '飲食':         '② 飲食・ケータリング費',
-    '懇親会':       '② 飲食・ケータリング費',
-    'カメラマン':   '④ 制作・演出費',
-    '撮影':         '④ 制作・演出費',
-    '映像':         '④ 制作・演出費',
-    '印刷':         '④ 制作・演出費',
-    'パネル':       '④ 制作・演出費',
-    'バナー':       '④ 制作・演出費',
-    '備品':         '⑥ 備品・設営費',
-    'チェアー':     '⑥ 備品・設営費',
-    'レシーバー':   '⑥ 備品・設営費',
-    '機材':         '⑥ 備品・設営費',
-  };
-
   const safeN = v => (v == null || v === '' || isNaN(Number(v))) ? 0 : Math.round(Number(v));
   const safeS = v => (v == null || String(v).trim() === '' || String(v) === 'null') ? '' : String(v).replace(/　/g,'').trim();
 
-  let currentCat = '⑩ その他';
-  const catTotals = {};
+  let currentCat = '';
+  let uidN = 0;
+  const mkId = () => `xl_evt_${++uidN}_${Date.now().toString(36)}`;
+  const items = [];
 
   for (const row of rows) {
     const cell0 = safeS(row[0]);
     if (!cell0) continue;
 
+    // セクション行（■）→ currentCatを更新
     if (cell0.startsWith('■')) {
       const sec = cell0.replace('■','').trim();
       currentCat = '⑩ その他';
@@ -1713,24 +1700,20 @@ function parseXlEventSheet(rows) {
     const act  = safeN(row[7]);
     if (!est && !act) continue;
 
-    // 品目名でカテゴリを上書き判定
-    let finalCat = currentCat;
-    for (const [keyword, overrideCat] of Object.entries(ITEM_OVERRIDE)) {
-      if (name.includes(keyword)) { finalCat = overrideCat; break; }
-    }
+    // カテゴリはdetectCat（品目名のキーワード判定）を優先、
+    // 判定できない場合はセクション由来のcurrentCatを使う
+    const detectedCat = (typeof detectCat === 'function') ? detectCat(name) : '';
+    const finalCat = (detectedCat && detectedCat !== '⑩ その他')
+      ? detectedCat
+      : (currentCat || '⑩ その他');
 
-    if (!catTotals[finalCat]) catTotals[finalCat] = { estimate: 0, actual: 0 };
-    catTotals[finalCat].estimate += est;
-    catTotals[finalCat].actual   += act;
+    items.push({
+      id: mkId(), name, cat: finalCat, budget: 0,
+      estimate: est, actual: act, payMonth: '',
+    });
   }
 
-  // estimate行として返す
-  let uidN = 0;
-  const mkId = () => `xl_evt_${++uidN}_${Date.now().toString(36)}`;
-  return Object.entries(catTotals).map(([cat, v]) => ({
-    id: mkId(), name: '個別シートより', cat, budget: 0,
-    estimate: v.estimate, actual: v.actual, payMonth: '',
-  }));
+  return items;
 }
 
 function parseXlProdItems(rows) {
@@ -1815,7 +1798,7 @@ function showXlPreview(data) {
   if (data.estimatesFromSheet) {
     const evtLabels = {ko:'キックオフ', aw:'アワード', ye:'イヤーエンド'};
     for (const [key, rows] of Object.entries(data.estimatesFromSheet)) {
-      if (rows.length) lines.push(`<div style="margin-bottom:6px"><span style="font-size:10px;font-weight:700;color:var(--acc)">📋 ${evtLabels[key]||key}（個別シート）</span> <span style="font-size:11px;color:var(--t2)">${rows.length}科目の実績を反映</span></div>`);
+      if (rows.length) lines.push(`<div style="margin-bottom:6px"><span style="font-size:10px;font-weight:700;color:var(--acc)">📋 ${evtLabels[key]||key}（個別シート）</span> <span style="font-size:11px;color:var(--t2)">${rows.length}明細行を追加</span></div>`);
     }
   }
   if (data.prodItems?.length) {
@@ -1896,7 +1879,7 @@ function executeXlImport() {
     for (const [key, rows] of Object.entries(d.estimatesFromSheet)) {
       const existing = S.estimates?.[key] || [];
       toAdd.estimatesFromSheet[key] = rows.filter(r =>
-        !existing.some(e => e.cat === r.cat)
+        !existing.some(e => e.name === r.name && e.cat === r.cat)
       );
     }
   }
