@@ -815,8 +815,8 @@ function initAuth() {
     // 422 を引き起こすケースを回避）
     _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
-        autoRefreshToken: false,
-        persistSession:   true,
+        autoRefreshToken:   false,
+        persistSession:     false,   // セッションをlocalStorageに保存しない
         detectSessionInUrl: false,
       },
     });
@@ -842,10 +842,11 @@ function initAuth() {
     }
 
     if (session?.user) {
-      // セッションが残っている → そのままログイン処理
+      // セッションあり → そのままログイン（refreshSession は呼ばない）
       startTokenRefresh();
       await onLogin(session.user);
     } else {
+      // セッションなし → ログイン画面
       showLoginScreen();
       slbl().textContent = '未ログイン';
     }
