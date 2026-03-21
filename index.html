@@ -1667,6 +1667,24 @@ function parseXlEventSheet(rows) {
     'その他':         '⑩ その他',
   };
 
+  // 品目名での上書きマッピング（セクション分類より品目名を優先）
+  const ITEM_OVERRIDE = {
+    'ケータリング': '② 飲食・ケータリング費',
+    'ドリンク':     '② 飲食・ケータリング費',
+    '飲食':         '② 飲食・ケータリング費',
+    '懇親会':       '② 飲食・ケータリング費',
+    'カメラマン':   '④ 制作・演出費',
+    '撮影':         '④ 制作・演出費',
+    '映像':         '④ 制作・演出費',
+    '印刷':         '④ 制作・演出費',
+    'パネル':       '④ 制作・演出費',
+    'バナー':       '④ 制作・演出費',
+    '備品':         '⑥ 備品・設営費',
+    'チェアー':     '⑥ 備品・設営費',
+    'レシーバー':   '⑥ 備品・設営費',
+    '機材':         '⑥ 備品・設営費',
+  };
+
   const safeN = v => (v == null || v === '' || isNaN(Number(v))) ? 0 : Math.round(Number(v));
   const safeS = v => (v == null || String(v).trim() === '' || String(v) === 'null') ? '' : String(v).replace(/　/g,'').trim();
 
@@ -1693,9 +1711,15 @@ function parseXlEventSheet(rows) {
     const act  = safeN(row[7]);
     if (!est && !act) continue;
 
-    if (!catTotals[currentCat]) catTotals[currentCat] = { estimate: 0, actual: 0 };
-    catTotals[currentCat].estimate += est;
-    catTotals[currentCat].actual   += act;
+    // 品目名でカテゴリを上書き判定
+    let finalCat = currentCat;
+    for (const [keyword, overrideCat] of Object.entries(ITEM_OVERRIDE)) {
+      if (name.includes(keyword)) { finalCat = overrideCat; break; }
+    }
+
+    if (!catTotals[finalCat]) catTotals[finalCat] = { estimate: 0, actual: 0 };
+    catTotals[finalCat].estimate += est;
+    catTotals[finalCat].actual   += act;
   }
 
   // estimate行として返す
@@ -1857,8 +1881,14 @@ function executeXlImport() {
     }
   }
 
-  // イベント見積：name+catが既存にない行のみ追加
+  // イベント見積：個別シートがある場合はそちらを優先（年間スケジュール由来は除外）
+  const sheetKeys = new Set(Object.keys(d.estimatesFromSheet || {}));
   for (const [key, rows] of Object.entries(d.estimates)) {
+    if (sheetKeys.has(key)) {
+      // 個別シートがあるキーは年間スケジュール由来を使わない
+      toAdd.estimates[key] = [];
+      continue;
+    }
     const existing = S.estimates?.[key] || [];
     toAdd.estimates[key] = rows.filter(r =>
       !existing.some(e => e.name === r.name && e.cat === r.cat)
