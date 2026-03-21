@@ -23,7 +23,8 @@ async function initConfig() {
   }
 }
 
-const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// クライアントは initAuth() 内で initConfig() 完了後に生成
+let _sb = null;
 
 // ── 現在のログインユーザー ──
 let _currentUser  = null;   // supabase Userオブジェクト
@@ -163,6 +164,9 @@ async function onLogin(user) {
 // ── セッション初期化 & 監視 ──
 function initAuth() {
   (async () => {
+    // /api/config から設定を取得（Vercel環境のみ）
+    await initConfig();
+
     // 設定未完了チェック
     if (SUPABASE_URL === '__PLACEHOLDER__') {
       document.getElementById('login-screen').innerHTML = `
@@ -177,14 +181,31 @@ const SUPABASE_ANON_KEY = 'eyJ...';</pre>
         </div>`;
       return;
     }
-    // 既存セッション確認
-    const {data:{session}} = await _sb.auth.getSession();
-    if (session?.user) {
-      await onLogin(session.user);
-    } else {
+
+    // Supabaseクライアントを設定取得後に生成
+    _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // 既存セッション確認（期限切れセッションのエラーをハンドリング）
+    try {
+      const {data:{session}, error: sessErr} = await _sb.auth.getSession();
+      if (sessErr) {
+        console.warn('[initAuth] セッション取得エラー（期限切れの可能性）:', sessErr.message);
+        await _sb.auth.signOut();
+        document.getElementById('login-screen').style.display = 'flex';
+        slbl().textContent = '未ログイン';
+      } else if (session?.user) {
+        await onLogin(session.user);
+      } else {
+        document.getElementById('login-screen').style.display = 'flex';
+        slbl().textContent = '未ログイン';
+      }
+    } catch(e) {
+      console.warn('[initAuth] セッション復元に失敗:', e.message);
+      await _sb.auth.signOut();
       document.getElementById('login-screen').style.display = 'flex';
       slbl().textContent = '未ログイン';
     }
+
     // セッション変化を監視
     _sb.auth.onAuthStateChange(async (event, session) => {
       if (window._suppressAuthEvent) return;
