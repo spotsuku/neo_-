@@ -182,6 +182,21 @@ const SUPABASE_ANON_KEY = 'eyJ...';</pre>
       return;
     }
 
+    // 期限切れセッションの自動リフレッシュによる422エラーを防止
+    // Supabaseクライアント生成前に、staleなトークンをクリアする
+    const storageKey = 'sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token';
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const stored = JSON.parse(raw);
+        const exp = stored?.expires_at;  // UNIXタイムスタンプ（秒）
+        if (exp && exp < Math.floor(Date.now() / 1000)) {
+          console.log('[initAuth] 期限切れセッションをクリア');
+          localStorage.removeItem(storageKey);
+        }
+      }
+    } catch(_) { /* パース失敗時は無視 */ }
+
     // Supabaseクライアントを設定取得後に生成
     _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
