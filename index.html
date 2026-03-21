@@ -536,7 +536,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 <div class="ov" id="ov-evt"><div class="panel wide"><div class="ph"><h2 id="evt-title">費目別明細を編集</h2><button class="xbtn" onclick="closeOv('ov-evt')">×</button></div><div class="pb-body"><div class="item-hdr"><span></span><span>費目名</span><span style="text-align:right">予算</span><span style="text-align:right">見積</span><span style="text-align:right">実数</span><span></span></div><div id="evt-items"></div><button class="add-btn admin-only" onclick="addEvtItem()">＋ 費目を追加</button></div><div class="pf"><button class="btn btn-g" onclick="closeOv('ov-evt')">キャンセル</button><button class="btn btn-p" onclick="saveEvt()">保存</button></div></div></div>
 <div class="ov" id="ov-rev-edit"><div class="panel"><div class="ph"><h2>収入を編集</h2><button class="xbtn" onclick="closeOv('ov-rev-edit')">×</button></div><div class="pb-body"><div style="display:grid;grid-template-columns:20px 1fr 120px 90px 110px 26px;gap:5px;padding:0 2px;margin-bottom:4px"><span></span><span style="font-size:8px;font-weight:700;color:var(--t3)">項目名</span><span style="font-size:8px;font-weight:700;color:var(--t3)">プログラム</span><span style="font-size:8px;font-weight:700;color:var(--t3)">種別</span><span style="font-size:8px;font-weight:700;color:var(--t3);text-align:right">金額</span><span></span></div><div id="rev-items"></div><button class="add-btn admin-only" onclick="addRevItem()">＋ 収入項目を追加</button></div><div class="pf"><button class="btn btn-g" onclick="closeOv('ov-rev-edit')">キャンセル</button><button class="btn btn-p" onclick="saveRev()">保存</button></div></div></div>
 <div class="ov" id="ov-defaults"><div class="panel wide"><div class="ph"><h2>⚙️ デフォルト費目設定</h2><button class="xbtn" onclick="closeOv('ov-defaults')">×</button></div><div class="pb-body"><p style="font-size:11px;color:var(--t2);margin-bottom:14px">各シリーズで「＋ 追加」したとき、この費目と予算が自動で入力されます。</p><div class="tabs" id="defaults-tabs" style="flex-wrap:wrap;gap:4px"><button class="tab on" onclick="switchDefaultsTab('hm',this)">🏫 ホームルーム</button><button class="tab" onclick="switchDefaultsTab('gk',this)">🏛 評議会</button><button class="tab" onclick="switchDefaultsTab('oe',this)">📣 応援カイギ</button><button class="tab" onclick="switchDefaultsTab('ko',this)">🚀 キックオフ</button><button class="tab" onclick="switchDefaultsTab('aw',this)">🏆 アワード</button><button class="tab" onclick="switchDefaultsTab('ye',this)">🎉 イヤーエンド</button><button class="tab" onclick="switchDefaultsTab('tour',this)">✈️ ツアー</button></div><div id="defaults-apply-row" style="display:none;margin-bottom:10px"><button class="btn btn-sm" onclick="applyDefaultsToEvent()" style="background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.3);color:var(--blue);font-size:10px">📋 デフォルトをイベント費目に適用</button></div><div id="defaults-content"><div style="display:grid;grid-template-columns:20px 1fr 110px 26px;gap:5px;padding:0 4px;margin-bottom:4px"><span></span><span style="font-size:10px;font-weight:700;color:var(--t3)">会計科目</span><span style="font-size:10px;font-weight:700;color:var(--t3);text-align:right">デフォルト予算</span><span></span></div><div id="defaults-items"></div><button class="add-btn" onclick="addDefaultItem()">＋ 費目を追加</button></div><div style="margin-top:14px;padding:10px 12px;background:var(--s2);border-radius:7px;border:1px solid var(--b1)"><div style="font-size:10px;color:var(--t2);margin-bottom:6px">💡 プレビュー</div><div id="defaults-preview" style="font-family:var(--mono);font-size:12px;color:var(--t1)"></div></div></div><div class="pf" style="justify-content:space-between"><button class="btn btn-red btn-sm" onclick="resetDefaults()" style="font-size:9px">リセット</button><div style="display:flex;gap:7px"><button class="btn btn-g" onclick="closeOv('ov-defaults')">キャンセル</button><button class="btn btn-p" onclick="saveDefaults()">保存する</button></div></div></div></div>
-<div class="ov" id="ov-cat-master"><div class="panel wide"><div class="ph"><h2>🗂 カテゴリ判定設定</h2><button class="xbtn" onclick="closeOv('ov-cat-master')">×</button></div><div class="pb-body"><p style="font-size:11px;color:var(--t2);margin-bottom:14px">費目名にこのキーワードが含まれると自動でカテゴリが判定されます。</p><div class="tabs" id="cat-tabs" style="flex-wrap:wrap;gap:4px"><button class="tab on" onclick="switchCatTab('① 会場・施設費',this)">① 会場・施設費</button><button class="tab" onclick="switchCatTab('② 飲食・ケータリング費',this)">② 飲食</button><button class="tab" onclick="switchCatTab('③ 出演・キャスティング費',this)">③ 出演</button><button class="tab" onclick="switchCatTab('④ 制作・演出費',this)">④ 制作</button><button class="tab" onclick="switchCatTab('⑤ 運営・人件費',this)">⑤ 運営</button><button class="tab" onclick="switchCatTab('⑥ 備品・設営費',this)">⑥ 備品</button><button class="tab" onclick="switchCatTab('⑦ マーケ・広報費',this)">⑦ マーケ</button><button class="tab" onclick="switchCatTab('⑨ その他',this)">⑨ その他</button><button class="tab" onclick="switchCatTab('⑧ デザイン費',this)">⑧ デザイン</button></div><div id="cat-master-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:120px;padding:10px 0"></div><div style="margin-top:12px;display:flex;gap:8px;align-items:center"><input class="fi" id="cat-new-keyword" placeholder="新しいキーワードを入力..." style="flex:1" onkeydown="if(event.key==='Enter')addCatKeyword()"><button class="btn btn-p btn-sm" onclick="addCatKeyword()">＋ 追加</button></div><div style="margin-top:14px;padding:10px 12px;background:var(--s2);border-radius:8px;border:1px solid var(--b1)"><div style="font-size:10px;color:var(--t2)">💡 テスト</div><div style="display:flex;gap:8px;margin-top:8px;align-items:center"><input class="fi" id="cat-test-input" placeholder="例: カメラマン" style="flex:1" oninput="testCatDetect()"><div id="cat-test-result" style="font-size:12px;font-weight:700;min-width:140px;text-align:center;padding:6px 10px;border-radius:6px;background:var(--s3)">判定結果</div></div></div></div><div class="pf" style="justify-content:space-between"><button class="btn btn-red btn-sm" onclick="resetCatMaster()">初期値に戻す</button><div style="display:flex;gap:7px"><button class="btn btn-g" onclick="closeOv('ov-cat-master')">キャンセル</button><button class="btn btn-p" onclick="saveCatMaster()">保存する</button></div></div></div></div>
+<div class="ov" id="ov-cat-master"><div class="panel wide"><div class="ph"><h2>🗂 カテゴリ判定設定</h2><button class="xbtn" onclick="closeOv('ov-cat-master')">×</button></div><div class="pb-body"><p style="font-size:11px;color:var(--t2);margin-bottom:14px">費目名にこのキーワードが含まれると自動でカテゴリが判定されます。</p><div class="tabs" id="cat-tabs" style="flex-wrap:wrap;gap:4px"><button class="tab on" onclick="switchCatTab('① 会場・施設費',this)">① 会場・施設費</button><button class="tab" onclick="switchCatTab('② 飲食・ケータリング費',this)">② 飲食</button><button class="tab" onclick="switchCatTab('③ 出演・キャスティング費',this)">③ 出演</button><button class="tab" onclick="switchCatTab('④ 制作・演出費',this)">④ 制作</button><button class="tab" onclick="switchCatTab('⑤ 運営・人件費',this)">⑤ 運営</button><button class="tab" onclick="switchCatTab('⑥ 備品・設営費',this)">⑥ 備品</button><button class="tab" onclick="switchCatTab('⑦ マーケ・広報費',this)">⑦ マーケ</button><button class="tab" onclick="switchCatTab('⑨ 旅費交通費',this)">⑨ 旅費<br>交通費</button><button class="tab" onclick="switchCatTab('⑩ その他',this)">⑩ その他</button><button class="tab" onclick="switchCatTab('⑧ デザイン費',this)">⑧ デザイン</button></div><div id="cat-master-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:120px;padding:10px 0"></div><div style="margin-top:12px;display:flex;gap:8px;align-items:center"><input class="fi" id="cat-new-keyword" placeholder="新しいキーワードを入力..." style="flex:1" onkeydown="if(event.key==='Enter')addCatKeyword()"><button class="btn btn-p btn-sm" onclick="addCatKeyword()">＋ 追加</button></div><div style="margin-top:14px;padding:10px 12px;background:var(--s2);border-radius:8px;border:1px solid var(--b1)"><div style="font-size:10px;color:var(--t2)">💡 テスト</div><div style="display:flex;gap:8px;margin-top:8px;align-items:center"><input class="fi" id="cat-test-input" placeholder="例: カメラマン" style="flex:1" oninput="testCatDetect()"><div id="cat-test-result" style="font-size:12px;font-weight:700;min-width:140px;text-align:center;padding:6px 10px;border-radius:6px;background:var(--s3)">判定結果</div></div></div></div><div class="pf" style="justify-content:space-between"><button class="btn btn-red btn-sm" onclick="resetCatMaster()">初期値に戻す</button><div style="display:flex;gap:7px"><button class="btn btn-g" onclick="closeOv('ov-cat-master')">キャンセル</button><button class="btn btn-p" onclick="saveCatMaster()">保存する</button></div></div></div></div>
 <div class="ov" id="ov-fiscal-year"><div class="panel" style="width:520px"><div class="ph"><h2>📅 年度管理</h2><button class="xbtn" onclick="closeOv('ov-fiscal-year')">×</button></div><div class="pb-body"><p style="font-size:11px;color:var(--t2);margin-bottom:16px">年度ごとにデータを分けて管理できます。</p><div style="font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">利用可能な年度</div><div id="fy-list" style="margin-bottom:20px"></div><div style="border-top:1px solid var(--b1);padding-top:16px" class="admin-only"><div style="font-size:10px;font-weight:700;color:var(--t3);margin-bottom:10px">新年度を作成</div><div style="display:flex;gap:8px;align-items:center"><input id="new-fy-input" type="number" class="fi" placeholder="例: 2026" style="width:120px" min="2024" max="2040" value="2026"><span style="font-size:11px;color:var(--t2)">年度（4月〜翌3月）</span><button class="btn btn-p btn-sm" onclick="createNewFiscalYear()">＋ 新年度作成</button></div></div></div><div class="pf"><button class="btn btn-g" onclick="closeOv('ov-fiscal-year')">閉じる</button></div></div></div>
 
 
@@ -1195,7 +1195,7 @@ function getFiscalYearLabel(fy){return`${fy}年度（${fy}/4〜${fy+1}/3）`;}
 function getFiscalYearDbId(fy){return fy-2024;}
 
 // ── データ定義 ──
-const DEF={programs:[{id:'annual',name:'年間共通',budget:0},{id:'ko',name:'キックオフ',budget:0},{id:'hm',name:'ホームルーム',budget:0},{id:'aw',name:'アワード',budget:0},{id:'cityfes',name:'シティフェス',budget:0},{id:'ye',name:'イヤーエンド',budget:0},{id:'gk',name:'評議会',budget:0},{id:'oe',name:'応援カイギ',budget:0},{id:'other',name:'その他',budget:0},{id:'marketing',name:'マーケ関連',budget:0}],revenues:[],events:{ko:{label:'キックオフ',items:[]},aw:{label:'アワード',items:[]},ye:{label:'イヤーエンド',items:[]},md:{label:'マッチデイ',items:[]},tour:{label:'ツアー',items:[]},sd:{label:'スペシャルデイズ',items:[]},cf3:{label:'イベント3',items:[]},cf4:{label:'イベント4',items:[]}},sessions:{hm:[],gk:[],oe:[]},categories:[{name:'① イベント費',budget:5478000,actual:2312226},{name:'② 制作・印刷費',budget:8200000,actual:2598763},{name:'③ 外部委託費',budget:3000000,actual:2025848},{name:'④ 広報費',budget:1300000,actual:0},{name:'⑨ その他',budget:5057700,actual:5052518}],months:['25/4','25/5','25/6','25/7','25/8','25/9','25/10','25/11','25/12','26/1','26/2','26/3'],monthlyTotal:[0,570540,2066928,474167,560867,2618041,490094,40000,150621,4633778,1398000,4854068]};
+const DEF={programs:[{id:'annual',name:'年間共通',budget:0},{id:'ko',name:'キックオフ',budget:0},{id:'hm',name:'ホームルーム',budget:0},{id:'aw',name:'アワード',budget:0},{id:'cityfes',name:'シティフェス',budget:0},{id:'ye',name:'イヤーエンド',budget:0},{id:'gk',name:'評議会',budget:0},{id:'oe',name:'応援カイギ',budget:0},{id:'tour',name:'ツアー',budget:0},{id:'other',name:'その他',budget:0},{id:'marketing',name:'マーケ関連',budget:0}],revenues:[],events:{ko:{label:'キックオフ',items:[]},aw:{label:'アワード',items:[]},ye:{label:'イヤーエンド',items:[]},md:{label:'マッチデイ',items:[]},tour:{label:'ツアー',items:[]},sd:{label:'スペシャルデイズ',items:[]},cf3:{label:'イベント3',items:[]},cf4:{label:'イベント4',items:[]}},sessions:{hm:[],gk:[],oe:[]},categories:[{name:'① イベント費',budget:5478000,actual:2312226},{name:'② 制作・印刷費',budget:8200000,actual:2598763},{name:'③ 外部委託費',budget:3000000,actual:2025848},{name:'④ 広報費',budget:1300000,actual:0},{name:'⑩ その他',budget:5057700,actual:5052518}],months:['25/4','25/5','25/6','25/7','25/8','25/9','25/10','25/11','25/12','26/1','26/2','26/3'],monthlyTotal:[0,570540,2066928,474167,560867,2618041,490094,40000,150621,4633778,1398000,4854068]};
 
 const SK=`neo_v5_${_currentFiscalYear}`;
 let S=loadS();
@@ -1214,6 +1214,11 @@ async function loadFromDB(){
       Object.keys(EVT_LABELS).forEach(k=>{if(!S.events[k])S.events[k]={label:EVT_LABELS[k],items:[]};});
       if(!S.categories)S.categories=DEF.categories;if(!S.months)S.months=DEF.months;if(!S.monthlyTotal)S.monthlyTotal=DEF.monthlyTotal;
       if(!S.ledger)S.ledger=[];if(!S.mktItems)S.mktItems=[];if(!S.prodItems)S.prodItems=[];if(!S.changelog)S.changelog=[];if(!S.defaults)S.defaults={};if(!S.orderMaster)S.orderMaster=[];if(!S.estimates)S.estimates={};if(!S.prodBudgets)S.prodBudgets={};
+    }
+    // tourがprogramsになければ追加
+    if(S.programs && !S.programs.find(p=>p.id==='tour')){
+      const otherIdx=S.programs.findIndex(p=>p.id==='other');
+      S.programs.splice(otherIdx>=0?otherIdx:S.programs.length,0,{id:'tour',name:'ツアー',budget:0});
     }
     localStorage.setItem(`neo_v5_${_currentFiscalYear}`,JSON.stringify(S));
     slbl().textContent='DB同期済み';sdot().className='sdot';
@@ -1273,16 +1278,16 @@ let _curPg='ov';
 function go(id,btn){if(id==='users'&&!isAdmin()){alert('管理者のみアクセスできます');return;}document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));const pg=document.getElementById('pg-'+id);if(pg)pg.classList.add('on');if(btn)btn.classList.add('on');document.getElementById('pgTitle').textContent=TITLES[id]||id;_curPg=id;if(id==='users'){renderUsers();return;}if(id==='history'){renderHistory();return;}renderPg(id);}
 
 // ── 会計科目マスタ ──
-const ACCOUNTING_CATS=['① 会場・施設費','② 飲食・ケータリング費','③ 出演・キャスティング費','④ 制作・演出費','⑤ 運営・人件費','⑥ 備品・設営費','⑦ マーケ・広報費','⑧ デザイン費','⑨ その他'];
-const CAT_COLORS={'① 会場・施設費':{fg:'0369a1',bg:'e0f2fe'},'② 飲食・ケータリング費':{fg:'b45309',bg:'fef3c7'},'③ 出演・キャスティング費':{fg:'7c3aed',bg:'ede9fe'},'④ 制作・演出費':{fg:'0f766e',bg:'ccfbf1'},'⑤ 運営・人件費':{fg:'1d4ed8',bg:'dbeafe'},'⑥ 備品・設営費':{fg:'9a3412',bg:'ffedd5'},'⑦ マーケ・広報費':{fg:'be185d',bg:'fce7f3'},'⑨ その他':{fg:'4b5563',bg:'f3f4f6'},'⑧ デザイン費':{fg:'be185d',bg:'fdf2f8'}};
-const CAT_MASTER={'会場費':'① 会場・施設費','会場':'① 会場・施設費','施設利用':'① 会場・施設費','施設費':'① 会場・施設費','前日対応':'① 会場・施設費','延長料金':'① 会場・施設費','夜間対応':'① 会場・施設費','時間外料金':'① 会場・施設費','時間外':'① 会場・施設費','アビスパ':'① 会場・施設費','スタジアム':'① 会場・施設費','ライジング':'① 会場・施設費','カンファレンス':'① 会場・施設費','チャレパ':'① 会場・施設費','CIC':'① 会場・施設費','ケータリング':'② 飲食・ケータリング費','ドリンク':'② 飲食・ケータリング費','懇親会':'② 飲食・ケータリング費','飲食':'② 飲食・ケータリング費','飲み物':'② 飲食・ケータリング費','弁当':'② 飲食・ケータリング費','食事':'② 飲食・ケータリング費','フード':'② 飲食・ケータリング費','サンドイッチ':'② 飲食・ケータリング費','SONES':'② 飲食・ケータリング費','Park South':'② 飲食・ケータリング費','控室':'② 飲食・ケータリング費','講師':'③ 出演・キャスティング費','演者':'③ 出演・キャスティング費','MC費':'③ 出演・キャスティング費','MC ':'③ 出演・キャスティング費','DJ':'③ 出演・キャスティング費','キャスティング':'③ 出演・キャスティング費','審査員':'③ 出演・キャスティング費','審査':'③ 出演・キャスティング費','賞金':'③ 出演・キャスティング費','出演':'③ 出演・キャスティング費','基調講演':'③ 出演・キャスティング費','特別講義':'③ 出演・キャスティング費','パネル':'④ 制作・演出費','ボード':'④ 制作・演出費','バナー':'④ 制作・演出費','フラッグ':'④ 制作・演出費','デザイン':'④ 制作・演出費','グラフィック':'④ 制作・演出費','印刷':'④ 制作・演出費','制作費':'④ 制作・演出費','映像':'④ 制作・演出費','動画':'④ 制作・演出費','ムービー':'④ 制作・演出費','撮影':'④ 制作・演出費','カメラマン':'④ 制作・演出費','WEB':'④ 制作・演出費','ウェブ':'④ 制作・演出費','トロフィー':'④ 制作・演出費','賞品':'④ 制作・演出費','パンフ':'④ 制作・演出費','チラシ':'④ 制作・演出費','ポスター':'④ 制作・演出費','アルバム':'④ 制作・演出費','グッズ':'④ 制作・演出費','マグカップ':'④ 制作・演出費','トートバッグ':'④ 制作・演出費','ステッカー':'④ 制作・演出費','クリアファイル':'④ 制作・演出費','バインダー':'④ 制作・演出費','花装飾':'④ 制作・演出費','照明':'④ 制作・演出費','演出':'④ 制作・演出費','フォトブース':'④ 制作・演出費','ターポリン':'④ 制作・演出費','ウェルカムボード':'④ 制作・演出費','ロールアップ':'④ 制作・演出費','バックパネル':'④ 制作・演出費','運営スタッフ':'⑤ 運営・人件費','運営D':'⑤ 運営・人件費','運営AD':'⑤ 運営・人件費','進行D':'⑤ 運営・人件費','進行AD':'⑤ 運営・人件費','受付スタッフ':'⑤ 運営・人件費','受付':'⑤ 運営・人件費','誘導':'⑤ 運営・人件費','人件費':'⑤ 運営・人件費','外部委託':'⑤ 運営・人件費','運営委託':'⑤ 運営・人件費','委託':'⑤ 運営・人件費','SAKAZUKI':'⑤ 運営・人件費','設営':'⑥ 備品・設営費','撤去':'⑥ 備品・設営費','設営撤去':'⑥ 備品・設営費','施工':'⑥ 備品・設営費','備品':'⑥ 備品・設営費','消耗品':'⑥ 備品・設営費','機材':'⑥ 備品・設営費','レンタル':'⑥ 備品・設営費','運搬':'⑥ 備品・設営費','養生':'⑥ 備品・設営費','テーブル':'⑥ 備品・設営費','チェア':'⑥ 備品・設営費','マイク':'⑥ 備品・設営費','スピーカー':'⑥ 備品・設営費','音響':'⑥ 備品・設営費','カーペット':'⑥ 備品・設営費','タープ':'⑥ 備品・設営費','テント':'⑥ 備品・設営費','広報':'⑦ マーケ・広報費','広告':'⑦ マーケ・広報費','SNS':'⑦ マーケ・広報費','PR':'⑦ マーケ・広報費','インフルエンサー':'⑦ マーケ・広報費','旅費':'⑦ マーケ・広報費','交通費':'⑦ マーケ・広報費','ガソリン':'⑦ マーケ・広報費','駐車場':'⑦ マーケ・広報費','諸経費':'⑦ マーケ・広報費','雑費':'⑦ マーケ・広報費','送料':'⑦ マーケ・広報費','手数料':'⑦ マーケ・広報費'};
+const ACCOUNTING_CATS=['① 会場・施設費','② 飲食・ケータリング費','③ 出演・キャスティング費','④ 制作・演出費','⑤ 運営・人件費','⑥ 備品・設営費','⑦ マーケ・広報費','⑧ デザイン費','⑨ 旅費交通費','⑩ その他'];
+const CAT_COLORS={'① 会場・施設費':{fg:'0369a1',bg:'e0f2fe'},'② 飲食・ケータリング費':{fg:'b45309',bg:'fef3c7'},'③ 出演・キャスティング費':{fg:'7c3aed',bg:'ede9fe'},'④ 制作・演出費':{fg:'0f766e',bg:'ccfbf1'},'⑤ 運営・人件費':{fg:'1d4ed8',bg:'dbeafe'},'⑥ 備品・設営費':{fg:'9a3412',bg:'ffedd5'},'⑦ マーケ・広報費':{fg:'be185d',bg:'fce7f3'},'⑧ デザイン費':{fg:'be185d',bg:'fdf2f8'},'⑨ 旅費交通費':{fg:'0891b2',bg:'cffafe'},'⑩ その他':{fg:'4b5563',bg:'f3f4f6'}};
+const CAT_MASTER={'会場費':'① 会場・施設費','会場':'① 会場・施設費','施設利用':'① 会場・施設費','施設費':'① 会場・施設費','前日対応':'① 会場・施設費','延長料金':'① 会場・施設費','夜間対応':'① 会場・施設費','時間外料金':'① 会場・施設費','時間外':'① 会場・施設費','アビスパ':'① 会場・施設費','スタジアム':'① 会場・施設費','ライジング':'① 会場・施設費','カンファレンス':'① 会場・施設費','チャレパ':'① 会場・施設費','CIC':'① 会場・施設費','ケータリング':'② 飲食・ケータリング費','ドリンク':'② 飲食・ケータリング費','懇親会':'② 飲食・ケータリング費','飲食':'② 飲食・ケータリング費','飲み物':'② 飲食・ケータリング費','弁当':'② 飲食・ケータリング費','食事':'② 飲食・ケータリング費','フード':'② 飲食・ケータリング費','サンドイッチ':'② 飲食・ケータリング費','SONES':'② 飲食・ケータリング費','Park South':'② 飲食・ケータリング費','控室':'② 飲食・ケータリング費','講師':'③ 出演・キャスティング費','演者':'③ 出演・キャスティング費','MC費':'③ 出演・キャスティング費','MC ':'③ 出演・キャスティング費','DJ':'③ 出演・キャスティング費','キャスティング':'③ 出演・キャスティング費','審査員':'③ 出演・キャスティング費','審査':'③ 出演・キャスティング費','賞金':'③ 出演・キャスティング費','出演':'③ 出演・キャスティング費','基調講演':'③ 出演・キャスティング費','特別講義':'③ 出演・キャスティング費','パネル':'④ 制作・演出費','ボード':'④ 制作・演出費','バナー':'④ 制作・演出費','フラッグ':'④ 制作・演出費','デザイン':'④ 制作・演出費','グラフィック':'④ 制作・演出費','印刷':'④ 制作・演出費','制作費':'④ 制作・演出費','映像':'④ 制作・演出費','動画':'④ 制作・演出費','ムービー':'④ 制作・演出費','撮影':'④ 制作・演出費','カメラマン':'④ 制作・演出費','WEB':'④ 制作・演出費','ウェブ':'④ 制作・演出費','トロフィー':'④ 制作・演出費','賞品':'④ 制作・演出費','パンフ':'④ 制作・演出費','チラシ':'④ 制作・演出費','ポスター':'④ 制作・演出費','アルバム':'④ 制作・演出費','グッズ':'④ 制作・演出費','マグカップ':'④ 制作・演出費','トートバッグ':'④ 制作・演出費','ステッカー':'④ 制作・演出費','クリアファイル':'④ 制作・演出費','バインダー':'④ 制作・演出費','花装飾':'④ 制作・演出費','照明':'④ 制作・演出費','演出':'④ 制作・演出費','フォトブース':'④ 制作・演出費','ターポリン':'④ 制作・演出費','ウェルカムボード':'④ 制作・演出費','ロールアップ':'④ 制作・演出費','バックパネル':'④ 制作・演出費','運営スタッフ':'⑤ 運営・人件費','運営D':'⑤ 運営・人件費','運営AD':'⑤ 運営・人件費','進行D':'⑤ 運営・人件費','進行AD':'⑤ 運営・人件費','受付スタッフ':'⑤ 運営・人件費','受付':'⑤ 運営・人件費','誘導':'⑤ 運営・人件費','人件費':'⑤ 運営・人件費','外部委託':'⑤ 運営・人件費','運営委託':'⑤ 運営・人件費','委託':'⑤ 運営・人件費','SAKAZUKI':'⑤ 運営・人件費','設営':'⑥ 備品・設営費','撤去':'⑥ 備品・設営費','設営撤去':'⑥ 備品・設営費','施工':'⑥ 備品・設営費','備品':'⑥ 備品・設営費','消耗品':'⑥ 備品・設営費','機材':'⑥ 備品・設営費','レンタル':'⑥ 備品・設営費','運搬':'⑥ 備品・設営費','養生':'⑥ 備品・設営費','テーブル':'⑥ 備品・設営費','チェア':'⑥ 備品・設営費','マイク':'⑥ 備品・設営費','スピーカー':'⑥ 備品・設営費','音響':'⑥ 備品・設営費','カーペット':'⑥ 備品・設営費','タープ':'⑥ 備品・設営費','テント':'⑥ 備品・設営費','広報':'⑦ マーケ・広報費','広告':'⑦ マーケ・広報費','SNS':'⑦ マーケ・広報費','PR':'⑦ マーケ・広報費','インフルエンサー':'⑦ マーケ・広報費','旅費':'⑨ 旅費交通費','交通費':'⑨ 旅費交通費','ガソリン':'⑨ 旅費交通費','駐車場':'⑨ 旅費交通費','諸経費':'⑦ マーケ・広報費','雑費':'⑦ マーケ・広報費','送料':'⑦ マーケ・広報費','手数料':'⑦ マーケ・広報費'};
 
 function getEffectiveCatMaster(){const base={...CAT_MASTER,...(S.catRules||{})};Object.keys(base).forEach(k=>{if(base[k]==='_removed_')delete base[k];});return base;}
-function detectCat(feeName){if(!feeName)return'⑨ その他';const master=getEffectiveCatMaster();if(master[feeName])return master[feeName];const keys=Object.keys(master).sort((a,b)=>b.length-a.length);for(const k of keys){if(feeName.includes(k))return master[k];}return'⑨ その他';}
+function detectCat(feeName){if(!feeName)return'⑩ その他';const master=getEffectiveCatMaster();if(master[feeName])return master[feeName];const keys=Object.keys(master).sort((a,b)=>b.length-a.length);for(const k of keys){if(feeName.includes(k))return master[k];}return'⑩ その他';}
 
 // ── デフォルト費目 ──
 function makeDefaultItems(budgets){return ACCOUNTING_CATS.map(cat=>({id:uid(),name:cat,budget:budgets[cat]||0,estimate:0,actual:0}));}
-const SERIES_DEFAULTS_INIT={hm:makeDefaultItems({'① 会場・施設費':55000,'③ 出演・キャスティング費':110000,'⑤ 運営・人件費':0,'⑥ 備品・設営費':15000,'⑨ その他':20000}),gk:makeDefaultItems({'① 会場・施設費':55000,'⑨ その他':5500}),oe:makeDefaultItems({'① 会場・施設費':5500,'② 飲食・ケータリング費':0})};
+const SERIES_DEFAULTS_INIT={hm:makeDefaultItems({'① 会場・施設費':55000,'③ 出演・キャスティング費':110000,'⑤ 運営・人件費':0,'⑥ 備品・設営費':15000,'⑩ その他':20000}),gk:makeDefaultItems({'① 会場・施設費':55000,'⑩ その他':5500}),oe:makeDefaultItems({'① 会場・施設費':5500,'② 飲食・ケータリング費':0})};
 if(!S.defaults)S.defaults=JSON.parse(JSON.stringify(SERIES_DEFAULTS_INIT));
 
 // ── 製作物カテゴリ ──
@@ -1298,7 +1303,7 @@ function renderOv(){
   const diff=totB-totA;const arari=totR-totA;
   document.getElementById('ov-kpis').innerHTML=`<div class="kpi p"><div class="kl">収入</div><div class="kv" style="color:var(--purple)">${fmtN(totR)}<em>円</em></div><div class="ks">参加費・協賛・補助金 合計</div></div><div class="kpi r"><div class="kl">総予算</div><div class="kv">${fmtN(totB)}<em>円</em></div><div class="ks">年間承認予算（税別）</div></div><div class="kpi b"><div class="kl">見積合計</div><div class="kv">${fmtN(totE)}<em>円</em></div><div class="ks">消化率 <strong style="color:var(--blue)">${pct(totE,totB)}</strong></div></div><div class="kpi y"><div class="kl">実績合計</div><div class="kv">${fmtN(totA)}<em>円</em></div><div class="ks"><span class="${diff>=0?'ok':'ng'}">${diff>=0?'▲ 予算内':'▼ 予算超過'} ${fmtN(Math.abs(diff))}円</span></div></div><div class="kpi g"><div class="kl">粗利（収入－実績）</div><div class="kv" style="color:${arari>=0?'var(--green)':'var(--red)'}">${arari>=0?'+':''}${fmtN(arari)}<em>円</em></div><div class="ks">${arari>=0?'黒字':'赤字'}（収入${fmtN(totR)}円 - 実績${fmtN(totA)}円）</div></div>`;
   document.getElementById('ov-rev').innerHTML=S.revenues.map(r=>`<div class="rev-row"><div class="rev-name">${r.name}</div><div class="rev-val">${fmt(r.amount)}</div></div>`).join('')+`<div class="rev-row" style="border-top:1px solid var(--acc);margin-top:8px;padding-top:8px"><strong>収入合計</strong><span style="font-family:var(--mono);font-size:13px;color:var(--green);font-weight:700">${fmt(totR)}</span></div><div class="net-box"><div style="font-size:10px;color:var(--t2)">実質余剰額</div><div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green)">+${fmt(diff+totR)}</div></div>`;
-  const CAT8_COLORS={'① 会場・施設費':'#0369a1','② 飲食・ケータリング費':'#b45309','③ 出演・キャスティング費':'#7c3aed','④ 制作・演出費':'#0f766e','⑤ 運営・人件費':'#1d4ed8','⑥ 備品・設営費':'#9a3412','⑦ マーケ・広報費':'#be185d','⑨ その他':'#4b5563','⑧ デザイン費':'#9d174d'};
+  const CAT8_COLORS={'① 会場・施設費':'#0369a1','② 飲食・ケータリング費':'#b45309','③ 出演・キャスティング費':'#7c3aed','④ 制作・演出費':'#0f766e','⑤ 運営・人件費':'#1d4ed8','⑥ 備品・設営費':'#9a3412','⑦ マーケ・広報費':'#be185d','⑩ その他':'#4b5563','⑧ デザイン費':'#9d174d'};
   const totals8=calcCat8Totals();const maxActual8=Math.max(...ACCOUNTING_CATS.map(cat=>totals8[cat]?.actual||0),1);
   document.getElementById('ov-cats').innerHTML=ACCOUNTING_CATS.map(cat=>{const t=totals8[cat]||{budget:0,estimate:0,actual:0};const col=CAT8_COLORS[cat]||'#374151';const hasBudget=t.budget>0;const barMax=hasBudget?t.budget:maxActual8;const barPct=barMax>0?Math.min(Math.round(t.actual/barMax*100),100):0;const consPct=hasBudget?Math.round(t.actual/t.budget*100):null;const isOver=hasBudget&&t.actual>t.budget;const barColor=isOver?'#ef4444':col;return`<div class="pb" style="margin-bottom:10px"><div class="pb-top" style="margin-bottom:4px"><span class="n" style="font-size:12px;font-weight:600">${cat}</span><div style="display:flex;gap:12px;align-items:center;font-size:10px;font-family:var(--mono)">${hasBudget?`<span style="color:var(--t3)">予算 ${fmtN(t.budget)}円</span>`:''} ${t.estimate?`<span style="color:var(--blue)">見積 ${fmtN(t.estimate)}円</span>`:''}<span style="color:${isOver?'#ef4444':col};font-weight:700">実績 ${fmtN(t.actual)}円</span>${consPct!==null?`<span style="font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px;background:${isOver?'rgba(239,68,68,.1)':'rgba(37,99,235,.08)'};color:${isOver?'#ef4444':'var(--blue)'}"> ${consPct}%</span>`:''}</div></div><div class="pb-track" style="height:7px;background:var(--b1);border-radius:4px;overflow:hidden;position:relative">${hasBudget?`<div style="position:absolute;top:0;left:0;height:100%;width:100%;background:rgba(0,0,0,.04);border-radius:4px"></div>`:''}<div class="pb-fill" style="height:100%;width:${Math.max(barPct,t.actual>0?1:0)}%;background:${barColor};border-radius:4px;transition:width .4s ease"></div></div>${hasBudget?`<div style="display:flex;justify-content:flex-end;margin-top:2px;font-size:9px;color:var(--t3)"><span>予算上限 ${fmtN(t.budget)}円</span></div>`:''}</div>`;}).join('');
   dc('ch-monthly');_ch['ch-monthly']=new Chart(document.getElementById('ch-monthly'),{type:'bar',data:{labels:S.months,datasets:[{label:'月別支出',data:S.monthlyTotal,backgroundColor:S.monthlyTotal.map(v=>v>3000000?'rgba(232,71,10,.65)':'rgba(37,99,235,.5)'),borderColor:S.monthlyTotal.map(v=>v>3000000?'#e8470a':'#2563eb'),borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' ¥'+Math.round(ctx.raw).toLocaleString()}}},scales:{x:{grid:g0,ticks:{maxRotation:0}},y:{grid:g0,ticks:{callback:v=>v>=1000000?(v/1000000).toFixed(1)+'M':v.toLocaleString()}}}}});
@@ -1380,7 +1385,7 @@ function saveEvt(){const key=_eCtx.key;const before=JSON.stringify(S.events[key]
 let _revItems=[];
 function openRev(){_revItems=JSON.parse(JSON.stringify(S.revenues));renderRevItems();openOv('ov-rev-edit');}
 function renderRevItems(){const progs=[''].concat(S.programs.map(p=>p.name));const types=['参加費','協賛・協力金','補助金','その他'];document.getElementById('rev-items').innerHTML=_revItems.map((r,i)=>`<div class="item-row" style="grid-template-columns:20px 1fr 120px 90px 110px 26px;margin-bottom:6px"><div class="item-num">${i+1}</div><input type="text" value="${r.name||''}" placeholder="収入名" data-i="${i}" data-f="name" oninput="updateRevItem(this)" style="padding:5px 7px;background:var(--s2);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--mono);outline:none;width:100%"><select data-i="${i}" data-f="prog" onchange="updateRevItem(this)" style="padding:5px 7px;background:var(--s2);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:10px;outline:none;width:100%">${progs.map(p=>`<option value="${p}"${r.prog===p?' selected':''}>${p||'—プログラム—'}</option>`).join('')}</select><select data-i="${i}" data-f="type" onchange="updateRevItem(this)" style="padding:5px 7px;background:var(--s2);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:10px;outline:none;width:100%">${types.map(t=>`<option${r.type===t?' selected':''}>${t}</option>`).join('')}</select><input type="number" value="${r.amount||''}" placeholder="0" data-i="${i}" data-f="amount" oninput="updateRevItem(this)" style="padding:5px 7px;background:var(--s2);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--mono);outline:none;text-align:right;width:100%"><button class="del-btn" onclick="removeRevItem(${i})">×</button></div>`).join('');}
-function updateRevItem(inp){const i=parseInt(inp.dataset.i),f=inp.dataset.f;_revItems[i][f]=f==='name'?inp.value:parseFloat(inp.value)||0;}
+function updateRevItem(inp){const i=parseInt(inp.dataset.i),f=inp.dataset.f;_revItems[i][f]=(f==='name'||f==='prog'||f==='type')?inp.value:parseFloat(inp.value)||0;}
 function addRevItem(){_revItems.push({id:uid(),name:'',amount:0,prog:'',type:'参加費'});renderRevItems();}
 function removeRevItem(i){_revItems.splice(i,1);renderRevItems();}
 function saveRev(){if(!isAdmin()){alert('収入管理は管理者のみ変更できます');return;}S.revenues=_revItems.filter(r=>r.name);save();closeOv('ov-rev-edit');renderRev();}
@@ -1418,8 +1423,8 @@ function updateEstRow(key,i,field,value){const rows=getEstimates(key);if(!rows[i
 function addEstimateRow(key){const rows=getEstimates(key);rows.push({id:uid(),name:'',cat:'',budget:0,estimate:0,actual:0,payMonth:''});renderEstimateTable(key);setTimeout(()=>{const inputs=document.querySelectorAll(`#${key}-est-tbody input[placeholder*="品目"]`);if(inputs.length)inputs[inputs.length-1].focus();},50);}
 function removeEstRow(key,i){const rows=getEstimates(key);rows.splice(i,1);renderEstimateTable(key);save();}
 function autoClassifyRow(key,i){const rows=getEstimates(key);if(!rows[i])return;if(rows[i].name&&!rows[i].cat){rows[i].cat=detectCat(rows[i].name);renderEstimateTable(key);}}
-function classifyAllEstimates(key){const rows=getEstimates(key);if(!rows.length){alert('先に品目を入力してください');return;}rows.forEach(r=>{if(r.name)r.cat=detectCat(r.name)||r.cat||'⑨ その他';});renderEstimateTable(key);save();}
-function applyEstimatesToEvt(key){const rows=getEstimates(key);if(!rows.length){alert('見積行がありません');return;}const uncat=rows.filter(r=>r.name&&!r.cat);if(uncat.length>0){if(!confirm(`${uncat.length}件の未分類項目があります。「⑨ その他」として反映しますか？`))return;uncat.forEach(r=>r.cat='⑨ その他');renderEstimateTable(key);}const catTotals={};rows.forEach(r=>{if(!r.name&&!r.estimate&&!r.actual&&!r.budget)return;const cat=r.cat||'⑨ その他';if(!catTotals[cat])catTotals[cat]={budget:0,estimate:0,actual:0};catTotals[cat].budget+=n(r.budget);catTotals[cat].estimate+=n(r.estimate);catTotals[cat].actual+=n(r.actual);});if(!S.events[key])S.events[key]={label:key,items:[]};ACCOUNTING_CATS.forEach(cat=>{const vals=catTotals[cat];if(!vals)return;const existing=S.events[key].items.findIndex(it=>it.name===cat);if(existing>=0){if(isAdmin()&&vals.budget)S.events[key].items[existing].budget=vals.budget;if(vals.estimate)S.events[key].items[existing].estimate=vals.estimate;if(vals.actual)S.events[key].items[existing].actual=vals.actual;}else S.events[key].items.push({id:uid(),name:cat,budget:isAdmin()?vals.budget:0,estimate:vals.estimate,actual:vals.actual});});S.events[key].items.sort((a,b)=>{const ai=ACCOUNTING_CATS.indexOf(a.name),bi=ACCOUNTING_CATS.indexOf(b.name);return(ai===-1?999:ai)-(bi===-1?999:bi);});logChange('event',`見積反映: ${key}`,null,Object.entries(catTotals).map(([c,v])=>`${c}: 見積${fmtN(v.estimate)}円`).join(', '));save();renderPg(key);}
+function classifyAllEstimates(key){const rows=getEstimates(key);if(!rows.length){alert('先に品目を入力してください');return;}rows.forEach(r=>{if(r.name)r.cat=detectCat(r.name)||r.cat||'⑩ その他';});renderEstimateTable(key);save();}
+function applyEstimatesToEvt(key){const rows=getEstimates(key);if(!rows.length){alert('見積行がありません');return;}const uncat=rows.filter(r=>r.name&&!r.cat);if(uncat.length>0){if(!confirm(`${uncat.length}件の未分類項目があります。「⑨ その他」として反映しますか？`))return;uncat.forEach(r=>r.cat='⑩ その他');renderEstimateTable(key);}const catTotals={};rows.forEach(r=>{if(!r.name&&!r.estimate&&!r.actual&&!r.budget)return;const cat=r.cat||'⑩ その他';if(!catTotals[cat])catTotals[cat]={budget:0,estimate:0,actual:0};catTotals[cat].budget+=n(r.budget);catTotals[cat].estimate+=n(r.estimate);catTotals[cat].actual+=n(r.actual);});if(!S.events[key])S.events[key]={label:key,items:[]};ACCOUNTING_CATS.forEach(cat=>{const vals=catTotals[cat];if(!vals)return;const existing=S.events[key].items.findIndex(it=>it.name===cat);if(existing>=0){if(isAdmin()&&vals.budget)S.events[key].items[existing].budget=vals.budget;if(vals.estimate)S.events[key].items[existing].estimate=vals.estimate;if(vals.actual)S.events[key].items[existing].actual=vals.actual;}else S.events[key].items.push({id:uid(),name:cat,budget:isAdmin()?vals.budget:0,estimate:vals.estimate,actual:vals.actual});});S.events[key].items.sort((a,b)=>{const ai=ACCOUNTING_CATS.indexOf(a.name),bi=ACCOUNTING_CATS.indexOf(b.name);return(ai===-1?999:ai)-(bi===-1?999:bi);});logChange('event',`見積反映: ${key}`,null,Object.entries(catTotals).map(([c,v])=>`${c}: 見積${fmtN(v.estimate)}円`).join(', '));save();renderPg(key);}
 
 // ── 変更履歴 ──
 if(!S.changelog)S.changelog=[];
@@ -1442,7 +1447,7 @@ function calcCF(){const months=[];for(let m=4;m<=12;m++)months.push(`${_currentF
 function renderCF(){const{months,cfData}=calcCF();const cfEl=document.getElementById('ch-cf');if(!cfEl)return;let cumEst=0,cumAct=0;const cumEstData=months.map(m=>{cumEst+=cfData[m].estimate;return cumEst;});const cumActData=months.map(m=>{cumAct+=cfData[m].actual;return cumAct;});const monthlyEst=months.map(m=>cfData[m].estimate),monthlyAct=months.map(m=>cfData[m].actual);dc('ch-cf');_ch['ch-cf']=new Chart(cfEl,{type:'bar',data:{labels:months.map(m=>m.replace(`${_currentFiscalYear}/`,'').replace(`${_currentFiscalYear+1}/`,'')+' 月'),datasets:[{label:'月次支出（見積）',data:monthlyEst,backgroundColor:'rgba(37,99,235,.25)',borderColor:'rgba(37,99,235,.6)',borderWidth:1,borderRadius:3,yAxisID:'y'},{label:'月次支出（実績）',data:monthlyAct,backgroundColor:'rgba(16,185,129,.3)',borderColor:'rgba(16,185,129,.7)',borderWidth:1,borderRadius:3,yAxisID:'y'},{label:'累計（見積）',data:cumEstData,type:'line',borderColor:'#3b82f6',borderWidth:2,pointRadius:3,fill:false,tension:0.3,yAxisID:'y2'},{label:'累計（実績）',data:cumActData,type:'line',borderColor:'#10b981',borderWidth:2,pointRadius:3,fill:false,tension:0.3,yAxisID:'y2'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top',labels:{boxWidth:8,padding:10,font:{size:9}}},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ¥${Math.round(ctx.raw).toLocaleString()}`}}},scales:{x:{grid:{color:'rgba(0,0,0,.05)'}},y:{position:'left',grid:{color:'rgba(0,0,0,.05)'},ticks:{callback:v=>v>=10000?(v/10000)+'万':v},title:{display:true,text:'月次支出',font:{size:9}}},y2:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:v=>v>=10000?(v/10000)+'万':v},title:{display:true,text:'累計',font:{size:9}}}}}});const cfTable=document.getElementById('cf-table');if(!cfTable)return;const hasData=months.some(m=>cfData[m].estimate>0||cfData[m].actual>0);if(!hasData){cfTable.innerHTML='<div style="text-align:center;padding:16px;color:var(--t3);font-size:11px">各イベントページの「見積・実績 入力」で支払月を登録するとCFが表示されます</div>';return;}cfTable.innerHTML=`<table class="tbl" style="min-width:700px;font-size:10px"><thead><tr><th>月</th>${months.map(m=>`<th style="text-align:right">${m.split('/')[1]}月</th>`).join('')}<th style="text-align:right">合計</th></tr></thead><tbody><tr><td style="font-weight:600;color:var(--blue)">見積（円）</td>${months.map(m=>`<td style="text-align:right;font-family:var(--mono);color:${cfData[m].estimate>0?'var(--blue)':'var(--t3)'}">${cfData[m].estimate>0?fmtN(cfData[m].estimate):'—'}</td>`).join('')}<td style="text-align:right;font-family:var(--mono);font-weight:700;color:var(--blue)">${fmtN(cumEst)}</td></tr><tr><td style="font-weight:600;color:var(--green)">実績（円）</td>${months.map(m=>`<td style="text-align:right;font-family:var(--mono);color:${cfData[m].actual>0?'var(--green)':'var(--t3)'}">${cfData[m].actual>0?fmtN(cfData[m].actual):'—'}</td>`).join('')}<td style="text-align:right;font-family:var(--mono);font-weight:700;color:var(--green)">${fmtN(cumAct)}</td></tr></tbody></table>`;}
 
 // ── 8科目集計 ──
-function calcCat8Totals(){const totals={};ACCOUNTING_CATS.forEach(cat=>{totals[cat]={budget:0,estimate:0,actual:0};});function normCat(cat){if(!cat)return'⑨ その他';if(ACCOUNTING_CATS.includes(cat))return cat;return detectCat(cat)||'⑨ その他';}function addB(cat,b){totals[normCat(cat)].budget+=n(b);}function addA(cat,e,a){const c=normCat(cat);totals[c].estimate+=n(e);totals[c].actual+=n(a);}['ko','aw','ye','md','tour','sd','cf3','cf4'].forEach(key=>{const items=S.events[key]?.items||[];if(items.length>0){items.forEach(it=>addB(it.name,it.budget));}else{(S.defaults?.[key]||[]).forEach(d=>addB(d.name,d.budget));}});['hm','gk','oe'].forEach(key=>{(S.sessions[key]||[]).forEach(sess=>(sess.items||[]).forEach(it=>addB(it.name,it.budget)));});const prodB=S.prodBudgets||{};PROD_CATS_LIST.forEach(cat=>{if(!prodB[cat])return;addB(cat==='マーケ'?'⑦ マーケ・広報費':'④ 制作・演出費',prodB[cat]);});Object.values(S.estimates||{}).forEach(rows=>{(rows||[]).forEach(r=>{if(r.name)addA(r.cat||'⑨ その他',r.estimate,r.actual);});});(S.prodItems||[]).forEach(i=>addA(i.cat==='マーケ'?'⑦ マーケ・広報費':'④ 制作・演出費',i.estimate||0,i.actual||0));(S.mktItems||[]).forEach(i=>addA('⑦ マーケ・広報費',i.estimate||0,i.actual||0));['hm','gk','oe'].forEach(key=>{(S.sessions[key]||[]).forEach(sess=>(sess.items||[]).forEach(it=>addA(it.name,it.estimate,it.actual)));});['ko','aw','ye','md'].forEach(key=>{const hasEst=(S.estimates?.[key]||[]).length>0;if(!hasEst)(S.events[key]?.items||[]).forEach(it=>addA(it.name,it.estimate,it.actual));});return totals;}
+function calcCat8Totals(){const totals={};ACCOUNTING_CATS.forEach(cat=>{totals[cat]={budget:0,estimate:0,actual:0};});function normCat(cat){if(!cat)return'⑩ その他';if(ACCOUNTING_CATS.includes(cat))return cat;return detectCat(cat)||'⑩ その他';}function addB(cat,b){totals[normCat(cat)].budget+=n(b);}function addA(cat,e,a){const c=normCat(cat);totals[c].estimate+=n(e);totals[c].actual+=n(a);}['ko','aw','ye','md','tour','sd','cf3','cf4'].forEach(key=>{const items=S.events[key]?.items||[];if(items.length>0){items.forEach(it=>addB(it.name,it.budget));}else{(S.defaults?.[key]||[]).forEach(d=>addB(d.name,d.budget));}});['hm','gk','oe'].forEach(key=>{(S.sessions[key]||[]).forEach(sess=>(sess.items||[]).forEach(it=>addB(it.name,it.budget)));});const prodB=S.prodBudgets||{};PROD_CATS_LIST.forEach(cat=>{if(!prodB[cat])return;addB(cat==='マーケ'?'⑦ マーケ・広報費':'④ 制作・演出費',prodB[cat]);});Object.values(S.estimates||{}).forEach(rows=>{(rows||[]).forEach(r=>{if(r.name)addA(r.cat||'⑩ その他',r.estimate,r.actual);});});(S.prodItems||[]).forEach(i=>addA(i.cat==='マーケ'?'⑦ マーケ・広報費':'④ 制作・演出費',i.estimate||0,i.actual||0));(S.mktItems||[]).forEach(i=>addA('⑦ マーケ・広報費',i.estimate||0,i.actual||0));['hm','gk','oe'].forEach(key=>{(S.sessions[key]||[]).forEach(sess=>(sess.items||[]).forEach(it=>addA(it.name,it.estimate,it.actual)));});['ko','aw','ye','md'].forEach(key=>{const hasEst=(S.estimates?.[key]||[]).length>0;if(!hasEst)(S.events[key]?.items||[]).forEach(it=>addA(it.name,it.estimate,it.actual));});return totals;}
 
 // ── 製作物管理 ──
 if(!S.prodItems)S.prodItems=[];
@@ -1520,6 +1525,16 @@ async function handleXlFile(file) {
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
 
     _xlImportData = parseXlSchedule(rows);
+
+    // 共通制作物シートも読み込む
+    const prodSheetName = wb.SheetNames.find(s => s.includes('共通制作物') || s.includes('製作物'));
+    if (prodSheetName) {
+      showXlStep(2, '製作物データを解析中...', '共通制作物シートを読み込んでいます');
+      const prodWs = wb.Sheets[prodSheetName];
+      const prodRows = XLSX.utils.sheet_to_json(prodWs, { header: 1, defval: null });
+      _xlImportData.prodItems = parseXlProdItems(prodRows);
+    }
+
     showXlPreview(_xlImportData);
     showXlStep(3);
     document.getElementById('xl-import-btn').style.display = '';
@@ -1539,7 +1554,7 @@ function parseXlSchedule(rows) {
     { fee: '演出費',       cat: '④ 制作・演出費',           estCol: 25, actCol: 26 },
     { fee: '広告宣伝費',   cat: '⑦ マーケ・広報費',        estCol: 29, actCol: 30 },
     { fee: '旅費交通費',   cat: '⑦ マーケ・広報費',        estCol: 33, actCol: 34 },
-    { fee: '諸経費',       cat: '⑨ その他',                estCol: 37, actCol: 38 },
+    { fee: '諸経費',       cat: '⑩ その他',                estCol: 37, actCol: 38 },
   ];
 
   const TAG_SERIES  = { 'ホームルーム': 'hm', '評議会': 'gk', '応援カイギ': 'oe' };
@@ -1603,6 +1618,62 @@ function parseXlSchedule(rows) {
   return result;
 }
 
+function parseXlProdItems(rows) {
+  const SECTION_MAP = {
+    'グッズ（配布キット）':       'グッズ（外販）',
+    '年間共通イベント製作物':      '年間共通ツール',
+    'シティフェス デザイン・制作': 'イベント装飾',
+    'シティフェス 印刷・パネル':   'イベント装飾',
+    'シティフェス 会場装飾・展示': 'イベント装飾',
+  };
+
+  let uidN = 0;
+  const mkId = () => `xl_prod_${++uidN}_${Date.now().toString(36)}`;
+  const safeN = v => (v == null || v === '' || isNaN(Number(v))) ? 0 : Math.round(Number(v));
+  const safeS = v => (v == null || String(v).trim() === '' || String(v) === 'null') ? '' : String(v).trim();
+
+  let currentCat = 'その他';
+  const items = [];
+
+  for (const row of rows) {
+    const cell0 = safeS(row[0]);
+    const cell1 = safeS(row[1]);
+
+    // カテゴリ行（■で始まる）
+    if (cell0.startsWith('■')) {
+      const secName = cell0.replace('■', '').trim();
+      for (const [key, cat] of Object.entries(SECTION_MAP)) {
+        if (secName.includes(key)) { currentCat = cat; break; }
+      }
+      continue;
+    }
+
+    // 品目行（No.が数字）
+    const no = parseInt(cell0);
+    if (!no || isNaN(no)) continue;
+
+    const name = cell1.replace(/　/g, '').trim();
+    if (!name) continue;
+
+    const content  = safeS(row[2]);
+    const price    = safeN(row[3]);
+    const qty      = safeN(row[4]) || 1;
+    const unit     = safeS(row[5]) || '式';
+    const actual   = safeN(row[8]);
+
+    if (!actual && !price) continue;
+
+    items.push({
+      id: mkId(), cat: currentCat, name, content,
+      price, qty, unit,
+      stockInit: qty, stockUsed: 0, stockAlert: 0,
+      budget: 0, estimate: 0, actual,
+      status: actual > 0 ? '済' : '', memo: '',
+    });
+  }
+  return items;
+}
+
 function showXlStep(step, msg, sub) {
   document.getElementById('xl-step1').style.display = step === 1 ? '' : 'none';
   document.getElementById('xl-step2').style.display = step === 2 ? '' : 'none';
@@ -1625,6 +1696,9 @@ function showXlPreview(data) {
   const evtLabels = {ko:'キックオフ', aw:'アワード', ye:'イヤーエンド', tour:'ツアー', md:'シティフェス（マッチデイ）'};
   for (const [key, rows] of Object.entries(data.estimates)) {
     if (rows.length) lines.push(`<div style="margin-bottom:6px"><span style="font-size:10px;font-weight:700;color:var(--green)">${evtLabels[key]||key}</span> <span style="font-size:11px;color:var(--t2)">${rows.length}行の見積・実績を更新</span></div>`);
+  }
+  if (data.prodItems?.length) {
+    lines.push(`<div style="margin-bottom:6px"><span style="font-size:10px;font-weight:700;color:var(--purple)">製作物管理</span> <span style="font-size:11px;color:var(--t2)">${data.prodItems.length}件を追加・更新</span></div>`);
   }
   document.getElementById('xl-preview').innerHTML = lines.join('') || '<span style="color:var(--t3);font-size:11px">読み込めるデータがありませんでした</span>';
 }
@@ -1675,12 +1749,32 @@ function executeXlImport() {
     }
   }
 
+  // 製作物インポート（名前が一致すれば更新、なければ追加）
+  if (d.prodItems?.length) {
+    if (!S.prodItems) S.prodItems = [];
+    for (const newItem of d.prodItems) {
+      const existing = S.prodItems.find(p => p.name === newItem.name && p.cat === newItem.cat);
+      if (existing) {
+        // 実績のみ更新（予算・見積は上書きしない）
+        existing.actual  = newItem.actual;
+        existing.price   = newItem.price;
+        existing.qty     = newItem.qty;
+        existing.unit    = newItem.unit;
+        existing.content = newItem.content;
+        if (newItem.actual > 0) existing.status = '済';
+      } else {
+        S.prodItems.push(newItem);
+      }
+    }
+  }
+
   save();
   closeOv('ov-xl-import');
   renderPg(_curPg || 'ov');
 
   const total = Object.values(d.sessions).reduce((t,a)=>t+a.length,0)
-              + Object.values(d.estimates).reduce((t,a)=>t+a.length,0);
+              + Object.values(d.estimates).reduce((t,a)=>t+a.length,0)
+              + (d.prodItems?.length || 0);
   alert(`✅ インポート完了\n\n${total}件のデータを読み込みました`);
 }
 
@@ -1818,7 +1912,7 @@ function parseExcelWorkbook(wb, XLSX) {
     if (/設営|撤去|運搬|備品|消耗品|機材|レンタル|テーブル|チェア|カーペット|タープ|テント|マイク|スピーカー|音響|ハイテーブル|円形テーブル|宴会|チェアーカバー|パンチカーペット|モバイル|延長コード|電源|バケツ|ウェイト|レシーバー|軽トラック|車両|両面テープ/.test(nm)) return '⑥ 備品・設営費';
     if (/デザイン/.test(nm)) return '⑧ デザイン費';
     if (/広告|SNS|PR|ガソリン|駐車場/.test(nm)) return '⑦ マーケ・広報費';
-    return '⑨ その他';
+    return '⑩ その他';
   };
   
   const sessions = {hm:[],gk:[],oe:[]};
@@ -1835,7 +1929,7 @@ function parseExcelWorkbook(wb, XLSX) {
     '会場費':'① 会場・施設費', '講師・演者費':'③ 出演・キャスティング費',
     'イベント人件費':'⑤ 運営・人件費', '製作費':'④ 制作・演出費',
     'デザイン費':'⑧ デザイン費', '演出費':'④ 制作・演出費',
-    '広告宣伝費':'⑦ マーケ・広報費', '旅費交通費':'⑦ マーケ・広報費', '諸経費':'⑨ その他',
+    '広告宣伝費':'⑦ マーケ・広報費', '旅費交通費':'⑦ マーケ・広報費', '諸経費':'⑩ その他',
   };
   
   // 年間イベントスケジュールシート
