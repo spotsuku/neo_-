@@ -1320,7 +1320,17 @@ function renderOv(){
 
 // ── PROGRAMS ──
 function renderProg(){
-  function getProgRealBudget(p){if(['ko','aw','ye','md'].includes(p.id))return getEventBudget(p.id);if(['hm','gk','oe'].includes(p.id))return getSeriesBudget(p.id);if(p.id==='annual')return n(p.budget)+getProdTotalBudget();return n(p.budget);}
+  function getProgRealBudget(p){
+  // イベント系（個別費目・デフォルト設定から予算取得）
+  if(['ko','aw','ye','tour','md','sd','cf3','cf4'].includes(p.id)) return getEventBudget(p.id);
+  // シティフェス全体（サブイベント合算）
+  if(p.id==='cityfes') return CITYFES_TABS.reduce((t,k)=>t+getEventBudget(k),0);
+  // シリーズ（回次の費目合計）
+  if(['hm','gk','oe'].includes(p.id)) return getSeriesBudget(p.id);
+  // 年間共通（製作物予算含む）
+  if(p.id==='annual') return n(p.budget)+getProdTotalBudget();
+  return n(p.budget);
+}
   document.getElementById('prog-tbody').innerHTML=S.programs.filter(p=>p.id!=='marketing').map((p,pi)=>{const realBudget=getProgRealBudget(p);const act=progActual(p.id),est=progEstimate(p.id),diff=realBudget-act;const tag=diff<0?`<span class="tag tg-o">超過</span>`:act===0?`<span class="tag tg-z">未実施</span>`:`<span class="tag tg-g">正常</span>`;return`<tr><td><span style="font-weight:500">${p.name}</span>${tag}</td><td><input type="number" value="${realBudget||''}" placeholder="0" style="width:110px;padding:5px 8px;border:1.5px solid var(--b2);border-radius:5px;font-family:var(--mono);font-size:12px;background:var(--s1);color:var(--t2);outline:none;text-align:right" onfocus="this.style.borderColor='var(--yellow)'" onblur="this.style.borderColor='var(--b2)'" onchange="S.programs[${pi}].budget=parseFloat(this.value)||0;debouncedSave();renderProg()"></td><td style="color:#5a95e8">${fmtN(est)}</td><td>${fmtN(act)}</td><td class="${diff<0?'ng':'ok'}">${diff<0?'▼':'▲'} ${fmtN(Math.abs(diff))}</td></tr>`;}).join('');
   const sorted=[...S.programs].filter(p=>n(p.budget)>0).map(p=>({...p,act:progActual(p.id),r:Math.round(progActual(p.id)/n(p.budget)*100)})).sort((a,b)=>b.r-a.r);
   dc('ch-rate');_ch['ch-rate']=new Chart(document.getElementById('ch-rate'),{type:'bar',data:{labels:sorted.map(p=>p.name),datasets:[{label:'消化率（%）',data:sorted.map(p=>p.r),backgroundColor:sorted.map(p=>p.r>100?'rgba(232,64,96,.7)':p.r>70?'rgba(240,192,64,.7)':'rgba(79,142,247,.6)'),borderColor:sorted.map(p=>p.r>100?'var(--red)':p.r>70?'var(--yellow)':'var(--blue)'),borderWidth:1,borderRadius:3}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` 消化率: ${ctx.raw}%`}}},scales:{x:{grid:g0,ticks:{callback:v=>v+'%'},max:Math.max(350,...sorted.map(p=>p.r+20))},y:{grid:{display:false}}}}});
@@ -1383,7 +1393,13 @@ document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('.ov
 
 // ── セッションパネル ──
 let _sCtx={};
-function openSess(key,id){_sCtx={key,id};const map={hm:'ホームルーム',gk:'評議会',oe:'応援カイギ'};const s=id?S.sessions[key].find(x=>x.id===id):null;document.getElementById('sess-title').textContent=(s?'編集：':'追加：')+map[key];document.getElementById('s-title').value=s?s.title:'';document.getElementById('s-date').value=s?s.date:'';document.getElementById('s-memo').value=s?s.memo:'';document.getElementById('sess-del-btn').style.display=s?'':'none';const rawItems=s?JSON.parse(JSON.stringify(s.items)):makeDefaultItems(S.defaults?.[key]?Object.fromEntries(S.defaults[key].map(d=>[d.name,d.budget])):{});_sCtx.items=rawItems.map(it=>({...it,name:ACCOUNTING_CATS.includes(it.name)?it.name:detectCat(it.name)||it.name}));renderSessItems();openOv('ov-sess');}
+function openSess(key,id){_sCtx={key,id};const map={hm:'ホームルーム',gk:'評議会',oe:'応援カイギ'};const s=id?S.sessions[key].find(x=>x.id===id):null;document.getElementById('sess-title').textContent=(s?'編集：':'追加：')+map[key];document.getElementById('s-title').value=s?s.title:'';document.getElementById('s-date').value=s?s.date:'';document.getElementById('s-memo').value=s?s.memo:'';document.getElementById('sess-del-btn').style.display=s?'':'none';// デフォルト費目: 保存済みで有効な予算があればそれを使い、なければ初期値にフォールバック
+const _savedDef = S.defaults?.[key];
+const _hasValidDef = _savedDef && _savedDef.some(d=>n(d.budget)>0);
+const _defSrc = _hasValidDef ? _savedDef : (SERIES_DEFAULTS_INIT[key]||[]);
+const rawItems = s
+  ? JSON.parse(JSON.stringify(s.items))
+  : makeDefaultItems(Object.fromEntries(_defSrc.map(d=>[d.name,d.budget])));_sCtx.items=rawItems.map(it=>({...it,name:ACCOUNTING_CATS.includes(it.name)?it.name:detectCat(it.name)||it.name}));renderSessItems();openOv('ov-sess');}
 function renderSessItems(){const wrap=document.getElementById('sess-items');wrap.innerHTML=_sCtx.items.map((it,i)=>{const catOpts=`<option value="">-- 会計科目を選択 --</option>`+ACCOUNTING_CATS.map(cat=>`<option value="${cat}"${it.name===cat?' selected':''}>${cat}</option>`).join('');return`<div class="item-row" id="si-${i}" style="grid-template-columns:20px 1fr 90px 90px 90px 26px"><div class="item-num">${i+1}</div><select data-i="${i}" data-f="name" onchange="updateSessItem(this)" style="padding:5px 7px;background:var(--s1);border:1.5px solid var(--b2);border-radius:6px;color:var(--t1);font-size:11px;font-family:var(--sans);outline:none;width:100%">${catOpts}</select><input type="number" value="${it.budget||''}" placeholder="0" data-i="${i}" data-f="budget" oninput="updateSessItem(this);updateSessTotals()" ${isAdmin()?'':'readonly style="opacity:.4;pointer-events:none"'}><input type="number" value="${it.estimate||''}" placeholder="0" data-i="${i}" data-f="estimate" oninput="updateSessItem(this);updateSessTotals()"><input type="number" value="${it.actual||''}" placeholder="0" data-i="${i}" data-f="actual" oninput="updateSessItem(this);updateSessTotals()">${isAdmin()?`<button class="del-btn" onclick="removeSessItem(${i})">×</button>`:`<div style="width:22px"></div>`}</div>`;}).join('');updateSessTotals();}
 function updateSessItem(inp){const i=parseInt(inp.dataset.i),f=inp.dataset.f;_sCtx.items[i][f]=f==='name'?inp.value:parseFloat(inp.value)||0;}
 function updateSessTotals(){const b=_sCtx.items.reduce((t,i)=>t+n(i.budget),0);const e=_sCtx.items.reduce((t,i)=>t+n(i.estimate),0);const a=_sCtx.items.reduce((t,i)=>t+n(i.actual),0);document.getElementById('s-budget-total').value=b?fmtN(b):'';document.getElementById('s-est-total').value=e?fmtN(e):'';document.getElementById('s-act-total').value=a?fmtN(a):'';}
@@ -1420,7 +1436,20 @@ function addDefaultItem(){const used=new Set((_defItems[_defTab]||[]).map(it=>it
 function removeDefItem(i){_defItems[_defTab].splice(i,1);renderDefaultsItems();}
 function updateDefaultsPreview(){const items=_defItems[_defTab]||[];const totB=items.reduce((t,i)=>t+n(i.budget),0);const lines=items.filter(i=>i.name&&i.budget>0).map(i=>`<span style="color:var(--t2)">${i.name}</span>: <span style="color:var(--acc2)">${fmtN(i.budget)}円</span>`);document.getElementById('defaults-preview').innerHTML=lines.length?lines.join('　／　')+`<div style="margin-top:6px;color:var(--green)">合計予算 ${fmtN(totB)}円 / 回</div>`:'<span style="color:var(--t3)">費目が設定されていません</span>';}
 function resetDefaults(){const label={hm:'ホームルーム',gk:'評議会',oe:'応援カイギ',ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',md:'マッチデイ'}[_defTab];if(!confirm(`${label}のデフォルト設定を初期値にリセットしますか？`))return;const src=SERIES_DEFAULTS_INIT[_defTab]||[];_defItems[_defTab]=JSON.parse(JSON.stringify(src)).map(i=>({...i,id:uid()}));renderDefaultsItems();}
-function saveDefaults(){if(!S.defaults)S.defaults={};['hm','gk','oe','ko','aw','ye','tour','sd','cf3','cf4'].forEach(k=>{if(_defItems[k])S.defaults[k]=_defItems[k];});['ko','aw','ye','tour','sd','cf3','cf4'].forEach(key=>{const defs=S.defaults[key]||[];if(!defs.length)return;if(!S.events[key])S.events[key]={label:key,items:[]};ACCOUNTING_CATS.forEach(cat=>{const def=defs.find(d=>d.name===cat);if(!def)return;const item=S.events[key].items.find(it=>it.name===cat);if(item){item.budget=n(def.budget);}else if(n(def.budget)>0){S.events[key].items.push({id:uid(),name:cat,budget:n(def.budget),estimate:0,actual:0});}});S.events[key].items.sort((a,b)=>{const ai=ACCOUNTING_CATS.indexOf(a.name),bi=ACCOUNTING_CATS.indexOf(b.name);return(ai===-1?999:ai)-(bi===-1?999:bi);});});save();closeOv('ov-defaults');renderPg(_curPg);alert('✅ 保存しました。各イベントの予算に反映されました。');}
+function saveDefaults(){if(!S.defaults)S.defaults={};['hm','gk','oe','ko','aw','ye','tour','sd','cf3','cf4'].forEach(k=>{if(_defItems[k])S.defaults[k]=_defItems[k];});['ko','aw','ye','tour','sd','cf3','cf4'].forEach(key=>{const defs=S.defaults[key]||[];if(!defs.length)return;if(!S.events[key])S.events[key]={label:key,items:[]};ACCOUNTING_CATS.forEach(cat=>{const def=defs.find(d=>d.name===cat);if(!def)return;const item=S.events[key].items.find(it=>it.name===cat);if(item){item.budget=n(def.budget);}else if(n(def.budget)>0){S.events[key].items.push({id:uid(),name:cat,budget:n(def.budget),estimate:0,actual:0});}});S.events[key].items.sort((a,b)=>{const ai=ACCOUNTING_CATS.indexOf(a.name),bi=ACCOUNTING_CATS.indexOf(b.name);return(ai===-1?999:ai)-(bi===-1?999:bi);});});// シリーズ（hm/gk/oe）: 既存の全回次の費目予算をデフォルト値で更新
+['hm','gk','oe'].forEach(key=>{
+  const defs=S.defaults[key]||[];
+  if(!defs.length)return;
+  (S.sessions[key]||[]).forEach(sess=>{
+    defs.forEach(d=>{
+      if(!d.name||!n(d.budget))return;
+      const item=sess.items?.find(it=>it.name===d.name);
+      if(item){item.budget=n(d.budget);}
+      else{if(!sess.items)sess.items=[];sess.items.push({id:uid(),name:d.name,budget:n(d.budget),estimate:0,actual:0});}
+    });
+  });
+});
+save();closeOv('ov-defaults');renderPg(_curPg);alert('✅ 保存しました。各イベントの予算に反映されました。');}
 function applyDefaultsToEvent(){const key=_defTab;if(!['ko','aw','ye','md'].includes(key))return;const defaults=_defItems[key]||[];if(!S.events[key])S.events[key]={label:key,items:[]};const existing=S.events[key].items.map(i=>i.name);let added=0;defaults.forEach(d=>{if(!d.name)return;if(existing.includes(d.name)){const it=S.events[key].items.find(i=>i.name===d.name);if(it&&d.budget)it.budget=d.budget;}else{S.events[key].items.push({id:uid(),name:d.name,budget:d.budget||0,estimate:0,actual:0});added++;}});save();closeOv('ov-defaults');go(key,null);alert(`✅ デフォルト費目を適用しました（${added}件追加）`);}
 
 // ── カテゴリ判定設定 ──
@@ -1482,7 +1511,7 @@ PROD_CATS_LIST.forEach(cat=>{if(!prodB[cat])return;addB(PROD_TO_ACCT[cat]||'④ 
 // ── 製作物管理 ──
 if(!S.prodItems)S.prodItems=[];
 const PROD_SECTION_COLORS={'グッズ（外販）':{h:'#7c3aed',bg:'#ede9fe',fg:'#5b21b6'},'グッズ（内部向け）':{h:'#be185d',bg:'#fce7f3',fg:'#831843'},'イベント装飾':{h:'#0f766e',bg:'#ccfbf1',fg:'#134e4a'},'年間共通ツール':{h:'#1d4ed8',bg:'#dbeafe',fg:'#1e3a8a'},'マーケ':{h:'#be185d',bg:'#fce7f3',fg:'#831843'},'その他':{h:'#374151',bg:'#f3f4f6',fg:'#1f2937'}};
-function getStockStatus(it){const init=n(it.stockInit)||n(it.qty)||0,used=n(it.stockUsed)||0,remain=init-used,alert=n(it.stockAlert)||0;return{init,used,remain,alert};}
+function getStockStatus(it){const init=n(it.stockInit)||n(it.qty)||0,used=Math.min(n(it.stockUsed)||0,init),remain=init-used,alert=n(it.stockAlert)||0;return{init,used,remain,alert};}
 function getProdBudgets(){if(!S.prodBudgets)S.prodBudgets={};return S.prodBudgets;}
 function detectProdCat(name,origCat){const nm=(name||'').toLowerCase(),o=(origCat||'').toLowerCase();if(/マグカップ|トートバッグ|ステッカー|クリアファイル|詰め合わせ|バインダー|送料|suzuri|tシャツ|ウェア|キャップ|ピンバッジ|ポーチ/.test(nm))return'グッズ（外販）';if(/スタッフウェア|スタッフtシャツ|社内|内部|スタッフ用/.test(nm))return'グッズ（内部向け）';if(/パネル|バナー|フラッグ|装飾|フォトブース|ターポリン|ウェルカムボード|ステージ|ブース|展示/.test(nm))return'イベント装飾';if(/ロールアップ|バックパネル|ロゴパネル|手持ちパネル|スタンド/.test(nm))return'年間共通ツール';if(/マーケ|広告|sns|pr|プロモ|lp|ランディング|動画|映像|チラシ|ポスター|パンフ|広報/.test(nm))return'マーケ';return'その他';}
 
