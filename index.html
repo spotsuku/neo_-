@@ -163,15 +163,212 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 .sec-div{font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;padding:10px 0 5px;border-bottom:2px solid var(--b1);margin-bottom:10px;margin-top:14px;}
 .sec-div:first-child{margin-top:0;}
 </style>
-    <div class="pg on" id="pg-ov"><div class="g5" id="ov-kpis"></div><div class="g31"><div class="card"><div class="ct"><div class="pip"></div>月別支出推移（実績）</div><div class="ch"><canvas id="ch-monthly"></canvas></div></div><div class="card"><div class="ct"><div class="pip" style="background:var(--green)"></div>収入内訳</div><div id="ov-rev"></div></div></div><div class="g2"><div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>費目別 消化状況</div><div id="ov-cats"></div><div style="margin-top:12px"><div class="ch" style="height:140px"><canvas id="ch-cat"></canvas></div></div></div><div class="card"><div class="ct"><div class="pip" style="background:var(--purple)"></div>プログラム別 予算比率</div><div class="ch-t"><canvas id="ch-donut"></canvas></div></div></div><div class="card" style="margin-top:14px"><div class="ct"><div class="pip" style="background:var(--green)"></div>月次キャッシュフロー（CF）<span style="font-size:9px;font-weight:400;color:var(--t2);margin-left:8px">支払月を登録した費目・見積の月次支出予測</span></div><div style="height:200px"><canvas id="ch-cf"></canvas></div><div id="cf-table" style="overflow-x:auto;margin-top:12px"></div></div></div>
-    <div class="pg" id="pg-prog"><div class="g2"><div class="card"><div class="ct"><div class="pip"></div>プログラム別 予算 vs 実績</div><table class="tbl"><thead><tr><th>プログラム</th><th>予算</th><th>見積</th><th>実績</th><th>差異</th></tr></thead><tbody id="prog-tbody"></tbody></table></div><div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>予算消化率</div><div class="ch-t"><canvas id="ch-rate"></canvas></div></div></div></div>
-    <div class="pg" id="pg-hm"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div><div style="font-family:var(--disp);font-size:15px;font-weight:700">ホームルーム</div><div style="font-size:10px;color:var(--t2)">講座・ワークショップシリーズ</div></div><button class="btn btn-sm btn-g admin-only" onclick="openSess('hm',null)">＋ 追加</button></div><div class="g5" id="hm-kpis" style="margin-bottom:14px"></div><div class="g2" style="margin-bottom:14px"><div class="card"><div class="ct"><div class="pip"></div>会計科目別集計（全回次合算）</div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算（円）</th><th style="text-align:right">見積（円）</th><th style="text-align:right">実数（円）</th><th style="text-align:right">差異</th></tr></thead><tbody id="hm-cat-tbody"></tbody></table></div><div class="card"><div class="ct"><div class="pip" style="background:var(--green)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-hm-cat"></canvas></div></div></div><div class="sg" id="hm-grid"></div></div>
-    <div class="pg" id="pg-gk"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div><div style="font-family:var(--disp);font-size:15px;font-weight:700">NEO福岡評議会</div><div style="font-size:10px;color:var(--t2)">意思決定会議シリーズ</div></div><button class="btn btn-sm btn-g admin-only" onclick="openSess('gk',null)">＋ 追加</button></div><div class="g5" id="gk-kpis" style="margin-bottom:14px"></div><div class="g2" style="margin-bottom:14px"><div class="card"><div class="ct"><div class="pip"></div>会計科目別集計（全回次合算）</div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算（円）</th><th style="text-align:right">見積（円）</th><th style="text-align:right">実数（円）</th><th style="text-align:right">差異</th></tr></thead><tbody id="gk-cat-tbody"></tbody></table></div><div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-gk-cat"></canvas></div></div></div><div class="sg" id="gk-grid"></div></div>
-    <div class="pg" id="pg-oe"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div><div style="font-family:var(--disp);font-size:15px;font-weight:700">応援カイギ</div><div style="font-size:10px;color:var(--t2)">毎月開催の応援・交流会</div></div><button class="btn btn-sm btn-g admin-only" onclick="openSess('oe',null)">＋ 追加</button></div><div class="g5" id="oe-kpis" style="margin-bottom:14px"></div><div class="g2" style="margin-bottom:14px"><div class="card"><div class="ct"><div class="pip"></div>会計科目別集計（全回次合算）</div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算（円）</th><th style="text-align:right">見積（円）</th><th style="text-align:right">実数（円）</th><th style="text-align:right">差異</th></tr></thead><tbody id="oe-cat-tbody"></tbody></table></div><div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-oe-cat"></canvas></div></div></div><div class="sg" id="oe-grid"></div></div>
-    <div class="pg" id="pg-ko"><div class="g5" id="ko-kpis" style="margin-bottom:14px"></div><div class="g2" style="margin-bottom:14px"><div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('ko')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算（円）</th><th style="text-align:right">見積（円）</th><th style="text-align:right">実数（円）</th><th style="text-align:right">差異</th></tr></thead><tbody id="ko-tbody"></tbody></table></div><div class="card"><div class="ct"><div class="pip" style="background:var(--acc)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-ko"></canvas></div></div></div><div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>見積・実績 入力<div style="margin-left:auto;display:flex;gap:6px;align-items:center"><button class="btn btn-xs btn-g" onclick="addEstimateRow('ko')">＋ 行を追加</button><button class="btn btn-xs" onclick="classifyAllEstimates('ko')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">自動振り分け</button><button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('ko')">✅ 集計に反映</button></div></div><div style="overflow-x:auto"><table class="tbl" id="ko-est-table"><thead><tr><th style="width:28px"></th><th>品目名・内容</th><th style="width:170px">会計科目</th><th style="text-align:right;width:120px">見積（円）</th><th style="text-align:right;width:120px">実績（円）</th><th style="width:80px">支払月<span style="font-size:8px;font-weight:400;color:var(--t3);display:block">CF用</span></th><th style="width:28px"></th></tr></thead><tbody id="ko-est-tbody"></tbody></table></div><div id="ko-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」で明細を入力できます</div><div id="ko-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div></div></div>
-    <div class="pg" id="pg-aw"><div class="g5" id="aw-kpis" style="margin-bottom:14px"></div><div class="g2" style="margin-bottom:14px"><div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('aw')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算（円）</th><th style="text-align:right">見積（円）</th><th style="text-align:right">実数（円）</th><th style="text-align:right">差異</th></tr></thead><tbody id="aw-tbody"></tbody></table></div><div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-aw"></canvas></div></div></div><div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>見積・実績 入力<div style="margin-left:auto;display:flex;gap:6px;align-items:center"><button class="btn btn-xs btn-g" onclick="addEstimateRow('aw')">＋ 行を追加</button><button class="btn btn-xs" onclick="classifyAllEstimates('aw')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">自動振り分け</button><button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('aw')">✅ 集計に反映</button></div></div><div style="overflow-x:auto"><table class="tbl" id="aw-est-table"><thead><tr><th style="width:28px"></th><th>品目名・内容</th><th style="width:170px">会計科目</th><th style="text-align:right;width:120px">見積（円）</th><th style="text-align:right;width:120px">実績（円）</th><th style="width:80px">支払月<span style="font-size:8px;font-weight:400;color:var(--t3);display:block">CF用</span></th><th style="width:28px"></th></tr></thead><tbody id="aw-est-tbody"></tbody></table></div><div id="aw-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」で明細を入力できます</div><div id="aw-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div></div></div>
-    <div class="pg" id="pg-ye"><div class="g5" id="ye-kpis" style="margin-bottom:14px"></div><div class="g2" style="margin-bottom:14px"><div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('ye')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算（円）</th><th style="text-align:right">見積（円）</th><th style="text-align:right">実数（円）</th><th style="text-align:right">差異</th></tr></thead><tbody id="ye-tbody"></tbody></table></div><div class="card"><div class="ct"><div class="pip" style="background:var(--purple)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-ye"></canvas></div></div></div><div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>見積・実績 入力<div style="margin-left:auto;display:flex;gap:6px;align-items:center"><button class="btn btn-xs btn-g" onclick="addEstimateRow('ye')">＋ 行を追加</button><button class="btn btn-xs" onclick="classifyAllEstimates('ye')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">自動振り分け</button><button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('ye')">✅ 集計に反映</button></div></div><div style="overflow-x:auto"><table class="tbl" id="ye-est-table"><thead><tr><th style="width:28px"></th><th>品目名・内容</th><th style="width:170px">会計科目</th><th style="text-align:right;width:120px">見積（円）</th><th style="text-align:right;width:120px">実績（円）</th><th style="width:80px">支払月<span style="font-size:8px;font-weight:400;color:var(--t3);display:block">CF用</span></th><th style="width:28px"></th></tr></thead><tbody id="ye-est-tbody"></tbody></table></div><div id="ye-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」で明細を入力できます</div><div id="ye-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div></div></div>
-    <div class="pg" id="pg-tour"><div class="g5" id="tour-kpis" style="margin-bottom:14px"></div><div class="g2" style="margin-bottom:14px"><div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('tour')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算（円）</th><th style="text-align:right">見積（円）</th><th style="text-align:right">実数（円）</th><th style="text-align:right">差異</th></tr></thead><tbody id="tour-tbody"></tbody></table></div><div class="card"><div class="ct"><div class="pip" style="background:var(--acc)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-tour"></canvas></div></div></div><div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>見積・実績 入力<div style="margin-left:auto;display:flex;gap:6px;align-items:center"><button class="btn btn-xs btn-g" onclick="addEstimateRow('tour')">＋ 行を追加</button><button class="btn btn-xs" onclick="classifyAllEstimates('tour')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">自動振り分け</button><button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('tour')">✅ 集計に反映</button></div></div><div style="overflow-x:auto"><table class="tbl" id="tour-est-table"><thead><tr><th style="width:28px"></th><th>品目名・内容</th><th style="width:170px">会計科目</th><th style="text-align:right;width:120px">見積（円）</th><th style="text-align:right;width:120px">実績（円）</th><th style="width:80px">支払月<span style="font-size:8px;font-weight:400;color:var(--t3);display:block">CF用</span></th><th style="width:28px"></th></tr></thead><tbody id="tour-est-tbody"></tbody></table></div><div id="tour-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」で明細を入力できます</div><div id="tour-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div></div></div>
+</head>
+<body>
+
+<!-- ═══ SIDEBAR ═══ -->
+<nav class="sb">
+  <div class="sb-logo"><div class="sb-mark">NEO福岡</div><div class="sb-sub">経費管理ダッシュボード 第一期</div></div>
+  <div class="sb-sec">概要</div>
+  <button class="nb on" onclick="go('ov',this)"><span class="ic">📊</span>サマリー</button>
+  <button class="nb" onclick="go('prog',this)"><span class="ic">📋</span>プログラム別</button>
+  <div class="sb-sec">シリーズ</div>
+  <button class="nb" onclick="go('hm',this)"><span class="ic">🏫</span>ホームルーム</button>
+  <button class="nb" onclick="go('gk',this)"><span class="ic">🏛</span>評議会</button>
+  <button class="nb" onclick="go('oe',this)"><span class="ic">📣</span>応援カイギ</button>
+  <div class="sb-sec">大規模イベント</div>
+  <button class="nb" onclick="go('ko',this)"><span class="ic">🚀</span>キックオフ</button>
+  <button class="nb" onclick="go('aw',this)"><span class="ic">🏆</span>アワード</button>
+  <button class="nb" onclick="go('ye',this)"><span class="ic">🎉</span>イヤーエンド</button>
+  <button class="nb" onclick="go('tour',this)"><span class="ic">✈️</span>ツアー</button>
+  <button class="nb" onclick="go('cityfes',this)"><span class="ic">🏙</span>シティフェス</button>
+  <div class="sb-sec">管理</div>
+  <button class="nb" onclick="go('ordermaster',this)"><span class="ic">📋</span>発注マスタ</button>
+  <button class="nb" onclick="go('prod',this)"><span class="ic">📦</span>製作物管理</button>
+  <button class="nb" onclick="go('rev',this)"><span class="ic">💰</span>収入管理</button>
+  <div class="sb-sec">設定</div>
+  <button class="nb" id="nb-defaults" onclick="openSeriesDefaults()"><span class="ic">⚙️</span>デフォルト費目設定</button>
+  <button class="nb" onclick="openCatMaster()"><span class="ic">🗂</span>カテゴリ判定設定</button>
+  <button class="nb" onclick="go('changelog',this)"><span class="ic">🕵️</span>変更履歴</button>
+  <button class="nb" id="nb-users" onclick="go('users',this)" style="display:none"><span class="ic">👥</span>ユーザー管理</button>
+  <button class="nb" onclick="go('history',this)"><span class="ic">🕐</span>ログイン履歴</button>
+  <div class="sb-foot">
+    <div id="user-info-bar" style="display:none;background:var(--s2);border:1px solid var(--b1);border-radius:7px;padding:8px 10px;margin:6px 0">
+      <div style="font-size:9px;color:var(--t3);letter-spacing:.06em;margin-bottom:3px">ログイン中</div>
+      <div id="user-display-name" style="font-size:11px;font-weight:700;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      <div id="user-role-badge" style="margin-top:3px"></div>
+    </div>
+    <button id="logout-btn" onclick="doLogout()" style="display:none;width:100%;padding:7px;background:rgba(232,64,96,.08);border:1px solid rgba(232,64,96,.2);border-radius:6px;color:#e84060;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--sans);">ログアウト</button>
+    <div class="save-row" style="margin-top:6px"><div class="sdot" id="sdot"></div><span id="slbl">接続中...</span></div>
+  </div>
+</nav>
+
+<!-- ═══ MAIN ═══ -->
+<div class="main-wrap">
+  <div class="topbar">
+    <div class="topbar-title" id="pgTitle">サマリー</div>
+    <div class="topbar-right" style="gap:8px;align-items:center">
+      <div style="display:flex;align-items:center;gap:5px">
+        <button onclick="changeFYQuick(-1)" id="fy-prev-btn" style="width:24px;height:24px;border-radius:6px;border:1.5px solid var(--b2);background:var(--s2);cursor:pointer;font-size:13px;color:var(--t2);display:flex;align-items:center;justify-content:center">‹</button>
+        <div style="position:relative">
+          <select id="fy-quick-sel" onchange="changeFYQuick(0,this.value)" style="appearance:none;-webkit-appearance:none;padding:4px 26px 4px 10px;border-radius:7px;border:1.5px solid var(--blue);background:rgba(37,99,235,.07);cursor:pointer;font-size:11px;font-weight:700;color:var(--blue);font-family:var(--sans);outline:none;min-width:170px">
+            <option value="2025">2025年度（25/4〜26/3）</option>
+            <option value="2026">2026年度（26/4〜27/3）</option>
+          </select>
+          <span style="position:absolute;right:7px;top:50%;transform:translateY(-50%);font-size:9px;color:var(--blue);pointer-events:none">▼</span>
+        </div>
+        <button onclick="changeFYQuick(1)" id="fy-next-btn" style="width:24px;height:24px;border-radius:6px;border:1.5px solid var(--b2);background:var(--s2);cursor:pointer;font-size:13px;color:var(--t2);display:flex;align-items:center;justify-content:center">›</button>
+        <button onclick="openFiscalYearManager()" style="width:24px;height:24px;border-radius:6px;border:1.5px solid var(--b2);background:var(--s2);cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center">⚙️</button>
+      </div>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- OVERVIEW -->
+    <div class="pg on" id="pg-ov">
+      <div class="g5" id="ov-kpis"></div>
+      <div class="g31">
+        <div class="card"><div class="ct"><div class="pip"></div>月別支出推移（実績）</div><div class="ch"><canvas id="ch-monthly"></canvas></div></div>
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--green)"></div>収入内訳</div><div id="ov-rev"></div></div>
+      </div>
+      <div class="g2">
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>費目別 消化状況</div><div id="ov-cats"></div><div style="margin-top:12px"><div class="ch" style="height:140px"><canvas id="ch-cat"></canvas></div></div></div>
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--purple)"></div>プログラム別 予算比率</div><div class="ch-t"><canvas id="ch-donut"></canvas></div></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div class="ct"><div class="pip" style="background:var(--green)"></div>月次キャッシュフロー（CF）<span style="font-size:9px;font-weight:400;color:var(--t2);margin-left:8px">支払月を登録した費目の月次支出予測</span></div>
+        <div style="height:200px"><canvas id="ch-cf"></canvas></div>
+        <div id="cf-table" style="overflow-x:auto;margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- PROGRAMS -->
+    <div class="pg" id="pg-prog">
+      <div class="g2">
+        <div class="card"><div class="ct"><div class="pip"></div>プログラム別 予算 vs 実績</div><table class="tbl"><thead><tr><th>プログラム</th><th>予算</th><th>見積</th><th>実績</th><th>差異</th></tr></thead><tbody id="prog-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>予算消化率</div><div class="ch-t"><canvas id="ch-rate"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- HOMEROOM -->
+    <div class="pg" id="pg-hm">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div><div style="font-family:var(--disp);font-size:15px;font-weight:700">ホームルーム</div><div style="font-size:10px;color:var(--t2)">講座・ワークショップシリーズ</div></div>
+        <button class="btn btn-sm btn-g admin-only" onclick="openSess('hm',null)">＋ 追加</button>
+      </div>
+      <div class="g5" id="hm-kpis" style="margin-bottom:14px"></div>
+      <div class="g2" style="margin-bottom:14px">
+        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計</div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="hm-cat-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--green)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-hm-cat"></canvas></div></div>
+      </div>
+      <div class="sg" id="hm-grid"></div>
+    </div>
+
+    <!-- GIKAI -->
+    <div class="pg" id="pg-gk">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div><div style="font-family:var(--disp);font-size:15px;font-weight:700">NEO福岡評議会</div><div style="font-size:10px;color:var(--t2)">意思決定会議シリーズ</div></div>
+        <button class="btn btn-sm btn-g admin-only" onclick="openSess('gk',null)">＋ 追加</button>
+      </div>
+      <div class="g5" id="gk-kpis" style="margin-bottom:14px"></div>
+      <div class="g2" style="margin-bottom:14px">
+        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計</div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="gk-cat-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-gk-cat"></canvas></div></div>
+      </div>
+      <div class="sg" id="gk-grid"></div>
+    </div>
+
+    <!-- OEN -->
+    <div class="pg" id="pg-oe">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div><div style="font-family:var(--disp);font-size:15px;font-weight:700">応援カイギ</div><div style="font-size:10px;color:var(--t2)">毎月開催の応援・交流会</div></div>
+        <button class="btn btn-sm btn-g admin-only" onclick="openSess('oe',null)">＋ 追加</button>
+      </div>
+      <div class="g5" id="oe-kpis" style="margin-bottom:14px"></div>
+      <div class="g2" style="margin-bottom:14px">
+        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計</div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="oe-cat-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-oe-cat"></canvas></div></div>
+      </div>
+      <div class="sg" id="oe-grid"></div>
+    </div>
+
+    <div class="pg" id="pg-ko">
+      <div class="g5" id="ko-kpis" style="margin-bottom:14px"></div>
+      <div class="g2" style="margin-bottom:14px">
+        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('ko')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="ko-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--acc)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-ko"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="ct"><div class="pip" style="background:var(--blue)"></div>見積・実績 入力
+          <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+            <button class="btn btn-xs btn-g" onclick="addEstimateRow('ko')">＋ 行を追加</button>
+            <button class="btn btn-xs" onclick="classifyAllEstimates('ko')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">自動振り分け</button>
+            <button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('ko')">✅ 集計に反映</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto"><table class="tbl" id="ko-est-table"><thead><tr><th style="width:28px"></th><th>品目名・内容</th><th style="width:170px">会計科目</th><th style="text-align:right;width:120px">見積（円）</th><th style="text-align:right;width:120px">実績（円）</th><th style="width:80px">支払月</th><th style="width:28px"></th></tr></thead><tbody id="ko-est-tbody"></tbody></table></div>
+        <div id="ko-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」で明細を入力できます</div>
+        <div id="ko-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div>
+      </div>
+    </div>
+    <div class="pg" id="pg-aw">
+      <div class="g5" id="aw-kpis" style="margin-bottom:14px"></div>
+      <div class="g2" style="margin-bottom:14px">
+        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('aw')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="aw-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-aw"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="ct"><div class="pip" style="background:var(--blue)"></div>見積・実績 入力
+          <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+            <button class="btn btn-xs btn-g" onclick="addEstimateRow('aw')">＋ 行を追加</button>
+            <button class="btn btn-xs" onclick="classifyAllEstimates('aw')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">自動振り分け</button>
+            <button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('aw')">✅ 集計に反映</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto"><table class="tbl" id="aw-est-table"><thead><tr><th style="width:28px"></th><th>品目名・内容</th><th style="width:170px">会計科目</th><th style="text-align:right;width:120px">見積（円）</th><th style="text-align:right;width:120px">実績（円）</th><th style="width:80px">支払月</th><th style="width:28px"></th></tr></thead><tbody id="aw-est-tbody"></tbody></table></div>
+        <div id="aw-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」で明細を入力できます</div>
+        <div id="aw-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div>
+      </div>
+    </div>
+    <div class="pg" id="pg-ye">
+      <div class="g5" id="ye-kpis" style="margin-bottom:14px"></div>
+      <div class="g2" style="margin-bottom:14px">
+        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('ye')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="ye-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--purple)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-ye"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="ct"><div class="pip" style="background:var(--blue)"></div>見積・実績 入力
+          <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+            <button class="btn btn-xs btn-g" onclick="addEstimateRow('ye')">＋ 行を追加</button>
+            <button class="btn btn-xs" onclick="classifyAllEstimates('ye')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">自動振り分け</button>
+            <button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('ye')">✅ 集計に反映</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto"><table class="tbl" id="ye-est-table"><thead><tr><th style="width:28px"></th><th>品目名・内容</th><th style="width:170px">会計科目</th><th style="text-align:right;width:120px">見積（円）</th><th style="text-align:right;width:120px">実績（円）</th><th style="width:80px">支払月</th><th style="width:28px"></th></tr></thead><tbody id="ye-est-tbody"></tbody></table></div>
+        <div id="ye-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」で明細を入力できます</div>
+        <div id="ye-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div>
+      </div>
+    </div>
+    <div class="pg" id="pg-tour">
+      <div class="g5" id="tour-kpis" style="margin-bottom:14px"></div>
+      <div class="g2" style="margin-bottom:14px">
+        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('tour')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="tour-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--acc)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-tour"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="ct"><div class="pip" style="background:var(--blue)"></div>見積・実績 入力
+          <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+            <button class="btn btn-xs btn-g" onclick="addEstimateRow('tour')">＋ 行を追加</button>
+            <button class="btn btn-xs" onclick="classifyAllEstimates('tour')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">自動振り分け</button>
+            <button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('tour')">✅ 集計に反映</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto"><table class="tbl" id="tour-est-table"><thead><tr><th style="width:28px"></th><th>品目名・内容</th><th style="width:170px">会計科目</th><th style="text-align:right;width:120px">見積（円）</th><th style="text-align:right;width:120px">実績（円）</th><th style="width:80px">支払月</th><th style="width:28px"></th></tr></thead><tbody id="tour-est-tbody"></tbody></table></div>
+        <div id="tour-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」で明細を入力できます</div>
+        <div id="tour-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div>
+      </div>
+    </div>
+    <!-- CITYFES -->
     <div class="pg" id="pg-cityfes">
       <div class="g5" id="cityfes-kpis" style="margin-bottom:14px"></div>
       <div class="card" style="margin-bottom:14px">
@@ -183,19 +380,122 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
           <div style="flex:1"></div>
           <button class="btn btn-xs btn-g admin-only" style="margin:6px 8px" onclick="renameCityFesTab()">✏️ タブ名変更</button>
         </div>
-        <div id="cityfes-panel-md" ><div class="g5" id="md-kpis" style="margin-bottom:14px"></div><div class="g2" style="margin-bottom:14px"><div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('md')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算（円）</th><th style="text-align:right">見積（円）</th><th style="text-align:right">実数（円）</th><th style="text-align:right">差異</th></tr></thead><tbody id="md-tbody"></tbody></table></div><div class="card"><div class="ct"><div class="pip" style="background:var(--green)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-md"></canvas></div></div></div><div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>見積・実績 入力<div style="margin-left:auto;display:flex;gap:6px"><button class="btn btn-xs btn-g" onclick="addEstimateRow('md')">＋ 行を追加</button><button class="btn btn-xs" onclick="classifyAllEstimates('md')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">自動振り分け</button><button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('md')">✅ 集計に反映</button></div></div><div style="overflow-x:auto"><table class="tbl" id="md-est-table"><thead><tr><th style="width:28px"></th><th>品目名・内容</th><th style="width:170px">会計科目</th><th style="text-align:right;width:120px">見積（円）</th><th style="text-align:right;width:120px">実績（円）</th><th style="width:80px">支払月<span style="font-size:8px;font-weight:400;color:var(--t3);display:block">CF用</span></th><th style="width:28px"></th></tr></thead><tbody id="md-est-tbody"></tbody></table></div><div id="md-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」で明細を入力できます</div><div id="md-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div></div></div>
-        <div id="cityfes-panel-sd" style="display:none"><div class="g5" id="sd-kpis" style="margin-bottom:14px"></div><div class="g2" style="margin-bottom:14px"><div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('sd')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算（円）</th><th style="text-align:right">見積（円）</th><th style="text-align:right">実数（円）</th><th style="text-align:right">差異</th></tr></thead><tbody id="sd-tbody"></tbody></table></div><div class="card"><div class="ct"><div class="pip" style="background:var(--purple)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-sd"></canvas></div></div></div><div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>見積・実績 入力<div style="margin-left:auto;display:flex;gap:6px"><button class="btn btn-xs btn-g" onclick="addEstimateRow('sd')">＋ 行を追加</button><button class="btn btn-xs" onclick="classifyAllEstimates('sd')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">自動振り分け</button><button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('sd')">✅ 集計に反映</button></div></div><div style="overflow-x:auto"><table class="tbl" id="sd-est-table"><thead><tr><th style="width:28px"></th><th>品目名・内容</th><th style="width:170px">会計科目</th><th style="text-align:right;width:120px">見積（円）</th><th style="text-align:right;width:120px">実績（円）</th><th style="width:80px">支払月<span style="font-size:8px;font-weight:400;color:var(--t3);display:block">CF用</span></th><th style="width:28px"></th></tr></thead><tbody id="sd-est-tbody"></tbody></table></div><div id="sd-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」で明細を入力できます</div><div id="sd-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div></div></div>
-        <div id="cityfes-panel-cf3" style="display:none"><div class="g5" id="cf3-kpis" style="margin-bottom:14px"></div><div class="g2" style="margin-bottom:14px"><div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('cf3')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算（円）</th><th style="text-align:right">見積（円）</th><th style="text-align:right">実数（円）</th><th style="text-align:right">差異</th></tr></thead><tbody id="cf3-tbody"></tbody></table></div><div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-cf3"></canvas></div></div></div><div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>見積・実績 入力<div style="margin-left:auto;display:flex;gap:6px"><button class="btn btn-xs btn-g" onclick="addEstimateRow('cf3')">＋ 行を追加</button><button class="btn btn-xs" onclick="classifyAllEstimates('cf3')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">自動振り分け</button><button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('cf3')">✅ 集計に反映</button></div></div><div style="overflow-x:auto"><table class="tbl" id="cf3-est-table"><thead><tr><th style="width:28px"></th><th>品目名・内容</th><th style="width:170px">会計科目</th><th style="text-align:right;width:120px">見積（円）</th><th style="text-align:right;width:120px">実績（円）</th><th style="width:80px">支払月<span style="font-size:8px;font-weight:400;color:var(--t3);display:block">CF用</span></th><th style="width:28px"></th></tr></thead><tbody id="cf3-est-tbody"></tbody></table></div><div id="cf3-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」で明細を入力できます</div><div id="cf3-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div></div></div>
-        <div id="cityfes-panel-cf4" style="display:none"><div class="g5" id="cf4-kpis" style="margin-bottom:14px"></div><div class="g2" style="margin-bottom:14px"><div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('cf4')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算（円）</th><th style="text-align:right">見積（円）</th><th style="text-align:right">実数（円）</th><th style="text-align:right">差異</th></tr></thead><tbody id="cf4-tbody"></tbody></table></div><div class="card"><div class="ct"><div class="pip" style="background:var(--acc)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-cf4"></canvas></div></div></div><div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>見積・実績 入力<div style="margin-left:auto;display:flex;gap:6px"><button class="btn btn-xs btn-g" onclick="addEstimateRow('cf4')">＋ 行を追加</button><button class="btn btn-xs" onclick="classifyAllEstimates('cf4')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">自動振り分け</button><button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('cf4')">✅ 集計に反映</button></div></div><div style="overflow-x:auto"><table class="tbl" id="cf4-est-table"><thead><tr><th style="width:28px"></th><th>品目名・内容</th><th style="width:170px">会計科目</th><th style="text-align:right;width:120px">見積（円）</th><th style="text-align:right;width:120px">実績（円）</th><th style="width:80px">支払月<span style="font-size:8px;font-weight:400;color:var(--t3);display:block">CF用</span></th><th style="width:28px"></th></tr></thead><tbody id="cf4-est-tbody"></tbody></table></div><div id="cf4-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」で明細を入力できます</div><div id="cf4-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)"></div></div></div>
+        
+        <div id="cityfes-panel-md">
+          <div class="g5" id="md-kpis" style="margin-bottom:14px"></div>
+          <div class="g2" style="margin-bottom:14px">
+            <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('md')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="md-tbody"></tbody></table></div>
+            <div class="card"><div class="ct"><div class="pip" style="background:var(--green)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-md"></canvas></div></div>
+          </div>
+          <div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>見積・実績 入力<div style="margin-left:auto;display:flex;gap:6px"><button class="btn btn-xs btn-g" onclick="addEstimateRow('md')">＋ 行を追加</button><button class="btn btn-xs" onclick="classifyAllEstimates('md')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">自動振り分け</button><button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('md')">✅ 集計に反映</button></div></div><div style="overflow-x:auto"><table class="tbl"><thead><tr><th style="width:28px"></th><th>品目名・内容</th><th style="width:170px">会計科目</th><th style="text-align:right;width:120px">見積（円）</th><th style="text-align:right;width:120px">実績（円）</th><th style="width:80px">支払月</th><th style="width:28px"></th></tr></thead><tbody id="md-est-tbody"></tbody></table></div><div id="md-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」で明細を入力できます</div><div id="md-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px"></div></div>
+        </div>
+        
+        <div id="cityfes-panel-sd" style="display:none">
+          <div class="g5" id="sd-kpis" style="margin-bottom:14px"></div>
+          <div class="g2" style="margin-bottom:14px">
+            <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('sd')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="sd-tbody"></tbody></table></div>
+            <div class="card"><div class="ct"><div class="pip" style="background:var(--purple)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-sd"></canvas></div></div>
+          </div>
+          <div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>見積・実績 入力<div style="margin-left:auto;display:flex;gap:6px"><button class="btn btn-xs btn-g" onclick="addEstimateRow('sd')">＋ 行を追加</button><button class="btn btn-xs" onclick="classifyAllEstimates('sd')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">自動振り分け</button><button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('sd')">✅ 集計に反映</button></div></div><div style="overflow-x:auto"><table class="tbl"><thead><tr><th style="width:28px"></th><th>品目名・内容</th><th style="width:170px">会計科目</th><th style="text-align:right;width:120px">見積（円）</th><th style="text-align:right;width:120px">実績（円）</th><th style="width:80px">支払月</th><th style="width:28px"></th></tr></thead><tbody id="sd-est-tbody"></tbody></table></div><div id="sd-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」で明細を入力できます</div><div id="sd-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px"></div></div>
+        </div>
+        
+        <div id="cityfes-panel-cf3" style="display:none">
+          <div class="g5" id="cf3-kpis" style="margin-bottom:14px"></div>
+          <div class="g2" style="margin-bottom:14px">
+            <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('cf3')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="cf3-tbody"></tbody></table></div>
+            <div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-cf3"></canvas></div></div>
+          </div>
+          <div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>見積・実績 入力<div style="margin-left:auto;display:flex;gap:6px"><button class="btn btn-xs btn-g" onclick="addEstimateRow('cf3')">＋ 行を追加</button><button class="btn btn-xs" onclick="classifyAllEstimates('cf3')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">自動振り分け</button><button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('cf3')">✅ 集計に反映</button></div></div><div style="overflow-x:auto"><table class="tbl"><thead><tr><th style="width:28px"></th><th>品目名・内容</th><th style="width:170px">会計科目</th><th style="text-align:right;width:120px">見積（円）</th><th style="text-align:right;width:120px">実績（円）</th><th style="width:80px">支払月</th><th style="width:28px"></th></tr></thead><tbody id="cf3-est-tbody"></tbody></table></div><div id="cf3-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」で明細を入力できます</div><div id="cf3-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px"></div></div>
+        </div>
+        
+        <div id="cityfes-panel-cf4" style="display:none">
+          <div class="g5" id="cf4-kpis" style="margin-bottom:14px"></div>
+          <div class="g2" style="margin-bottom:14px">
+            <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('cf4')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="cf4-tbody"></tbody></table></div>
+            <div class="card"><div class="ct"><div class="pip" style="background:var(--acc)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-cf4"></canvas></div></div>
+          </div>
+          <div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>見積・実績 入力<div style="margin-left:auto;display:flex;gap:6px"><button class="btn btn-xs btn-g" onclick="addEstimateRow('cf4')">＋ 行を追加</button><button class="btn btn-xs" onclick="classifyAllEstimates('cf4')" style="background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:9px">自動振り分け</button><button class="btn btn-xs btn-p" onclick="applyEstimatesToEvt('cf4')">✅ 集計に反映</button></div></div><div style="overflow-x:auto"><table class="tbl"><thead><tr><th style="width:28px"></th><th>品目名・内容</th><th style="width:170px">会計科目</th><th style="text-align:right;width:120px">見積（円）</th><th style="text-align:right;width:120px">実績（円）</th><th style="width:80px">支払月</th><th style="width:28px"></th></tr></thead><tbody id="cf4-est-tbody"></tbody></table></div><div id="cf4-est-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 行を追加」で明細を入力できます</div><div id="cf4-est-total" style="display:none;text-align:right;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px"></div></div>
+        </div>
       </div>
     </div>
-    <div class="pg" id="pg-ordermaster"><div class="card"><div class="ct"><div class="pip" style="background:var(--acc2)"></div>発注マスタ<div style="margin-left:auto;display:flex;gap:7px;align-items:center"><input id="om-search" class="fi" placeholder="🔍 品目名で検索..." style="width:180px;padding:5px 9px;font-size:11px" oninput="renderOrderMaster()"><select id="om-filter-cat" class="fi" style="width:150px;padding:5px 9px;font-size:11px" onchange="renderOrderMaster()"><option value="">すべての科目</option><option>① 会場・施設費</option><option>② 飲食・ケータリング費</option><option>③ 出演・キャスティング費</option><option>④ 制作・演出費</option><option>⑤ 運営・人件費</option><option>⑥ 備品・設営費</option><option>⑦ マーケ・広報費</option><option>⑧ デザイン費</option><option>⑨ その他</option></select><button class="btn btn-sm btn-g" onclick="autoGenerateOrderMaster()" style="white-space:nowrap">🤖 自動生成</button><button class="btn btn-sm btn-p" onclick="addOrderMasterRow()">＋ 追加</button><button class="btn btn-sm btn-g" onclick="saveOrderMaster()" style="font-weight:700">💾 保存</button></div></div><div id="om-summary" style="display:flex;gap:10px;padding:8px 0 12px;border-bottom:1px solid var(--b1);margin-bottom:10px;font-size:11px;color:var(--t2)"></div><div style="overflow-x:auto"><table class="tbl" id="om-table" style="min-width:760px"><thead><tr><th style="width:28px"></th><th>品目名・サービス名</th><th style="width:160px">会計科目</th><th style="width:200px">仕様・内容メモ</th><th style="text-align:right;width:110px">標準単価（円）</th><th style="width:60px">単位</th><th style="width:120px">取引先・発注先</th><th style="width:28px"></th></tr></thead><tbody id="om-tbody"></tbody></table></div><div id="om-empty" style="text-align:center;padding:32px;color:var(--t3);font-size:11px">「＋ 追加」で品目を登録、または「🤖 自動生成」で経費明細から自動作成できます</div></div></div>
-    <div class="pg" id="pg-prod"><div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap"><select id="prod-filter-cat" class="fi" style="width:160px;padding:6px 10px;font-size:11px" onchange="renderProd()"><option value="">すべてのカテゴリ</option><option>グッズ（外販）</option><option>グッズ（内部向け）</option><option>イベント装飾</option><option>年間共通ツール</option><option>その他</option></select><select id="prod-filter-stock" class="fi" style="width:130px;padding:6px 10px;font-size:11px" onchange="renderProd()"><option value="">在庫：すべて</option><option value="low">⚠️ 在庫少</option><option value="out">❌ 在庫なし</option><option value="ok">✅ 在庫あり</option></select></div><div class="g5" id="prod-kpis" style="margin-bottom:14px"></div><div id="prod-sections"></div><div style="display:flex;gap:8px;margin-top:4px"><button class="btn btn-sm btn-p" onclick="addProdRow()">＋ 行を追加</button><button class="btn btn-sm btn-g" onclick="saveProdInline()" style="font-weight:700">💾 保存</button></div></div>
-    <div class="pg" id="pg-changelog"><div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>変更履歴<div style="margin-left:auto;display:flex;gap:7px;align-items:center"><select id="cl-filter-user" class="fi" style="width:130px;padding:4px 8px;font-size:10px" onchange="renderChangelog()"><option value="">全ユーザー</option></select><select id="cl-filter-type" class="fi" style="width:130px;padding:4px 8px;font-size:10px" onchange="renderChangelog()"><option value="">全操作</option><option value="session">回次編集</option><option value="event">イベント費目</option><option value="budget">予算変更</option><option value="ledger">経費明細</option><option value="mkt">マーケ費用</option><option value="prod">製作物</option></select><button class="btn btn-sm btn-red" onclick="clearChangelog()" id="cl-clear-btn" style="display:none">🗑 クリア</button></div></div><table class="tbl"><thead><tr><th>日時</th><th>ユーザー</th><th>操作種別</th><th>変更内容</th><th>変更前</th><th>変更後</th></tr></thead><tbody id="changelog-tbody"></tbody></table><div id="changelog-empty" style="text-align:center;padding:32px;color:var(--t3);font-size:12px;display:none">変更履歴がありません</div></div></div>
-    <div class="pg" id="pg-rev"><div class="g2"><div class="card"><div class="ct"><div class="pip" style="background:var(--green)"></div>収入内訳<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openRev()">✏️ 編集</button></div><div id="rev-detail"></div></div><div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>収支サマリー</div><div id="net-summary"></div></div></div></div>
-    <div class="pg" id="pg-users"><div class="card" style="margin-bottom:12px"><div class="ct"><div class="pip" style="background:var(--blue)"></div>ユーザー一覧<button class="btn btn-xs btn-p" style="margin-left:auto" onclick="openInvitePanel()">＋ ユーザーを作成</button></div><table class="tbl"><thead><tr><th>名前</th><th>メールアドレス</th><th>ロール</th><th>登録日</th><th>承認</th><th></th></tr></thead><tbody id="users-tbody"></tbody></table></div></div>
-    <div class="pg" id="pg-history"><div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>ログイン履歴</div><table class="tbl"><thead><tr><th>日時</th><th>ユーザー</th><th>メールアドレス</th></tr></thead><tbody id="history-tbody"></tbody></table></div></div>
-  </div></div>
+
+    <!-- 発注マスタ -->
+    <div class="pg" id="pg-ordermaster">
+      <div class="card">
+        <div class="ct"><div class="pip" style="background:var(--acc2)"></div>発注マスタ
+          <div style="margin-left:auto;display:flex;gap:7px;align-items:center">
+            <input id="om-search" class="fi" placeholder="🔍 品目名で検索..." style="width:180px;padding:5px 9px;font-size:11px" oninput="renderOrderMaster()">
+            <select id="om-filter-cat" class="fi" style="width:150px;padding:5px 9px;font-size:11px" onchange="renderOrderMaster()"><option value="">すべての科目</option><option>① 会場・施設費</option><option>② 飲食・ケータリング費</option><option>③ 出演・キャスティング費</option><option>④ 制作・演出費</option><option>⑤ 運営・人件費</option><option>⑥ 備品・設営費</option><option>⑦ マーケ・広報費</option><option>⑧ デザイン費</option><option>⑨ その他</option></select>
+            <button class="btn btn-sm btn-g" onclick="autoGenerateOrderMaster()" style="white-space:nowrap">🤖 自動生成</button>
+            <button class="btn btn-sm btn-p" onclick="addOrderMasterRow()">＋ 追加</button>
+            <button class="btn btn-sm btn-g" onclick="saveOrderMaster()" style="font-weight:700">💾 保存</button>
+          </div>
+        </div>
+        <div id="om-summary" style="display:flex;gap:10px;padding:8px 0 12px;border-bottom:1px solid var(--b1);margin-bottom:10px;font-size:11px;color:var(--t2)"></div>
+        <div style="overflow-x:auto"><table class="tbl" id="om-table" style="min-width:760px"><thead><tr><th style="width:28px"></th><th>品目名・サービス名</th><th style="width:160px">会計科目</th><th style="width:200px">仕様・内容メモ</th><th style="text-align:right;width:110px">標準単価（円）</th><th style="width:60px">単位</th><th style="width:120px">取引先・発注先</th><th style="width:28px"></th></tr></thead><tbody id="om-tbody"></tbody></table></div>
+        <div id="om-empty" style="text-align:center;padding:32px;color:var(--t3);font-size:11px">「＋ 追加」で品目を登録、または「🤖 自動生成」で経費明細から自動作成できます</div>
+      </div>
+    </div>
+
+    <!-- 製作物管理 -->
+    <div class="pg" id="pg-prod">
+      <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+        <select id="prod-filter-cat" class="fi" style="width:160px;padding:6px 10px;font-size:11px" onchange="renderProd()"><option value="">すべてのカテゴリ</option><option>グッズ（外販）</option><option>グッズ（内部向け）</option><option>イベント装飾</option><option>年間共通ツール</option><option>その他</option></select>
+        <select id="prod-filter-stock" class="fi" style="width:130px;padding:6px 10px;font-size:11px" onchange="renderProd()"><option value="">在庫：すべて</option><option value="low">⚠️ 在庫少</option><option value="out">❌ 在庫なし</option><option value="ok">✅ 在庫あり</option></select>
+      </div>
+      <div class="g5" id="prod-kpis" style="margin-bottom:14px"></div>
+      <div id="prod-sections"></div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn btn-sm btn-p" onclick="addProdRow()">＋ 行を追加</button>
+        <button class="btn btn-sm btn-g" onclick="saveProdInline()" style="font-weight:700">💾 保存</button>
+      </div>
+    </div>
+
+    <!-- 変更履歴 -->
+    <div class="pg" id="pg-changelog">
+      <div class="card">
+        <div class="ct"><div class="pip" style="background:var(--yellow)"></div>変更履歴
+          <div style="margin-left:auto;display:flex;gap:7px;align-items:center">
+            <select id="cl-filter-user" class="fi" style="width:130px;padding:4px 8px;font-size:10px" onchange="renderChangelog()"><option value="">全ユーザー</option></select>
+            <select id="cl-filter-type" class="fi" style="width:130px;padding:4px 8px;font-size:10px" onchange="renderChangelog()"><option value="">全操作</option><option value="session">回次編集</option><option value="event">イベント費目</option><option value="budget">予算変更</option><option value="ledger">経費明細</option><option value="mkt">マーケ費用</option><option value="prod">製作物</option></select>
+            <button class="btn btn-sm btn-red" onclick="clearChangelog()" id="cl-clear-btn" style="display:none">🗑 クリア</button>
+          </div>
+        </div>
+        <table class="tbl"><thead><tr><th>日時</th><th>ユーザー</th><th>操作種別</th><th>変更内容</th><th>変更前</th><th>変更後</th></tr></thead><tbody id="changelog-tbody"></tbody></table>
+        <div id="changelog-empty" style="text-align:center;padding:32px;color:var(--t3);font-size:12px;display:none">変更履歴がありません</div>
+      </div>
+    </div>
+
+    <!-- 収入管理 -->
+    <div class="pg" id="pg-rev">
+      <div class="g2">
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--green)"></div>収入内訳<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openRev()">✏️ 編集</button></div><div id="rev-detail"></div></div>
+        <div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>収支サマリー</div><div id="net-summary"></div></div>
+      </div>
+    </div>
+
+    <!-- ユーザー管理 -->
+    <div class="pg" id="pg-users">
+      <div class="card" style="margin-bottom:12px">
+        <div class="ct"><div class="pip" style="background:var(--blue)"></div>ユーザー一覧
+          <button class="btn btn-xs btn-p" style="margin-left:auto" onclick="openInvitePanel()">＋ ユーザーを作成</button>
+        </div>
+        <table class="tbl"><thead><tr><th>名前</th><th>メールアドレス</th><th>ロール</th><th>登録日</th><th>承認</th><th></th></tr></thead><tbody id="users-tbody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ログイン履歴 -->
+    <div class="pg" id="pg-history">
+      <div class="card">
+        <div class="ct"><div class="pip" style="background:var(--yellow)"></div>ログイン履歴</div>
+        <table class="tbl"><thead><tr><th>日時</th><th>ユーザー</th><th>メールアドレス</th></tr></thead><tbody id="history-tbody"></tbody></table>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main-wrap -->
+
+<!-- ═══ ログイン画面 ═══ -->
 <div id="login-screen" style="position:fixed;inset:0;background:linear-gradient(135deg,#eff6ff 0%,#f0f9ff 50%,#f5f3ff 100%);z-index:1000;display:flex;align-items:center;justify-content:center;">
   <div style="width:380px;max-width:92vw">
     <div style="text-align:center;margin-bottom:28px">
@@ -212,6 +512,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
     </div>
   </div>
 </div>
+
+<!-- ═══ 招待パネル ═══ -->
 <div class="ov" id="ov-invite">
   <div class="panel">
     <div class="ph"><h2>ユーザーを作成</h2><button class="xbtn" onclick="closeOv('ov-invite')">×</button></div>
@@ -219,19 +521,22 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       <div id="invite-error" style="display:none;background:rgba(232,64,96,.1);border:1px solid rgba(232,64,96,.3);border-radius:6px;padding:8px 12px;font-size:11px;color:#e84060;margin-bottom:12px"></div>
       <div class="frow"><div class="fl">メールアドレス</div><input class="fi" id="inv-email" type="email" placeholder="user@example.com"></div>
       <div class="frow" style="margin-top:8px"><div class="fl">表示名</div><input class="fi" id="inv-name" placeholder="山田 太郎"></div>
-      <div class="frow" style="margin-top:8px"><div class="fl">ロール</div><select class="fi" id="inv-role" style="width:auto"><option value="member">メンバー（閲覧・見積入力）</option><option value="admin">管理者（全権限）</option></select></div>
+      <div class="frow" style="margin-top:8px"><div class="fl">ロール</div><select class="fi" id="inv-role" style="width:auto"><option value="member">メンバー</option><option value="admin">管理者</option></select></div>
       <div class="frow" style="margin-top:8px"><div class="fl">初期パスワード</div><input class="fi" id="inv-pass" type="text" placeholder="8文字以上で設定"></div>
-      <p style="font-size:10px;color:var(--t3);margin-top:10px;line-height:1.7">※ 作成後、本人にパスワード変更を促してください。<br>※ Supabase Edge Function (create-user) 経由で作成します。</p>
     </div>
     <div class="pf"><button class="btn btn-g" onclick="closeOv('ov-invite')">キャンセル</button><button class="btn btn-p" onclick="doInviteUser()">作成する</button></div>
   </div>
 </div>
-<div class="ov" id="ov-sess"><div class="panel wide"><div class="ph"><h2 id="sess-title">回次を編集</h2><button class="xbtn" onclick="closeOv('ov-sess')">×</button></div><div class="pb-body"><div class="fg2" style="margin-bottom:10px"><div class="frow"><div class="fl">タイトル</div><input class="fi" id="s-title" placeholder="例: 第1回 長尾さん"></div><div class="frow"><div class="fl">開催日</div><input class="fi" id="s-date" type="date"></div></div><div class="sec-div">合計金額（費目内訳から自動計算）</div><div class="fg3" style="margin-bottom:12px"><div class="frow"><div class="fl" style="color:var(--t3)">予算（合計）</div><input class="fi" id="s-budget-total" readonly placeholder="費目合計" style="color:var(--t2)"></div><div class="frow"><div class="fl" style="color:#5590dd">見積（合計）</div><input class="fi" id="s-est-total" readonly placeholder="費目合計" style="color:var(--blue)"></div><div class="frow"><div class="fl" style="color:#2ab890">実数（合計）</div><input class="fi" id="s-act-total" readonly placeholder="費目合計" style="color:var(--green)"></div></div><div class="sec-div">費目別内訳</div><div class="item-hdr"><span></span><span>費目名</span><span style="text-align:right">予算</span><span style="text-align:right">見積</span><span style="text-align:right">実数</span><span></span></div><div id="sess-items"></div><button class="add-btn admin-only" onclick="addSessItem()">＋ 費目を追加</button><div class="sec-div" style="margin-top:14px">メモ</div><input class="fi" id="s-memo" placeholder="任意のメモ・備考"></div><div class="pf" style="justify-content:space-between"><button class="btn btn-red btn-sm admin-only" id="sess-del-btn" onclick="deleteSess()">削除</button><div style="display:flex;gap:7px"><button class="btn btn-g" onclick="closeOv('ov-sess')">キャンセル</button><button class="btn btn-p" onclick="saveSess()">保存</button></div></div></div></div>
+
+<!-- ═══ 各種パネル ═══ -->
+<div class="ov" id="ov-sess"><div class="panel wide"><div class="ph"><h2 id="sess-title">回次を編集</h2><button class="xbtn" onclick="closeOv('ov-sess')">×</button></div><div class="pb-body"><div class="fg2" style="margin-bottom:10px"><div class="frow"><div class="fl">タイトル</div><input class="fi" id="s-title" placeholder="例: 第1回"></div><div class="frow"><div class="fl">開催日</div><input class="fi" id="s-date" type="date"></div></div><div class="sec-div">合計金額</div><div class="fg3" style="margin-bottom:12px"><div class="frow"><div class="fl">予算</div><input class="fi" id="s-budget-total" readonly style="color:var(--t2)"></div><div class="frow"><div class="fl" style="color:#5590dd">見積</div><input class="fi" id="s-est-total" readonly style="color:var(--blue)"></div><div class="frow"><div class="fl" style="color:#2ab890">実数</div><input class="fi" id="s-act-total" readonly style="color:var(--green)"></div></div><div class="sec-div">費目別内訳</div><div class="item-hdr"><span></span><span>費目名</span><span style="text-align:right">予算</span><span style="text-align:right">見積</span><span style="text-align:right">実数</span><span></span></div><div id="sess-items"></div><button class="add-btn admin-only" onclick="addSessItem()">＋ 費目を追加</button><div class="sec-div" style="margin-top:14px">メモ</div><input class="fi" id="s-memo" placeholder="任意のメモ"></div><div class="pf" style="justify-content:space-between"><button class="btn btn-red btn-sm admin-only" id="sess-del-btn" onclick="deleteSess()">削除</button><div style="display:flex;gap:7px"><button class="btn btn-g" onclick="closeOv('ov-sess')">キャンセル</button><button class="btn btn-p" onclick="saveSess()">保存</button></div></div></div></div>
 <div class="ov" id="ov-evt"><div class="panel wide"><div class="ph"><h2 id="evt-title">費目別明細を編集</h2><button class="xbtn" onclick="closeOv('ov-evt')">×</button></div><div class="pb-body"><div class="item-hdr"><span></span><span>費目名</span><span style="text-align:right">予算</span><span style="text-align:right">見積</span><span style="text-align:right">実数</span><span></span></div><div id="evt-items"></div><button class="add-btn admin-only" onclick="addEvtItem()">＋ 費目を追加</button></div><div class="pf"><button class="btn btn-g" onclick="closeOv('ov-evt')">キャンセル</button><button class="btn btn-p" onclick="saveEvt()">保存</button></div></div></div>
-<div class="ov" id="ov-rev-edit"><div class="panel"><div class="ph"><h2>収入を編集</h2><button class="xbtn" onclick="closeOv('ov-rev-edit')">×</button></div><div class="pb-body"><div style="display:grid;grid-template-columns:20px 1fr 120px 90px 110px 26px;gap:5px;padding:0 2px;margin-bottom:4px"><span></span><span style="font-size:8px;font-weight:700;color:var(--t3);letter-spacing:.08em;text-transform:uppercase">項目名</span><span style="font-size:8px;font-weight:700;color:var(--t3);letter-spacing:.08em;text-transform:uppercase">プログラム</span><span style="font-size:8px;font-weight:700;color:var(--t3);letter-spacing:.08em;text-transform:uppercase">種別</span><span style="font-size:8px;font-weight:700;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;text-align:right">金額（円）</span><span></span></div><div id="rev-items"></div><button class="add-btn admin-only" onclick="addRevItem()">＋ 収入項目を追加</button></div><div class="pf"><button class="btn btn-g" onclick="closeOv('ov-rev-edit')">キャンセル</button><button class="btn btn-p" onclick="saveRev()">保存</button></div></div></div>
-<div class="ov" id="ov-defaults"><div class="panel wide"><div class="ph"><h2>⚙️ デフォルト費目設定</h2><button class="xbtn" onclick="closeOv('ov-defaults')">×</button></div><div class="pb-body"><p style="font-size:11px;color:var(--t2);margin-bottom:14px">各シリーズで「＋ 追加」したとき、この費目と予算が自動で入力されます。</p><div class="tabs" id="defaults-tabs" style="flex-wrap:wrap;gap:4px"><button class="tab on" onclick="switchDefaultsTab('hm',this)">🏫 ホームルーム</button><button class="tab" onclick="switchDefaultsTab('gk',this)">🏛 評議会</button><button class="tab" onclick="switchDefaultsTab('oe',this)">📣 応援カイギ</button><button class="tab" onclick="switchDefaultsTab('ko',this)">🚀 キックオフ</button><button class="tab" onclick="switchDefaultsTab('aw',this)">🏆 アワード</button><button class="tab" onclick="switchDefaultsTab('ye',this)">🎉 イヤーエンド</button><button class="tab" onclick="switchDefaultsTab('tour',this)">✈️ ツアー</button></div><div id="defaults-apply-row" style="display:none;margin-bottom:10px"><button class="btn btn-sm" onclick="applyDefaultsToEvent()" style="background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.3);color:var(--blue);font-size:10px">📋 このデフォルトをイベント費目に適用する</button><span style="font-size:9px;color:var(--t3);margin-left:8px">※既存の費目は保持され、新しい費目が追加されます</span></div><div id="defaults-content"><div style="display:grid;grid-template-columns:20px 1fr 110px 26px;gap:5px;padding:0 4px;margin-bottom:4px"><span></span><span style="font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase">会計科目（①〜⑧）</span><span style="font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;text-align:right">デフォルト予算（円）</span><span></span></div><div id="defaults-items"></div><button class="add-btn" onclick="addDefaultItem()">＋ 費目を追加</button></div><div style="margin-top:14px;padding:10px 12px;background:var(--s2);border-radius:7px;border:1px solid var(--b1)"><div style="font-size:10px;color:var(--t2);margin-bottom:6px">💡 プレビュー：次回追加時の費目合計</div><div id="defaults-preview" style="font-family:var(--mono);font-size:12px;color:var(--t1)"></div></div></div><div class="pf" style="justify-content:space-between"><button class="btn btn-red btn-sm" onclick="resetDefaults()" style="font-size:9px">リセット</button><div style="display:flex;gap:7px"><button class="btn btn-g" onclick="closeOv('ov-defaults')">キャンセル</button><button class="btn btn-p" onclick="saveDefaults()">保存する</button></div></div></div></div>
-<div class="ov" id="ov-cat-master"><div class="panel wide"><div class="ph"><h2>🗂 カテゴリ判定設定</h2><button class="xbtn" onclick="closeOv('ov-cat-master')">×</button></div><div class="pb-body"><p style="font-size:11px;color:var(--t2);margin-bottom:14px">費目名にこのキーワードが含まれると、自動でカテゴリが判定されます。</p><div class="tabs" id="cat-tabs" style="flex-wrap:wrap;gap:4px"><button class="tab on" onclick="switchCatTab('① 会場・施設費',this)">① 会場・施設費</button><button class="tab" onclick="switchCatTab('② 飲食・ケータリング費',this)">② 飲食</button><button class="tab" onclick="switchCatTab('③ 出演・キャスティング費',this)">③ 出演</button><button class="tab" onclick="switchCatTab('④ 制作・演出費',this)">④ 制作</button><button class="tab" onclick="switchCatTab('⑤ 運営・人件費',this)">⑤ 運営</button><button class="tab" onclick="switchCatTab('⑥ 備品・設営費',this)">⑥ 備品</button><button class="tab" onclick="switchCatTab('⑦ マーケ・広報費',this)">⑦ マーケ</button><button class="tab" onclick="switchCatTab('⑨ その他',this)">⑨ その他</button><button class="tab" onclick="switchCatTab('⑧ デザイン費',this)">⑧ デザイン</button></div><div id="cat-master-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:120px;padding:10px 0"></div><div style="margin-top:12px;display:flex;gap:8px;align-items:center"><input class="fi" id="cat-new-keyword" placeholder="新しいキーワードを入力..." style="flex:1" onkeydown="if(event.key==='Enter')addCatKeyword()"><button class="btn btn-p btn-sm" onclick="addCatKeyword()">＋ 追加</button></div><div style="margin-top:14px;padding:10px 12px;background:var(--s2);border-radius:8px;border:1px solid var(--b1)"><div style="font-size:10px;color:var(--t2)">💡 テスト</div><div style="display:flex;gap:8px;margin-top:8px;align-items:center"><input class="fi" id="cat-test-input" placeholder="例: カメラマン（岩城さん）" style="flex:1" oninput="testCatDetect()"><div id="cat-test-result" style="font-size:12px;font-weight:700;min-width:140px;text-align:center;padding:6px 10px;border-radius:6px;background:var(--s3)">判定結果がここに出ます</div></div></div></div><div class="pf" style="justify-content:space-between"><button class="btn btn-red btn-sm" onclick="resetCatMaster()">初期値に戻す</button><div style="display:flex;gap:7px"><button class="btn btn-g" onclick="closeOv('ov-cat-master')">キャンセル</button><button class="btn btn-p" onclick="saveCatMaster()">保存する</button></div></div></div></div>
-<div class="ov" id="ov-fiscal-year"><div class="panel" style="width:520px"><div class="ph"><h2>📅 年度管理</h2><button class="xbtn" onclick="closeOv('ov-fiscal-year')">×</button></div><div class="pb-body"><p style="font-size:11px;color:var(--t2);margin-bottom:16px">年度ごとにデータを分けて管理できます。</p><div style="font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">利用可能な年度</div><div id="fy-list" style="margin-bottom:20px"></div><div style="border-top:1px solid var(--b1);padding-top:16px" class="admin-only"><div style="font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">新年度を作成（管理者のみ）</div><div style="display:flex;gap:8px;align-items:center"><input id="new-fy-input" type="number" class="fi" placeholder="例: 2026" style="width:120px" min="2024" max="2040" value="2026"><span style="font-size:11px;color:var(--t2)">年度（4月〜翌3月）</span><button class="btn btn-p btn-sm" onclick="createNewFiscalYear()">＋ 新年度作成</button></div><div style="font-size:10px;color:var(--t3);margin-top:6px">※ 新年度は空のデータで開始されます。</div></div></div><div class="pf"><button class="btn btn-g" onclick="closeOv('ov-fiscal-year')">閉じる</button></div></div></div>
+<div class="ov" id="ov-rev-edit"><div class="panel"><div class="ph"><h2>収入を編集</h2><button class="xbtn" onclick="closeOv('ov-rev-edit')">×</button></div><div class="pb-body"><div style="display:grid;grid-template-columns:20px 1fr 120px 90px 110px 26px;gap:5px;padding:0 2px;margin-bottom:4px"><span></span><span style="font-size:8px;font-weight:700;color:var(--t3)">項目名</span><span style="font-size:8px;font-weight:700;color:var(--t3)">プログラム</span><span style="font-size:8px;font-weight:700;color:var(--t3)">種別</span><span style="font-size:8px;font-weight:700;color:var(--t3);text-align:right">金額</span><span></span></div><div id="rev-items"></div><button class="add-btn admin-only" onclick="addRevItem()">＋ 収入項目を追加</button></div><div class="pf"><button class="btn btn-g" onclick="closeOv('ov-rev-edit')">キャンセル</button><button class="btn btn-p" onclick="saveRev()">保存</button></div></div></div>
+<div class="ov" id="ov-defaults"><div class="panel wide"><div class="ph"><h2>⚙️ デフォルト費目設定</h2><button class="xbtn" onclick="closeOv('ov-defaults')">×</button></div><div class="pb-body"><p style="font-size:11px;color:var(--t2);margin-bottom:14px">各シリーズで「＋ 追加」したとき、この費目と予算が自動で入力されます。</p><div class="tabs" id="defaults-tabs" style="flex-wrap:wrap;gap:4px"><button class="tab on" onclick="switchDefaultsTab('hm',this)">🏫 ホームルーム</button><button class="tab" onclick="switchDefaultsTab('gk',this)">🏛 評議会</button><button class="tab" onclick="switchDefaultsTab('oe',this)">📣 応援カイギ</button><button class="tab" onclick="switchDefaultsTab('ko',this)">🚀 キックオフ</button><button class="tab" onclick="switchDefaultsTab('aw',this)">🏆 アワード</button><button class="tab" onclick="switchDefaultsTab('ye',this)">🎉 イヤーエンド</button><button class="tab" onclick="switchDefaultsTab('tour',this)">✈️ ツアー</button></div><div id="defaults-apply-row" style="display:none;margin-bottom:10px"><button class="btn btn-sm" onclick="applyDefaultsToEvent()" style="background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.3);color:var(--blue);font-size:10px">📋 デフォルトをイベント費目に適用</button></div><div id="defaults-content"><div style="display:grid;grid-template-columns:20px 1fr 110px 26px;gap:5px;padding:0 4px;margin-bottom:4px"><span></span><span style="font-size:10px;font-weight:700;color:var(--t3)">会計科目</span><span style="font-size:10px;font-weight:700;color:var(--t3);text-align:right">デフォルト予算</span><span></span></div><div id="defaults-items"></div><button class="add-btn" onclick="addDefaultItem()">＋ 費目を追加</button></div><div style="margin-top:14px;padding:10px 12px;background:var(--s2);border-radius:7px;border:1px solid var(--b1)"><div style="font-size:10px;color:var(--t2);margin-bottom:6px">💡 プレビュー</div><div id="defaults-preview" style="font-family:var(--mono);font-size:12px;color:var(--t1)"></div></div></div><div class="pf" style="justify-content:space-between"><button class="btn btn-red btn-sm" onclick="resetDefaults()" style="font-size:9px">リセット</button><div style="display:flex;gap:7px"><button class="btn btn-g" onclick="closeOv('ov-defaults')">キャンセル</button><button class="btn btn-p" onclick="saveDefaults()">保存する</button></div></div></div></div>
+<div class="ov" id="ov-cat-master"><div class="panel wide"><div class="ph"><h2>🗂 カテゴリ判定設定</h2><button class="xbtn" onclick="closeOv('ov-cat-master')">×</button></div><div class="pb-body"><p style="font-size:11px;color:var(--t2);margin-bottom:14px">費目名にこのキーワードが含まれると自動でカテゴリが判定されます。</p><div class="tabs" id="cat-tabs" style="flex-wrap:wrap;gap:4px"><button class="tab on" onclick="switchCatTab('① 会場・施設費',this)">① 会場・施設費</button><button class="tab" onclick="switchCatTab('② 飲食・ケータリング費',this)">② 飲食</button><button class="tab" onclick="switchCatTab('③ 出演・キャスティング費',this)">③ 出演</button><button class="tab" onclick="switchCatTab('④ 制作・演出費',this)">④ 制作</button><button class="tab" onclick="switchCatTab('⑤ 運営・人件費',this)">⑤ 運営</button><button class="tab" onclick="switchCatTab('⑥ 備品・設営費',this)">⑥ 備品</button><button class="tab" onclick="switchCatTab('⑦ マーケ・広報費',this)">⑦ マーケ</button><button class="tab" onclick="switchCatTab('⑨ その他',this)">⑨ その他</button><button class="tab" onclick="switchCatTab('⑧ デザイン費',this)">⑧ デザイン</button></div><div id="cat-master-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:120px;padding:10px 0"></div><div style="margin-top:12px;display:flex;gap:8px;align-items:center"><input class="fi" id="cat-new-keyword" placeholder="新しいキーワードを入力..." style="flex:1" onkeydown="if(event.key==='Enter')addCatKeyword()"><button class="btn btn-p btn-sm" onclick="addCatKeyword()">＋ 追加</button></div><div style="margin-top:14px;padding:10px 12px;background:var(--s2);border-radius:8px;border:1px solid var(--b1)"><div style="font-size:10px;color:var(--t2)">💡 テスト</div><div style="display:flex;gap:8px;margin-top:8px;align-items:center"><input class="fi" id="cat-test-input" placeholder="例: カメラマン" style="flex:1" oninput="testCatDetect()"><div id="cat-test-result" style="font-size:12px;font-weight:700;min-width:140px;text-align:center;padding:6px 10px;border-radius:6px;background:var(--s3)">判定結果</div></div></div></div><div class="pf" style="justify-content:space-between"><button class="btn btn-red btn-sm" onclick="resetCatMaster()">初期値に戻す</button><div style="display:flex;gap:7px"><button class="btn btn-g" onclick="closeOv('ov-cat-master')">キャンセル</button><button class="btn btn-p" onclick="saveCatMaster()">保存する</button></div></div></div></div>
+<div class="ov" id="ov-fiscal-year"><div class="panel" style="width:520px"><div class="ph"><h2>📅 年度管理</h2><button class="xbtn" onclick="closeOv('ov-fiscal-year')">×</button></div><div class="pb-body"><p style="font-size:11px;color:var(--t2);margin-bottom:16px">年度ごとにデータを分けて管理できます。</p><div style="font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">利用可能な年度</div><div id="fy-list" style="margin-bottom:20px"></div><div style="border-top:1px solid var(--b1);padding-top:16px" class="admin-only"><div style="font-size:10px;font-weight:700;color:var(--t3);margin-bottom:10px">新年度を作成</div><div style="display:flex;gap:8px;align-items:center"><input id="new-fy-input" type="number" class="fi" placeholder="例: 2026" style="width:120px" min="2024" max="2040" value="2026"><span style="font-size:11px;color:var(--t2)">年度（4月〜翌3月）</span><button class="btn btn-p btn-sm" onclick="createNewFiscalYear()">＋ 新年度作成</button></div></div></div><div class="pf"><button class="btn btn-g" onclick="closeOv('ov-fiscal-year')">閉じる</button></div></div></div>
+
+<!-- ═══ JavaScript ═══ -->
 <script>
 // ══════════════════════════════════════════════════
 // auth.js — 認証コア（ログイン / ログアウト / セッション管理 / 権限）
@@ -559,11 +864,10 @@ function initAuth() {
 function sdot() { return document.getElementById('sdot'); }
 function slbl() { return document.getElementById('slbl'); }
 
-// ページ読み込み時に初期化（DOM構築後に実行）
+// ページ読み込み時に初期化（DOM構築後）
 document.addEventListener('DOMContentLoaded', initAuth);
 
 </script>
-
 <script>
 // ══════════════════════════════════════════════════
 // users.js — ユーザー管理（管理者向け）
@@ -812,7 +1116,6 @@ async function renderHistory() {
 }
 
 </script>
-
 <script>
 
 // ════════════════════════════════════════════════════
@@ -1129,6 +1432,5 @@ function renderPg(id){
 (function injectInlineStyles(){const style=document.createElement('style');style.textContent=`.inline-inp{width:100%;padding:5px 7px;border:1.5px solid transparent;border-radius:5px;font-size:11px;font-family:var(--mono);background:transparent;color:var(--t1);outline:none;transition:all .15s;}.inline-inp:hover{border-color:var(--b2);background:var(--s2);}.inline-inp:focus{border-color:var(--blue);background:var(--s1);box-shadow:0 0 0 2px rgba(37,99,235,.1);}.inline-inp.num{text-align:right;}.inline-sel{width:100%;padding:4px 6px;border:1.5px solid transparent;border-radius:5px;font-size:10px;background:transparent;color:var(--t1);outline:none;cursor:pointer;transition:all .15s;}.inline-sel:hover{border-color:var(--b2);background:var(--s2);}.inline-sel:focus{border-color:var(--blue);background:var(--s1);}`;document.head.appendChild(style);})();
 
 </script>
-
 </body>
 </html>
