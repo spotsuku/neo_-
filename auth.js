@@ -1,13 +1,14 @@
 // ══════════════════════════════════════════════════
-// auth.js — 認証コア（ログイン/ログアウト/サインアップ/セッション管理/権限）
+// auth.js — 認証コア（ログイン / ログアウト / セッション管理 / 権限）
+// ※ 新規登録フロー廃止。ユーザー作成は管理者のみ（users.js / Edge Function経由）
 // ══════════════════════════════════════════════════
 
-// Supabase設定：起動時に /api/config から取得（Vercel環境変数を安全に参照）
-// 開発時フォールバックとして直接記載（anon keyはRLSで保護済み）
-let SUPABASE_URL     = 'https://hhifpqlbgyjdfbluigfo.supabase.co';
-let SUPABASE_ANON_KEY= 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoaWZwcWxiZ3lqZGZibHVpZ2ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzOTkyNTksImV4cCI6MjA4ODk3NTI1OX0.hjycUEUf_Kr9iUDrs4GQZvqVWtcfi4Ij4mEfq-HM5c0';
+// ── Supabase 設定 ──
+// 本番: Vercel の /api/config から取得
+// 開発: 下記フォールバック値を使用（anon key は RLS で保護済み）
+let SUPABASE_URL      = 'https://hhifpqlbgyjdfbluigfo.supabase.co';
+let SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoaWZwcWxiZ3lqZGZibHVpZ2ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzOTkyNTksImV4cCI6MjA4ODk3NTI1OX0.hjycUEUf_Kr9iUDrs4GQZvqVWtcfi4Ij4mEfq-HM5c0';
 
-// /api/config が使えるVercel環境ではそちらを優先
 async function initConfig() {
   try {
     const res = await fetch('/api/config', { cache: 'no-store' });
@@ -15,310 +16,313 @@ async function initConfig() {
       const cfg = await res.json();
       if (cfg.supabaseUrl)     SUPABASE_URL      = cfg.supabaseUrl;
       if (cfg.supabaseAnonKey) SUPABASE_ANON_KEY = cfg.supabaseAnonKey;
-      console.log('[config] Loaded from /api/config');
     }
-  } catch(e) {
-    // ローカル開発時やAPIなし環境ではフォールバック値を使用
-    console.log('[config] Using fallback (local dev)');
+  } catch (_) {
+    // ローカル開発: フォールバック値を使用
   }
 }
 
-// クライアントは initAuth() 内で initConfig() 完了後に生成
-let _sb = null;
-
-// ── 現在のログインユーザー ──
-let _currentUser  = null;   // supabase Userオブジェクト
+// ── グローバル状態 ──
+let _sb           = null;   // Supabase クライアント
+let _currentUser  = null;   // supabase User オブジェクト
 let _currentRole  = null;   // 'admin' | 'member'
 let _currentName  = '';
+let _refreshTimer = null;
 
-// ── ロールチェック ──
+// ── ロールチェック（グローバル参照用） ──
 const isAdmin  = () => _currentRole === 'admin';
 const isLogged = () => !!_currentUser;
 
-// ── 権限UIの切り替え ──
+// ══════════════════════════════════════════════════
+// 権限 UI 切り替え
+// ══════════════════════════════════════════════════
 function applyRoleUI() {
-  // 管理者専用ボタンの表示制御
-  const adminEls = document.querySelectorAll('.admin-only');
-  adminEls.forEach(el => el.style.display = isAdmin() ? '' : 'none');
-  // ユーザー管理ナビ
-  const nbUsers = document.getElementById('nb-users');
-  if (nbUsers) nbUsers.style.display = isAdmin() ? '' : 'none';
-  // サイドバーユーザー情報
-  const uib = document.getElementById('user-info-bar');
-  const logoutBtn = document.getElementById('logout-btn');
-  if (uib) uib.style.display = _currentUser ? '' : 'none';
-  if (logoutBtn) logoutBtn.style.display = _currentUser ? '' : 'none';
-  if (document.getElementById('user-display-name'))
-    document.getElementById('user-display-name').textContent = _currentName || _currentUser?.email || '';
-  if (document.getElementById('user-role-badge'))
-    document.getElementById('user-role-badge').innerHTML = isAdmin()
-      ? '<span style="font-size:8px;background:rgba(240,82,42,.2);color:#f0522a;padding:1px 6px;border-radius:4px;font-weight:700">管理者</span>'
-      : '<span style="font-size:8px;background:rgba(79,142,247,.15);color:#4f8ef7;padding:1px 6px;border-radius:4px;font-weight:700">メンバー</span>';
-}
-
-// ── ログインタブ切替 ──
-function switchLoginTab(tab) {
-  document.getElementById('form-login').style.display  = tab==='login'  ? '' : 'none';
-  document.getElementById('form-signup').style.display = tab==='signup' ? '' : 'none';
-  document.getElementById('tab-login').className  = 'tab' + (tab==='login'  ? ' on' : '');
-  document.getElementById('tab-signup').className = 'tab' + (tab==='signup' ? ' on' : '');
-  document.getElementById('login-error').style.display = 'none';
-}
-
-function showLoginError(msg) {
-  const el = document.getElementById('login-error');
-  el.textContent = msg;
-  el.style.display = '';
-}
-
-// ── ログイン ──
-let _loginInProgress = false;
-async function doLogin() {
-  // 重複呼び出しを防止（ボタン連打対策）
-  if (_loginInProgress) return;
-  const email = document.getElementById('login-email').value.trim();
-  const pass  = document.getElementById('login-pass').value;
-  if (!email || !pass) { showLoginError('メールアドレスとパスワードを入力してください'); return; }
-  _loginInProgress = true;
-  const btn = document.getElementById('login-submit-btn');
-  btn.textContent = 'ログイン中...'; btn.disabled = true;
-  const {data, error} = await _sb.auth.signInWithPassword({email, password: pass});
-  btn.textContent = 'ログイン'; btn.disabled = false;
-  _loginInProgress = false;
-  if (error) {
-    // 422エラーの詳細な日本語メッセージ
-    let msg = 'ログインに失敗しました。';
-    const em = error.message || '';
-    if (error.status === 429) {
-      msg = 'リクエスト回数の制限に達しました。1分ほど待ってから再試行してください。';
-    } else if (em.includes('Invalid login credentials')) {
-      msg = 'メールアドレスまたはパスワードが正しくありません。';
-    } else if (em.includes('Email not confirmed')) {
-      msg = 'メールアドレスが未確認です。管理者にお問い合わせください。\n（管理者向け: Supabase SQL Editorで UPDATE auth.users SET email_confirmed_at=now() WHERE email=\'' + email + '\'; を実行してください）';
-    } else if (error.status === 422 || em.includes('422')) {
-      // 422は通常メール未確認またはセッション破損
-      // セッションデータが残っている場合はクリアを試行
-      try {
-        const storageKey = 'sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token';
-        localStorage.removeItem(storageKey);
-      } catch(_) {}
-      // メール未確認の可能性を判定（422 + credentials系エラー）
-      if (em.includes('confirm') || em.includes('verify') || em.includes('not confirmed')) {
-        msg = 'メールアドレスが未確認のため認証できません。管理者にメール確認を依頼してください。';
-      } else {
-        // セッション破損の可能性 → 自動復旧を試みる
-        msg = 'セッションに問題がありました。キャッシュをクリアしました。もう一度ログインしてください。';
-        try { await _sb.auth.signOut(); } catch(_) {}
-      }
-    } else {
-      msg += ' ' + em;
-    }
-    showLoginError(msg);
-    return;
-  }
-  // ログイン成功 → 手動でトークンリフレッシュタイマーを起動
-  startTokenRefresh();
-  await onLogin(data.user);
-}
-
-// ── トークン自動リフレッシュ（手動管理） ──
-let _refreshTimer = null;
-function startTokenRefresh() {
-  if (_refreshTimer) clearInterval(_refreshTimer);
-  // 10分ごとにトークンをリフレッシュ（Supabase JWTのデフォルト有効期限は1時間）
-  _refreshTimer = setInterval(async () => {
-    try {
-      const {error} = await _sb.auth.refreshSession();
-      if (error) {
-        console.warn('[tokenRefresh] リフレッシュ失敗:', error.message);
-        clearInterval(_refreshTimer);
-        _refreshTimer = null;
-      }
-    } catch(_) {}
-  }, 10 * 60 * 1000);
-}
-
-// ── サインアップ（登録申請） ──
-async function doSignup() {
-  const name  = document.getElementById('signup-name').value.trim();
-  const email = document.getElementById('signup-email').value.trim();
-  if (!name || !email) { showLoginError('表示名とメールアドレスを入力してください'); return; }
-  const btn = document.getElementById('signup-submit-btn');
-  btn.textContent = '処理中...'; btn.disabled = true;
-
-  // auth.signUpは呼ばず、pending_signupsにのみ保存
-  // （管理者の承認時に初めてauth.signUpを呼ぶ）
-  const {error: pendErr} = await _sb.from('pending_signups').insert({
-    email: email, display_name: name, requested_at: new Date().toISOString()
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = isAdmin() ? '' : 'none';
   });
 
-  btn.textContent = '登録申請'; btn.disabled = false;
-  if (pendErr) {
-    // 重複メールの場合（既に申請済み）も成功扱い
-    if (pendErr.code === '23505') {
-      console.log('[doSignup] 既に申請済みのメールアドレス');
-    } else {
-      console.error('pending_signups書き込みエラー:', pendErr);
-      showLoginError('登録に失敗しました。もう一度お試しください。');
+  const nbUsers = document.getElementById('nb-users');
+  if (nbUsers) nbUsers.style.display = isAdmin() ? '' : 'none';
+
+  const uib      = document.getElementById('user-info-bar');
+  const logoutBtn = document.getElementById('logout-btn');
+  if (uib)      uib.style.display      = _currentUser ? '' : 'none';
+  if (logoutBtn) logoutBtn.style.display = _currentUser ? '' : 'none';
+
+  const nameEl = document.getElementById('user-display-name');
+  if (nameEl) nameEl.textContent = _currentName || _currentUser?.email || '';
+
+  const badgeEl = document.getElementById('user-role-badge');
+  if (badgeEl) badgeEl.innerHTML = isAdmin()
+    ? '<span style="font-size:8px;background:rgba(240,82,42,.2);color:#f0522a;padding:1px 6px;border-radius:4px;font-weight:700">管理者</span>'
+    : '<span style="font-size:8px;background:rgba(79,142,247,.15);color:#4f8ef7;padding:1px 6px;border-radius:4px;font-weight:700">メンバー</span>';
+}
+
+// ══════════════════════════════════════════════════
+// ログイン画面
+// ══════════════════════════════════════════════════
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = msg ? '' : 'none';
+}
+
+function hideLoginScreen() {
+  const el = document.getElementById('login-screen');
+  if (el) el.style.display = 'none';
+}
+
+function showLoginScreen() {
+  const el = document.getElementById('login-screen');
+  if (el) el.style.display = 'flex';
+  showLoginError('');
+  // 入力フィールドをリセット
+  const emailEl = document.getElementById('login-email');
+  const passEl  = document.getElementById('login-pass');
+  if (emailEl) emailEl.value = '';
+  if (passEl)  passEl.value  = '';
+}
+
+// ══════════════════════════════════════════════════
+// ログイン
+// ══════════════════════════════════════════════════
+let _loginInProgress = false;
+
+async function doLogin() {
+  if (_loginInProgress) return;
+
+  const emailEl = document.getElementById('login-email');
+  const passEl  = document.getElementById('login-pass');
+  const btn     = document.getElementById('login-submit-btn');
+
+  const email = emailEl?.value.trim() || '';
+  const pass  = passEl?.value         || '';
+
+  if (!email || !pass) {
+    showLoginError('メールアドレスとパスワードを入力してください');
+    return;
+  }
+
+  _loginInProgress = true;
+  if (btn) { btn.textContent = 'ログイン中...'; btn.disabled = true; }
+
+  try {
+    // ① まずサインインを試みる
+    const { data, error } = await _sb.auth.signInWithPassword({ email, password: pass });
+
+    if (error) {
+      showLoginError(_loginErrorMessage(error, email));
       return;
     }
+
+    // ② 成功 → プロフィール取得・画面遷移
+    startTokenRefresh();
+    await onLogin(data.user);
+
+  } catch (e) {
+    showLoginError('予期しないエラーが発生しました: ' + e.message);
+  } finally {
+    _loginInProgress = false;
+    if (btn) { btn.textContent = 'ログイン'; btn.disabled = false; }
   }
-  showLoginError('✅ 登録申請を受け付けました。管理者の承認後にログインできます。');
 }
 
-// ── ログアウト ──
+function _loginErrorMessage(error, email) {
+  const msg = error.message || '';
+  if (error.status === 429) {
+    return 'リクエスト回数の制限に達しました。1分ほど待ってから再試行してください。';
+  }
+  if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
+    return 'メールアドレスまたはパスワードが正しくありません。';
+  }
+  if (msg.includes('Email not confirmed') || msg.includes('email_not_confirmed')) {
+    return `メールアドレスが未確認です。\n管理者に確認をお願いしてください。`;
+  }
+  if (error.status === 422) {
+    // セッション破損の可能性 → localStorage をクリア
+    _clearStoredSession();
+    return 'セッションエラーが発生しました。ページを再読み込みしてもう一度お試しください。';
+  }
+  return 'ログインに失敗しました: ' + msg;
+}
+
+// ══════════════════════════════════════════════════
+// ログアウト
+// ══════════════════════════════════════════════════
 async function doLogout() {
-  if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
-  await _sb.auth.signOut();
-  _currentUser = null; _currentRole = null; _currentName = '';
-  document.getElementById('login-screen').style.display = 'flex';
+  stopTokenRefresh();
+  try { await _sb.auth.signOut(); } catch (_) {}
+  _currentUser = null;
+  _currentRole = null;
+  _currentName = '';
+  showLoginScreen();
   applyRoleUI();
 }
 
-// ── ログイン後処理 ──
+// ══════════════════════════════════════════════════
+// ログイン後処理
+// ══════════════════════════════════════════════════
 async function onLogin(user) {
   _currentUser = user;
-  // プロフィール取得（RLSに依存しないRPC関数を使用）
-  const {data: profRows, error: profErr} = await _sb.rpc('get_my_profile');
-  const prof = profRows && profRows.length > 0 ? profRows[0] : null;
-  if (profErr) console.warn('[onLogin] get_my_profile error:', profErr.message);
-  // プロフィールが存在しない場合のみ新規作成
+
+  // プロフィール取得（RLS バイパス用 RPC）
+  const { data: profRows, error: profErr } = await _sb.rpc('get_my_profile');
+  if (profErr) console.warn('[onLogin] get_my_profile:', profErr.message);
+
+  const prof = Array.isArray(profRows) && profRows.length > 0 ? profRows[0] : null;
+
   if (!prof) {
-    const displayName = user.user_metadata?.display_name || user.email;
-    await _sb.from('profiles').insert({
-      id: user.id,
-      email: user.email,
-      display_name: displayName,
-      role: 'member',
-      approved: true,
-    });
-    _currentRole = 'member';
-    _currentName = displayName;
-  } else if (prof.approved === false) {
-    // 未承認ユーザーはログイン拒否
+    // プロフィールが存在しない → 管理者が作成していないユーザー
     await _sb.auth.signOut();
-    _currentUser = null; _currentRole = null; _currentName = '';
+    _currentUser = null;
+    showLoginError('アカウントが見つかりません。管理者に問い合わせてください。');
+    return;
+  }
+
+  if (prof.approved === false) {
+    await _sb.auth.signOut();
+    _currentUser = null;
     showLoginError('⏳ 管理者の承認待ちです。承認後にログインできます。');
     return;
-  } else {
-    _currentRole = prof.role || 'member';
-    _currentName = prof.display_name || user.email;
   }
-  // ログイン履歴を記録
-  await _sb.from('login_history').insert({user_id: user.id, email: user.email});
-  // ログイン画面を閉じる
-  document.getElementById('login-screen').style.display = 'none';
+
+  _currentRole = prof.role || 'member';
+  _currentName = prof.display_name || user.email;
+
+  // ログイン履歴を記録（失敗しても続行）
+  _sb.from('login_history')
+    .insert({ user_id: user.id, email: user.email })
+    .then(() => {})
+    .catch(() => {});
+
+  // 画面遷移
+  hideLoginScreen();
   applyRoleUI();
+
+  // データ読み込み → UI 描画
   await loadFromDB();
-  // DBロード完了後に現在のページを再描画（ファーストビューのデータ空対策）
-  migrateMktToProd(); // マーケ費用をprodItemsに統合
+  migrateMktToProd();
   updateFYSelectorUI();
   renderPg(_curPg || 'ov');
 }
 
-// ── セッション初期化 & 監視 ──
+// ══════════════════════════════════════════════════
+// トークン自動リフレッシュ（手動管理）
+// ══════════════════════════════════════════════════
+function startTokenRefresh() {
+  stopTokenRefresh();
+  // 55分ごとにリフレッシュ（JWT 有効期限 1時間）
+  _refreshTimer = setInterval(async () => {
+    try {
+      const { error } = await _sb.auth.refreshSession();
+      if (error) {
+        console.warn('[tokenRefresh] 失敗:', error.message);
+        stopTokenRefresh();
+      }
+    } catch (_) {}
+  }, 55 * 60 * 1000);
+}
+
+function stopTokenRefresh() {
+  if (_refreshTimer) {
+    clearInterval(_refreshTimer);
+    _refreshTimer = null;
+  }
+}
+
+// ══════════════════════════════════════════════════
+// localStorage のセッションクリア
+// ══════════════════════════════════════════════════
+function _clearStoredSession() {
+  try {
+    const host = new URL(SUPABASE_URL).hostname.split('.')[0];
+    const key  = `sb-${host}-auth-token`;
+    localStorage.removeItem(key);
+  } catch (_) {}
+}
+
+function _isSessionExpired() {
+  try {
+    const host = new URL(SUPABASE_URL).hostname.split('.')[0];
+    const raw  = localStorage.getItem(`sb-${host}-auth-token`);
+    if (!raw) return false;
+    const stored = JSON.parse(raw);
+    const exp = stored?.expires_at || stored?.currentSession?.expires_at;
+    const now = Math.floor(Date.now() / 1000);
+    return exp && exp < now;
+  } catch (_) {
+    return true; // パース失敗 = 破損とみなす
+  }
+}
+
+// ══════════════════════════════════════════════════
+// 初期化（ページ読み込み時）
+// ══════════════════════════════════════════════════
 function initAuth() {
   (async () => {
-    // /api/config から設定を取得（Vercel環境のみ）
+    // 設定取得
     await initConfig();
 
-    // 設定未完了チェック
-    if (SUPABASE_URL === '__PLACEHOLDER__') {
-      document.getElementById('login-screen').innerHTML = `
-        <div style="max-width:500px;padding:24px;text-align:center">
-          <div style="font-family:var(--disp);font-size:22px;font-weight:800;color:var(--acc);margin-bottom:16px">⚙️ 初期設定が必要です</div>
-          <div style="background:var(--s1);border:1px solid var(--b1);border-radius:10px;padding:20px;text-align:left">
-            <p style="font-size:12px;color:var(--t2);margin-bottom:12px">ダッシュボードHTMLファイルの先頭にある以下の2行を設定してください：</p>
-            <pre style="background:var(--s2);border-radius:6px;padding:12px;font-family:var(--mono);font-size:11px;color:#2dd4a0">const SUPABASE_URL = 'https://xxx.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJ...';</pre>
-            <p style="font-size:11px;color:var(--t3);margin-top:12px">設定方法は同梱の「Supabase設定手順.html」を参照してください。</p>
-          </div>
-        </div>`;
-      return;
+    // 期限切れ / 破損セッションを事前クリア（422 ループ防止）
+    if (_isSessionExpired()) {
+      console.log('[initAuth] 期限切れセッションをクリア');
+      _clearStoredSession();
     }
 
-    // 期限切れセッションの自動リフレッシュによる422エラーを防止
-    // Supabaseクライアント生成前に、staleなトークンをクリアする
-    const storageKey = 'sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token';
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) {
-        const stored = JSON.parse(raw);
-        // expires_at はトップレベルまたは currentSession 内にある場合がある
-        const exp = stored?.expires_at || stored?.currentSession?.expires_at;
-        const now = Math.floor(Date.now() / 1000);
-        // 期限切れ、またはリフレッシュトークンが存在しない場合はクリア
-        if ((exp && exp < now) || (!stored?.refresh_token && !stored?.currentSession?.refresh_token)) {
-          console.log('[initAuth] 無効なセッションをクリア');
-          localStorage.removeItem(storageKey);
-        }
-      }
-    } catch(_) {
-      // パース失敗時はセッションデータが破損しているためクリア
-      localStorage.removeItem(storageKey);
-    }
-
-    // Supabaseクライアントを設定取得後に生成
-    // autoRefreshTokenを無効化し、セッション復元を手動で制御（422ループ防止）
+    // Supabase クライアント生成
+    // autoRefreshToken: false にして手動管理（Supabase 内部の自動リフレッシュが
+    // 422 を引き起こすケースを回避）
     _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         autoRefreshToken: false,
-        persistSession: true,
-      }
+        persistSession:   true,
+        detectSessionInUrl: false,
+      },
     });
 
-    // 既存セッション確認（期限切れセッションのエラーをハンドリング）
+    // 既存セッション確認
+    let session = null;
     try {
-      const {data:{session}, error: sessErr} = await _sb.auth.getSession();
-      if (sessErr) {
-        console.warn('[initAuth] セッション取得エラー（期限切れの可能性）:', sessErr.message);
-        // 422エラー時はlocalStorageのセッションも確実にクリア
-        localStorage.removeItem(storageKey);
-        try { await _sb.auth.signOut(); } catch(_) {}
-        document.getElementById('login-screen').style.display = 'flex';
+      const { data, error } = await _sb.auth.getSession();
+      if (error) {
+        console.warn('[initAuth] getSession エラー:', error.message);
+        _clearStoredSession();
+        showLoginScreen();
         slbl().textContent = '未ログイン';
-        // セッション復旧済みの通知を表示
-        showLoginError('セッションの有効期限が切れました。再度ログインしてください。');
-      } else if (session?.user) {
-        startTokenRefresh();
-        await onLogin(session.user);
-      } else {
-        document.getElementById('login-screen').style.display = 'flex';
-        slbl().textContent = '未ログイン';
+        return;
       }
-    } catch(e) {
-      console.warn('[initAuth] セッション復元に失敗:', e.message);
-      // セッションデータを確実にクリアして422ループを防止
-      localStorage.removeItem(storageKey);
-      try { await _sb.auth.signOut(); } catch(_) { /* signOut失敗は無視 */ }
-      document.getElementById('login-screen').style.display = 'flex';
+      session = data?.session;
+    } catch (e) {
+      console.warn('[initAuth] getSession 例外:', e.message);
+      _clearStoredSession();
+      showLoginScreen();
       slbl().textContent = '未ログイン';
-      showLoginError('セッションの復元に失敗しました。再度ログインしてください。');
+      return;
     }
 
-    // セッション変化を監視
-    _sb.auth.onAuthStateChange(async (event, session) => {
-      if (window._suppressAuthEvent) return;
+    if (session?.user) {
+      // セッションが残っている → そのままログイン処理
+      startTokenRefresh();
+      await onLogin(session.user);
+    } else {
+      showLoginScreen();
+      slbl().textContent = '未ログイン';
+    }
+
+    // 認証状態の変化を監視（SIGNED_OUT のみ対応）
+    _sb.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
-        document.getElementById('login-screen').style.display = 'flex';
-      }
-      if (event === 'PASSWORD_RECOVERY') {
-        // パスワードリセットリンクからのアクセス → 再設定フォームを表示
-        const newPass = prompt('新しいパスワードを入力してください（8文字以上）:');
-        if (newPass && newPass.length >= 8) {
-          const {error} = await _sb.auth.updateUser({ password: newPass });
-          if (error) {
-            alert('パスワード更新に失敗しました: ' + error.message);
-          } else {
-            alert('✅ パスワードを更新しました。新しいパスワードでログインできます。');
-          }
-        } else {
-          alert('パスワードは8文字以上で設定してください。\nページを再読み込みして再度お試しください。');
-        }
+        showLoginScreen();
+        applyRoleUI();
       }
     });
   })();
 }
+
+// ── ヘルパー（index.html から参照） ──
+function sdot() { return document.getElementById('sdot'); }
+function slbl() { return document.getElementById('slbl'); }
 
 // ページ読み込み時に初期化
 initAuth();
