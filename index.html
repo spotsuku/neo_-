@@ -1636,6 +1636,8 @@ function parseXlSchedule(rows) {
       });
     } else if (TAG_EVENTS[tag]) {
       const key = TAG_EVENTS[tag];
+      // ko/aw/ye/tourは個別シートを使用するため年間スケジュールはスキップ
+      if (['ko','aw','ye','tour'].includes(key)) continue;
       for (const [cat, v] of Object.entries(catTotals)) {
         result.estimates[key].push({
           id: mkId(), name, cat, budget: 0,
@@ -1881,14 +1883,8 @@ function executeXlImport() {
     }
   }
 
-  // イベント見積：個別シートがある場合はそちらを優先（年間スケジュール由来は除外）
-  const sheetKeys = new Set(Object.keys(d.estimatesFromSheet || {}));
+  // イベント見積：name+catが既存にない行のみ追加
   for (const [key, rows] of Object.entries(d.estimates)) {
-    if (sheetKeys.has(key)) {
-      // 個別シートがあるキーは年間スケジュール由来を使わない
-      toAdd.estimates[key] = [];
-      continue;
-    }
     const existing = S.estimates?.[key] || [];
     toAdd.estimates[key] = rows.filter(r =>
       !existing.some(e => e.name === r.name && e.cat === r.cat)
