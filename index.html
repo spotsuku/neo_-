@@ -776,9 +776,14 @@ function stopTokenRefresh() {
 // ══════════════════════════════════════════════════
 function _clearStoredSession() {
   try {
+    // Supabaseが使う可能性のある全キーを削除
     const host = new URL(SUPABASE_URL).hostname.split('.')[0];
-    const key  = `sb-${host}-auth-token`;
-    localStorage.removeItem(key);
+    const keys = Object.keys(localStorage).filter(k =>
+      k.startsWith(`sb-${host}`) || k.includes('supabase') || k.includes('-auth-token')
+    );
+    keys.forEach(k => localStorage.removeItem(k));
+    // セッションキャッシュも念のためクリア
+    sessionStorage.clear();
   } catch (_) {}
 }
 
@@ -804,7 +809,7 @@ function initAuth() {
     // 設定取得
     await initConfig();
 
-    // 期限切れ / 破損セッションを事前クリア（422 ループ防止）
+    // 期限切れセッションのみクリア（422ループ防止）
     if (_isSessionExpired()) {
       console.log('[initAuth] 期限切れセッションをクリア');
       _clearStoredSession();
@@ -816,7 +821,7 @@ function initAuth() {
     _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         autoRefreshToken:   false,
-        persistSession:     false,   // セッションをlocalStorageに保存しない
+        persistSession:     true,
         detectSessionInUrl: false,
       },
     });
