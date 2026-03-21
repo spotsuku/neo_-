@@ -559,8 +559,8 @@ function initAuth() {
 function sdot() { return document.getElementById('sdot'); }
 function slbl() { return document.getElementById('slbl'); }
 
-// ページ読み込み時に初期化
-initAuth();
+// ページ読み込み時に初期化（DOM構築後に実行）
+document.addEventListener('DOMContentLoaded', initAuth);
 
 </script>
 
