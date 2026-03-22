@@ -189,6 +189,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
   <button class="nb" onclick="go('rev',this)"><span class="ic">💰</span>収入管理</button>
   <div class="sb-sec">データ</div>
   <button class="nb admin-only" onclick="openOv('ov-xl-import')"><span class="ic">📥</span>Excelインポート</button>
+  <button class="nb admin-only" onclick="openOv('ov-mf-import')"><span class="ic">🏦</span>MF CSV取込</button>
   <div class="sb-sec">設定</div>
   <button class="nb" id="nb-defaults" onclick="openSeriesDefaults()"><span class="ic">⚙️</span>デフォルト費目設定</button>
   <button class="nb" onclick="openCatMaster()"><span class="ic">🗂</span>カテゴリ判定設定</button>
@@ -587,6 +588,62 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <button class="btn btn-red btn-sm" id="xl-restore-btn" onclick="restoreSnapshot()" style="display:none">⏪ 前のバージョンに戻す</button>
       </div>
       <button class="btn btn-p" id="xl-import-btn" onclick="executeXlImport()" style="display:none">✅ インポート実行</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ マネーフォワード CSV取込パネル ═══ -->
+<div class="ov" id="ov-mf-import">
+  <div class="panel wide" style="width:900px;max-width:96vw">
+    <div class="ph">
+      <h2>🏦 マネーフォワード CSV取込</h2>
+      <button class="xbtn" onclick="closeOv('ov-mf-import')">×</button>
+    </div>
+    <div class="pb-body" style="display:grid;grid-template-columns:320px 1fr;gap:16px;min-height:400px">
+
+      <!-- 左：設定 -->
+      <div>
+        <div id="mf-drop-zone" onclick="document.getElementById('mf-file-input').click()"
+          ondragover="event.preventDefault();this.style.borderColor='var(--blue)'"
+          ondragleave="this.style.borderColor='var(--b2)'"
+          ondrop="handleMfDrop(event)"
+          style="border:2px dashed var(--b2);border-radius:10px;padding:24px;text-align:center;cursor:pointer;margin-bottom:14px">
+          <div style="font-size:28px;margin-bottom:8px">📄</div>
+          <div style="font-size:12px;font-weight:600;color:var(--t1)">CSVファイルをドロップ または<br>クリックして選択</div>
+          <div style="font-size:10px;color:var(--t2);margin-top:6px">マネーフォワード クラウド会計の月次<br>PL/BS CSVに対応</div>
+          <div style="font-size:9px;color:var(--t3);margin-top:4px">📌 文字コード: Shift_JIS</div>
+        </div>
+        <input type="file" id="mf-file-input" accept=".csv" style="display:none" onchange="handleMfFile(this.files[0])">
+
+        <div id="mf-month-section" style="display:none">
+          <div style="font-size:10px;font-weight:700;color:var(--t2);margin-bottom:8px">対象月の選択方法</div>
+          <div style="display:flex;gap:6px;margin-bottom:10px">
+            <button onclick="setMfMode('single')" id="mf-mode-single" class="btn btn-sm" style="flex:1;font-size:10px">📅 特定の月</button>
+            <button onclick="setMfMode('multi')" id="mf-mode-multi" class="btn btn-sm btn-p" style="flex:1;font-size:10px">📅 複数の月</button>
+            <button onclick="setMfMode('all')" id="mf-mode-all" class="btn btn-sm" style="flex:1;font-size:10px">📅 年度一括</button>
+          </div>
+
+          <div id="mf-month-picker" style="margin-bottom:12px">
+            <div style="font-size:10px;color:var(--t2);margin-bottom:6px">取り込む月にチェックを入れてください</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px" id="mf-month-checks"></div>
+            <div style="display:flex;gap:6px;margin-top:8px">
+              <button onclick="mfSelectAll(true)" class="btn btn-xs btn-g" style="flex:1;font-size:10px">全選択</button>
+              <button onclick="mfSelectAll(false)" class="btn btn-xs btn-g" style="flex:1;font-size:10px">全解除</button>
+            </div>
+          </div>
+
+          <div id="mf-error" style="display:none;background:rgba(232,64,96,.1);border:1px solid rgba(232,64,96,.3);border-radius:6px;padding:8px;font-size:11px;color:#e84060;margin-bottom:8px"></div>
+          <button class="btn btn-p" style="width:100%" onclick="executeMfImport()" id="mf-import-btn">✅ 取込実行</button>
+        </div>
+      </div>
+
+      <!-- 右：プレビュー -->
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--t2);margin-bottom:8px">CSVプレビュー</div>
+        <div id="mf-preview" style="overflow:auto;max-height:420px;font-size:10px;font-family:var(--mono);border:1px solid var(--b1);border-radius:8px;padding:8px;background:var(--s2)">
+          <div style="color:var(--t3);text-align:center;padding:40px">CSVファイルを選択してください</div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -2379,6 +2436,200 @@ function applyExcelData(result) {
 
 // DOM読み込み後にボタンを追加
 document.addEventListener('DOMContentLoaded', addExcelImportButton);
+
+
+// ══════════════════════════════════════════════════
+// マネーフォワード CSV取込
+// ══════════════════════════════════════════════════
+let _mfParsed = null;   // パース済みCSVデータ
+let _mfMode   = 'multi'; // single / multi / all
+let _mfMonths = [];      // 選択済み月リスト（'25/7' 形式）
+
+// Shift_JIS → UTF-8 デコード（TextDecoder使用）
+async function readShiftJIS(file) {
+  const buf = await file.arrayBuffer();
+  try {
+    // Shift_JIS / CP932 両方試みる
+    for (const enc of ['shift_jis','sjis','shift-jis','x-sjis','windows-31j']) {
+      try {
+        const dec = new TextDecoder(enc);
+        const txt = dec.decode(buf);
+        if (txt && !txt.includes('�')) return txt; // 文字化けなし
+      } catch(_) {}
+    }
+    // フォールバック
+    return new TextDecoder('shift_jis', {fatal:false}).decode(buf);
+  } catch(e) {
+    return new TextDecoder('utf-8', {fatal:false}).decode(buf);
+  }
+}
+
+function handleMfDrop(e) {
+  e.preventDefault();
+  document.getElementById('mf-drop-zone').style.borderColor = 'var(--b2)';
+  const file = e.dataTransfer.files[0];
+  if (file) handleMfFile(file);
+}
+
+async function handleMfFile(file) {
+  if (!file) return;
+  const text = await readShiftJIS(file);
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  _mfParsed = lines.map(l => l.split(',').map(c => c.replace(/^"|"$/g,'')));
+
+  // プレビュー表示（最初の15行）
+  const previewEl = document.getElementById('mf-preview');
+  const headers = _mfParsed[0] || [];
+  const rows    = _mfParsed.slice(1, 16);
+  let tbl = `<table style="border-collapse:collapse;white-space:nowrap"><thead><tr>`;
+  headers.forEach(h => { tbl += `<th style="padding:3px 8px;border-bottom:1px solid var(--b1);color:var(--t2);font-size:9px">${h||''}</th>`; });
+  tbl += `</tr></thead><tbody>`;
+  rows.forEach(row => {
+    tbl += '<tr>';
+    row.forEach(c => { tbl += `<td style="padding:3px 8px;border-bottom:1px solid var(--b1);font-size:10px">${c||''}</td>`; });
+    tbl += '</tr>';
+  });
+  tbl += '</tbody></table>';
+  if (_mfParsed.length > 16) tbl += `<div style="padding:8px;color:var(--t3);font-size:10px">… 他 ${_mfParsed.length - 16} 行</div>`;
+  previewEl.innerHTML = tbl;
+
+  // 月選択UIを生成
+  buildMfMonthPicker();
+  document.getElementById('mf-month-section').style.display = '';
+}
+
+function buildMfMonthPicker() {
+  // S.monthsの形式（'25/7'など）からチェックボックスを生成
+  const months = S.months || [];
+  const container = document.getElementById('mf-month-checks');
+  container.innerHTML = months.map((m, i) => `
+    <label style="display:flex;align-items:center;gap:4px;padding:4px 6px;border:1px solid var(--b1);border-radius:5px;cursor:pointer;font-size:11px;background:var(--s2)">
+      <input type="checkbox" class="mf-month-cb" value="${m}" ${_mfMonths.includes(m) ? 'checked' : ''}
+        onchange="toggleMfMonth(this.value, this.checked)">
+      ${m.replace('/','/').slice(-4)}月
+    </label>
+  `).join('');
+}
+
+function toggleMfMonth(m, checked) {
+  if (checked) { if (!_mfMonths.includes(m)) _mfMonths.push(m); }
+  else { _mfMonths = _mfMonths.filter(x => x !== m); }
+}
+
+function mfSelectAll(checked) {
+  _mfMonths = checked ? [...(S.months||[])] : [];
+  document.querySelectorAll('.mf-month-cb').forEach(cb => { cb.checked = checked; });
+}
+
+function setMfMode(mode) {
+  _mfMode = mode;
+  ['single','multi','all'].forEach(m => {
+    const btn = document.getElementById(`mf-mode-${m}`);
+    if (btn) btn.className = `btn btn-sm ${m === mode ? 'btn-p' : 'btn-g'}`;
+  });
+  if (mode === 'all') mfSelectAll(true);
+  const picker = document.getElementById('mf-month-picker');
+  if (picker) picker.style.display = mode === 'single' ? 'none' : '';
+}
+
+// CSVヘッダーから月カラムインデックスを検出
+function detectMfMonthCols(headers) {
+  // MFの月次PLは「勘定科目」「補助科目」「7月」「8月」…という形式
+  const monthCols = {};
+  headers.forEach((h, i) => {
+    const m = h.replace(/\s/g,'').match(/^(\d{1,2})月$/);
+    if (m) monthCols[parseInt(m[1])] = i;
+  });
+  return monthCols;
+}
+
+// 勘定科目名からS.months形式（'25/7'等）に変換
+function mfMonthToKey(monthNum, fiscalYear) {
+  // 4月〜3月の年度
+  const fy = fiscalYear;
+  let yr;
+  if (monthNum >= 4) yr = fy;      // 4〜12月 → fy年
+  else yr = fy + 1;                // 1〜3月 → fy+1年
+  return `${String(yr).slice(2)}/${monthNum}`;
+}
+
+function executeMfImport() {
+  if (!_mfParsed || _mfParsed.length < 2) {
+    showMfError('CSVを読み込んでください');
+    return;
+  }
+  if (_mfMonths.length === 0) {
+    showMfError('取り込む月を選択してください');
+    return;
+  }
+
+  const headers = _mfParsed[0];
+  const monthCols = detectMfMonthCols(headers);
+
+  if (Object.keys(monthCols).length === 0) {
+    showMfError('月次カラム（7月、8月…）が見つかりません。マネーフォワードの月次PLのCSVを選択してください。');
+    return;
+  }
+
+  // 取込対象の月番号を特定
+  const targetMonthNums = _mfMonths.map(mk => {
+    const parts = mk.split('/');
+    return parseInt(parts[1]);
+  });
+
+  let updatedCount = 0;
+
+  // 月次合計をS.monthlyTotalに反映
+  const months = S.months || [];
+  months.forEach((mk, idx) => {
+    if (!_mfMonths.includes(mk)) return;
+    const parts = mk.split('/');
+    const monthNum = parseInt(parts[1]);
+    const col = monthCols[monthNum];
+    if (col === undefined) return;
+
+    // 「営業費用合計」または「販売費及び一般管理費合計」の行を探す
+    let total = 0;
+    for (const row of _mfParsed.slice(1)) {
+      const label = (row[0]||'').trim();
+      // 支出合計行（MFの形式に合わせて複数パターン対応）
+      if (label.includes('費用合計') || label.includes('合計') && label.includes('費')) {
+        const v = parseFloat((row[col]||'0').replace(/,/g,''));
+        if (!isNaN(v) && v > 0) { total = v; break; }
+      }
+    }
+
+    // 合計が取れない場合は全費用行を合算
+    if (total === 0) {
+      for (const row of _mfParsed.slice(1)) {
+        const label = (row[0]||'').trim();
+        if (!label || label.includes('合計') || label.includes('合計') || !row[col]) continue;
+        const v = parseFloat((row[col]||'0').replace(/,/g,''));
+        if (!isNaN(v) && v > 0) total += v;
+      }
+    }
+
+    if (total > 0) {
+      S.monthlyTotal[idx] = total;
+      updatedCount++;
+    }
+  });
+
+  if (updatedCount === 0) {
+    showMfError('取り込めるデータが見つかりませんでした。CSVの形式を確認してください。');
+    return;
+  }
+
+  save();
+  closeOv('ov-mf-import');
+  renderPg('ov');
+  alert(`✅ 取込完了\n\n${updatedCount}ヶ月分の月次支出データを更新しました。\nサマリーの月別支出推移に反映されます。`);
+}
+
+function showMfError(msg) {
+  const el = document.getElementById('mf-error');
+  if (el) { el.textContent = msg; el.style.display = msg ? '' : 'none'; }
+}
 
 </script>
 </body>
