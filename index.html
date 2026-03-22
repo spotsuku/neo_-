@@ -650,6 +650,42 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 <!-- ═══ JavaScript ═══ -->
 <script>
 // ══════════════════════════════════════════════════
+// KPIカード共通ヘルパー
+// ══════════════════════════════════════════════════
+
+// 粗利予測カード（収入 - 予算）
+function kpiArariYosoku(rev, budget) {
+  const yosoku = rev - budget;
+  const color  = yosoku >= 0 ? 'var(--green)' : 'var(--red)';
+  return `<div class="kpi ${yosoku>=0?'g':'r'}" style="border:1.5px dashed ${yosoku>=0?'var(--green)':'var(--red)'}">
+    <div class="kl">粗利予測（収入－予算）</div>
+    <div class="kv" style="color:${color}">${yosoku>=0?'+':''}${fmtN(yosoku)}<em>円</em></div>
+    <div class="ks" style="color:${color}">${yosoku>=0?'✅ 黒字予測':'⚠️ 赤字予測'}（収入${fmtN(rev)} - 予算${fmtN(budget)}）</div>
+  </div>`;
+}
+
+// 前年比カード
+function kpiYoY(label, current, prev) {
+  if (prev === null || prev === undefined) {
+    return `<div class="kpi" style="opacity:.5">
+      <div class="kl">前年比（${label}）</div>
+      <div class="kv" style="color:var(--t3)">—</div>
+      <div class="ks">前年データなし</div>
+    </div>`;
+  }
+  const diff  = current - prev;
+  const ratio = prev > 0 ? Math.round(current / prev * 100) : null;
+  const color = ratio === null ? 'var(--t2)' : ratio > 110 ? 'var(--red)' : ratio < 90 ? 'var(--blue)' : 'var(--green)';
+  const diffStr = diff >= 0 ? `+${fmtN(diff)}` : `▼${fmtN(Math.abs(diff))}`;
+  const diffColor = diff >= 0 ? 'var(--red)' : 'var(--green)';
+  return `<div class="kpi" style="background:linear-gradient(135deg,var(--s2),var(--s1));border:1.5px solid var(--b2)">
+    <div class="kl">前年比（${label}）</div>
+    <div class="kv" style="color:${color}">${ratio !== null ? ratio+'%' : '—'}</div>
+    <div class="ks">前年${fmtN(prev)}円 <span style="color:${diffColor};font-weight:700">${diffStr}</span></div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════
 // auth.js — 認証コア（ログイン / ログアウト / セッション管理 / 権限）
 // ※ 新規登録フロー廃止。ユーザー作成は管理者のみ（users.js / Edge Function経由）
 // ══════════════════════════════════════════════════
@@ -855,10 +891,8 @@ async function onLogin(user) {
   await loadFromDB();
   migrateMktToProd();
   updateFYSelectorUI();
-  renderPg(_curPg || 'ov');
-}
-
-// ══════════════════════════════════════════════════
+  await renderPg(_curPg || 'ov');
+}════════════════════════════════════════════
 // トークン自動リフレッシュ（手動管理）
 // ══════════════════════════════════════════════════
 function startTokenRefresh() {
@@ -1679,9 +1713,9 @@ function migrateMktToProd(){if(!S.mktItems||S.mktItems.length===0)return;if(!S.p
 
 // ── renderPg ──
 async function renderPg(id){
-  // 前年データを事前ロード（KPI前年比に使用）
-  if (_currentFiscalYear > 2025) {
-    await loadPrevYearData();
+  // 前年データを事前ロード（失敗しても継続）
+  if (_currentFiscalYear > 2025 && typeof _sb !== 'undefined' && _sb) {
+    try { await loadPrevYearData(); } catch(e) { console.warn('[renderPg] prev year load failed:', e); }
   }
   if(id==='ov')renderOv();
   else if(id==='prog')renderProg();
@@ -2650,42 +2684,6 @@ function showMfError(msg) {
   if (el) { el.textContent = msg; el.style.display = msg ? '' : 'none'; }
 }
 
-
-// ══════════════════════════════════════════════════
-// KPIカード共通ヘルパー
-// ══════════════════════════════════════════════════
-
-// 粗利予測カード（収入 - 予算）
-function kpiArariYosoku(rev, budget) {
-  const yosoku = rev - budget;
-  const color  = yosoku >= 0 ? 'var(--green)' : 'var(--red)';
-  return `<div class="kpi ${yosoku>=0?'g':'r'}" style="border:1.5px dashed ${yosoku>=0?'var(--green)':'var(--red)'}">
-    <div class="kl">粗利予測（収入－予算）</div>
-    <div class="kv" style="color:${color}">${yosoku>=0?'+':''}${fmtN(yosoku)}<em>円</em></div>
-    <div class="ks" style="color:${color}">${yosoku>=0?'✅ 黒字予測':'⚠️ 赤字予測'}（収入${fmtN(rev)} - 予算${fmtN(budget)}）</div>
-  </div>`;
-}
-
-// 前年比カード
-function kpiYoY(label, current, prev) {
-  if (prev === null || prev === undefined) {
-    return `<div class="kpi" style="opacity:.5">
-      <div class="kl">前年比（${label}）</div>
-      <div class="kv" style="color:var(--t3)">—</div>
-      <div class="ks">前年データなし</div>
-    </div>`;
-  }
-  const diff  = current - prev;
-  const ratio = prev > 0 ? Math.round(current / prev * 100) : null;
-  const color = ratio === null ? 'var(--t2)' : ratio > 110 ? 'var(--red)' : ratio < 90 ? 'var(--blue)' : 'var(--green)';
-  const diffStr = diff >= 0 ? `+${fmtN(diff)}` : `▼${fmtN(Math.abs(diff))}`;
-  const diffColor = diff >= 0 ? 'var(--red)' : 'var(--green)';
-  return `<div class="kpi" style="background:linear-gradient(135deg,var(--s2),var(--s1));border:1.5px solid var(--b2)">
-    <div class="kl">前年比（${label}）</div>
-    <div class="kv" style="color:${color}">${ratio !== null ? ratio+'%' : '—'}</div>
-    <div class="ks">前年${fmtN(prev)}円 <span style="color:${diffColor};font-weight:700">${diffStr}</span></div>
-  </div>`;
-}
 
 </script>
 </body>
