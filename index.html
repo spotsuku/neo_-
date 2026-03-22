@@ -248,7 +248,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
     <!-- PROGRAMS -->
     <div class="pg" id="pg-prog">
       <div class="g2">
-        <div class="card"><div class="ct"><div class="pip"></div>プログラム別 予算 vs 実績</div><table class="tbl"><thead><tr><th>プログラム</th><th>予算</th><th>見積</th><th>実績</th><th>差異</th></tr></thead><tbody id="prog-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip"></div>プログラム別 予算 vs 実績</div><table class="tbl"><thead><tr><th>プログラム</th><th>予算</th><th>見積</th><th>実績</th><th>差異</th><th id="prog-prev-header" style="color:var(--t3);font-size:9px">前年実績</th><th id="prog-yoy-header" style="color:var(--t3);font-size:9px">前年比</th></tr></thead><tbody id="prog-tbody"></tbody></table></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>予算消化率</div><div class="ch-t"><canvas id="ch-rate"></canvas></div></div>
       </div>
     </div>
@@ -1251,6 +1251,7 @@ async function switchFiscalYear(fy){fy=parseInt(fy);if(fy===_currentFiscalYear)r
   // 現年度のデータを確実に保存してから切り替え
   localStorage.setItem(`neo_v5_${_currentFiscalYear}`,JSON.stringify(S));
   await save();
+  _prevYearData = null; _prevYearFY = null; // 前年キャッシュをクリア
   _currentFiscalYear=fy;localStorage.setItem('neo_fiscal_year',fy);S=loadS();await loadFromDB();updateFYSelectorUI();renderPg(_curPg||'ov');go('ov',document.querySelector('.nb'));}
 
 async function createNewFiscalYear(){if(!isAdmin()){alert('年度作成は管理者のみ可能です');return;}const fy=parseInt(document.getElementById('new-fy-input').value);if(!fy||fy<2024||fy>2040){alert('正しい年度を入力してください');return;}if(!confirm(`${getFiscalYearLabel(fy)}を新規作成します。\n空のデータで開始しますか？`))return;_currentFiscalYear=fy;localStorage.setItem('neo_fiscal_year',fy);S=JSON.parse(JSON.stringify(DEF));S.fiscalYear=fy;await save();updateFYSelectorUI();closeOv('ov-fiscal-year');renderPg('ov');go('ov',document.querySelector('.nb'));alert(`✅ ${getFiscalYearLabel(fy)}を作成しました`);}
@@ -1259,6 +1260,7 @@ async function changeFYQuick(delta,fy){let newFY;if(delta!==0){newFY=_currentFis
   // 現年度のデータを確実に保存してから切り替え
   localStorage.setItem(`neo_v5_${_currentFiscalYear}`,JSON.stringify(S));
   await save();
+  _prevYearData = null; _prevYearFY = null; // 前年キャッシュをクリア
   _currentFiscalYear=newFY;localStorage.setItem('neo_fiscal_year',newFY);S=loadS();await loadFromDB();updateFYSelectorUI();renderPg('ov');go('ov',document.querySelector('.nb'));}
 
 function updateFYSelectorUI(){const sel=document.getElementById('fy-quick-sel');if(!sel)return;const years=[];for(let y=2025;y<=_currentFiscalYear+1;y++)years.push(y);sel.innerHTML=years.map(y=>`<option value="${y}"${y===_currentFiscalYear?' selected':''}>${y}年度（${String(y).slice(2)}/4〜${String(y+1).slice(2)}/3）</option>`).join('');const prevBtn=document.getElementById('fy-prev-btn');const nextBtn=document.getElementById('fy-next-btn');if(prevBtn)prevBtn.style.opacity=_currentFiscalYear<=2025?'.3':'1';if(nextBtn)nextBtn.style.opacity='1';}
@@ -1327,7 +1329,35 @@ function renderOv(){
 }
 
 // ── PROGRAMS ──
-function renderProg(){
+// 前年データキャッシュ
+let _prevYearData = null;
+let _prevYearFY = null;
+
+async function loadPrevYearData() {
+  const prevFY = _currentFiscalYear - 1;
+  if (_prevYearFY === prevFY && _prevYearData) return _prevYearData;
+  try {
+    const dbId = getFiscalYearDbId(prevFY);
+    const { data } = await _sb.from('dashboard_data').select('data').eq('id', dbId).maybeSingle();
+    _prevYearData = data?.data || null;
+    _prevYearFY = prevFY;
+    return _prevYearData;
+  } catch(e) {
+    return null;
+  }
+}
+
+function calcProgActualFromData(sData, progId) {
+  if (!sData) return null;
+  // 一時的にSを差し替えて計算
+  const saved = S;
+  S = sData;
+  const act = progActual(progId);
+  S = saved;
+  return act;
+}
+
+async function renderProg(){
   function getProgRealBudget(p){
   // イベント系（個別費目・デフォルト設定から予算取得）
   if(['ko','aw','ye','tour','md','sd','cf3','cf4'].includes(p.id)) return getEventBudget(p.id);
@@ -1339,7 +1369,41 @@ function renderProg(){
   if(p.id==='annual') return n(p.budget)+getProdTotalBudget();
   return n(p.budget);
 }
-  document.getElementById('prog-tbody').innerHTML=S.programs.filter(p=>p.id!=='marketing').map((p,pi)=>{const realBudget=getProgRealBudget(p);const act=progActual(p.id),est=progEstimate(p.id),diff=realBudget-act;const tag=diff<0?`<span class="tag tg-o">超過</span>`:act===0?`<span class="tag tg-z">未実施</span>`:`<span class="tag tg-g">正常</span>`;return`<tr><td><span style="font-weight:500">${p.name}</span>${tag}</td><td><input type="number" value="${realBudget||''}" placeholder="0" style="width:110px;padding:5px 8px;border:1.5px solid var(--b2);border-radius:5px;font-family:var(--mono);font-size:12px;background:var(--s1);color:var(--t2);outline:none;text-align:right" onfocus="this.style.borderColor='var(--yellow)'" onblur="this.style.borderColor='var(--b2)'" onchange="S.programs[${pi}].budget=parseFloat(this.value)||0;debouncedSave();renderProg()"></td><td style="color:#5a95e8">${fmtN(est)}</td><td>${fmtN(act)}</td><td class="${diff<0?'ng':'ok'}">${diff<0?'▼':'▲'} ${fmtN(Math.abs(diff))}</td></tr>`;}).join('');
+
+  // 前年データ取得（バックグラウンド）
+  const prevData = await loadPrevYearData();
+  const hasPrev = !!prevData;
+  const prevFY = _currentFiscalYear - 1;
+
+  // ヘッダーに前年度ラベルを表示
+  const phEl = document.getElementById('prog-prev-header');
+  const pyEl = document.getElementById('prog-yoy-header');
+  if (phEl) phEl.textContent = hasPrev ? `${prevFY}年度実績` : '前年実績';
+  if (pyEl) pyEl.textContent = hasPrev ? '前年比' : '前年比';
+
+  document.getElementById('prog-tbody').innerHTML=S.programs.filter(p=>p.id!=='marketing').map((p,pi)=>{
+    const realBudget=getProgRealBudget(p);
+    const act=progActual(p.id),est=progEstimate(p.id),diff=realBudget-act;
+    const tag=diff<0?`<span class="tag tg-o">超過</span>`:act===0?`<span class="tag tg-z">未実施</span>`:`<span class="tag tg-g">正常</span>`;
+
+    // 前年比
+    let prevCell = '<td style="color:var(--t3);font-size:11px;text-align:right">—</td><td style="text-align:right">—</td>';
+    if (hasPrev) {
+      const prevAct = calcProgActualFromData(prevData, p.id);
+      if (prevAct !== null && prevAct > 0) {
+        const diff2 = act - prevAct;
+        const ratio = Math.round(act / prevAct * 100);
+        const ratioColor = ratio > 120 ? 'var(--red)' : ratio > 100 ? 'var(--yellow)' : ratio < 80 ? 'var(--blue)' : 'var(--t1)';
+        const diffStr = diff2 >= 0 ? `+${fmtN(diff2)}` : `▼${fmtN(Math.abs(diff2))}`;
+        const diffColor = diff2 >= 0 ? 'var(--red)' : 'var(--green)';
+        prevCell = `<td style="text-align:right;font-family:var(--mono);font-size:11px;color:var(--t2)">${fmtN(prevAct)}<br><span style="font-size:9px;color:${diffColor}">${diffStr}</span></td><td style="text-align:right;font-weight:700;font-size:13px;color:${ratioColor}">${ratio}%</td>`;
+      } else if (prevAct === 0) {
+        prevCell = `<td style="text-align:right;color:var(--t3);font-size:11px">0<br><span style="font-size:9px">前年実績なし</span></td><td style="text-align:right;color:var(--t3)">—</td>`;
+      }
+    }
+
+    return`<tr><td><span style="font-weight:500">${p.name}</span>${tag}</td><td><input type="number" value="${realBudget||''}" placeholder="0" style="width:110px;padding:5px 8px;border:1.5px solid var(--b2);border-radius:5px;font-family:var(--mono);font-size:12px;background:var(--s1);color:var(--t2);outline:none;text-align:right" onfocus="this.style.borderColor='var(--yellow)'" onblur="this.style.borderColor='var(--b2)'" onchange="S.programs[${pi}].budget=parseFloat(this.value)||0;debouncedSave();renderProg()"></td><td style="color:#5a95e8">${fmtN(est)}</td><td>${fmtN(act)}</td><td class="${diff<0?'ng':'ok'}">${diff<0?'▼':'▲'} ${fmtN(Math.abs(diff))}</td>${prevCell}</tr>`;
+  }).join('');
   const sorted=[...S.programs].filter(p=>n(p.budget)>0).map(p=>({...p,act:progActual(p.id),r:Math.round(progActual(p.id)/n(p.budget)*100)})).sort((a,b)=>b.r-a.r);
   dc('ch-rate');_ch['ch-rate']=new Chart(document.getElementById('ch-rate'),{type:'bar',data:{labels:sorted.map(p=>p.name),datasets:[{label:'消化率（%）',data:sorted.map(p=>p.r),backgroundColor:sorted.map(p=>p.r>100?'rgba(232,64,96,.7)':p.r>70?'rgba(240,192,64,.7)':'rgba(79,142,247,.6)'),borderColor:sorted.map(p=>p.r>100?'var(--red)':p.r>70?'var(--yellow)':'var(--blue)'),borderWidth:1,borderRadius:3}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` 消化率: ${ctx.raw}%`}}},scales:{x:{grid:g0,ticks:{callback:v=>v+'%'},max:Math.max(350,...sorted.map(p=>p.r+20))},y:{grid:{display:false}}}}});
 }
