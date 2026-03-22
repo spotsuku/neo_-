@@ -1247,11 +1247,19 @@ async function saveMemberData(){localStorage.setItem(SK,JSON.stringify(S));if(is
 let _saveTimer=null;
 function debouncedSave(){clearTimeout(_saveTimer);_saveTimer=setTimeout(async()=>{await save();},800);}
 
-async function switchFiscalYear(fy){fy=parseInt(fy);if(fy===_currentFiscalYear)return;if(!confirm(`${getFiscalYearLabel(fy)}に切り替えます。\n現在のデータは自動保存されます。`))return;await save();_currentFiscalYear=fy;localStorage.setItem('neo_fiscal_year',fy);S=loadS();await loadFromDB();updateFYSelectorUI();renderPg(_curPg||'ov');go('ov',document.querySelector('.nb'));}
+async async function switchFiscalYear(fy){fy=parseInt(fy);if(fy===_currentFiscalYear)return;if(!confirm(`${getFiscalYearLabel(fy)}に切り替えます。\n現在のデータは自動保存されます。`))return;
+  // 現年度のデータを確実に保存してから切り替え
+  localStorage.setItem(`neo_v5_${_currentFiscalYear}`,JSON.stringify(S));
+  await save();
+  _currentFiscalYear=fy;localStorage.setItem('neo_fiscal_year',fy);S=loadS();await loadFromDB();updateFYSelectorUI();renderPg(_curPg||'ov');go('ov',document.querySelector('.nb'));}
 
 async function createNewFiscalYear(){if(!isAdmin()){alert('年度作成は管理者のみ可能です');return;}const fy=parseInt(document.getElementById('new-fy-input').value);if(!fy||fy<2024||fy>2040){alert('正しい年度を入力してください');return;}if(!confirm(`${getFiscalYearLabel(fy)}を新規作成します。\n空のデータで開始しますか？`))return;_currentFiscalYear=fy;localStorage.setItem('neo_fiscal_year',fy);S=JSON.parse(JSON.stringify(DEF));S.fiscalYear=fy;await save();updateFYSelectorUI();closeOv('ov-fiscal-year');renderPg('ov');go('ov',document.querySelector('.nb'));alert(`✅ ${getFiscalYearLabel(fy)}を作成しました`);}
 
-async function changeFYQuick(delta,fy){let newFY;if(delta!==0){newFY=_currentFiscalYear+delta;}else{newFY=parseInt(fy);}if(newFY<2024||newFY>2040)return;if(newFY===_currentFiscalYear)return;const label=getFiscalYearLabel(newFY);if(!confirm(`${label}に切り替えます。\n現在のデータは自動保存されます。`)){const sel=document.getElementById('fy-quick-sel');if(sel)sel.value=_currentFiscalYear;return;}await save();_currentFiscalYear=newFY;localStorage.setItem('neo_fiscal_year',newFY);S=loadS();await loadFromDB();updateFYSelectorUI();renderPg('ov');go('ov',document.querySelector('.nb'));}
+async async function changeFYQuick(delta,fy){let newFY;if(delta!==0){newFY=_currentFiscalYear+delta;}else{newFY=parseInt(fy);}if(newFY<2024||newFY>2040)return;if(newFY===_currentFiscalYear)return;const label=getFiscalYearLabel(newFY);if(!confirm(`${label}に切り替えます。\n現在のデータは自動保存されます。`)){const sel=document.getElementById('fy-quick-sel');if(sel)sel.value=_currentFiscalYear;return;}
+  // 現年度のデータを確実に保存してから切り替え
+  localStorage.setItem(`neo_v5_${_currentFiscalYear}`,JSON.stringify(S));
+  await save();
+  _currentFiscalYear=newFY;localStorage.setItem('neo_fiscal_year',newFY);S=loadS();await loadFromDB();updateFYSelectorUI();renderPg('ov');go('ov',document.querySelector('.nb'));}
 
 function updateFYSelectorUI(){const sel=document.getElementById('fy-quick-sel');if(!sel)return;const years=[];for(let y=2025;y<=_currentFiscalYear+1;y++)years.push(y);sel.innerHTML=years.map(y=>`<option value="${y}"${y===_currentFiscalYear?' selected':''}>${y}年度（${String(y).slice(2)}/4〜${String(y+1).slice(2)}/3）</option>`).join('');const prevBtn=document.getElementById('fy-prev-btn');const nextBtn=document.getElementById('fy-next-btn');if(prevBtn)prevBtn.style.opacity=_currentFiscalYear<=2025?'.3':'1';if(nextBtn)nextBtn.style.opacity='1';}
 
