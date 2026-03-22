@@ -892,7 +892,9 @@ async function onLogin(user) {
   migrateMktToProd();
   updateFYSelectorUI();
   await renderPg(_curPg || 'ov');
-}════════════════════════════════════════════
+}
+
+// ══════════════════════════════════════════════════
 // トークン自動リフレッシュ（手動管理）
 // ══════════════════════════════════════════════════
 function startTokenRefresh() {
@@ -2479,12 +2481,7 @@ function applyExcelData(result) {
     if(v.length) counts.push(`${{ko:'キックオフ',aw:'アワード',ye:'イヤーエンド'}[k]}: ${v.length}費目`);
   });
   
-  alert('✅ 読み込み完了！
-
-' + counts.join('
-') + '
-
-予算はデフォルト費目設定の値を保持しています。');
+  alert('✅ 読み込み完了！\n\n' + counts.join('\n') + '\n\n予算はデフォルト費目設定の値を保持しています。');
 }
 
 // DOM読み込み後にボタンを追加
