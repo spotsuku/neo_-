@@ -50,7 +50,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 .g31{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px;}
 .g13{display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:12px;}
 .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
-.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px;}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}.g7{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:14px;}
 .card{background:var(--s1);border:1px solid var(--b1);border-radius:12px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
 .ct{font-size:11px;font-weight:700;color:var(--t1);letter-spacing:.05em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
 .ct .pip{width:3px;height:14px;border-radius:2px;background:var(--acc);flex-shrink:0;}
@@ -260,7 +260,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <div><div style="font-family:var(--disp);font-size:15px;font-weight:700">ホームルーム</div><div style="font-size:10px;color:var(--t2)">講座・ワークショップシリーズ</div></div>
         <button class="btn btn-sm btn-g admin-only" onclick="openSess('hm',null)">＋ 追加</button>
       </div>
-      <div class="g5" id="hm-kpis" style="margin-bottom:14px"></div>
+      <div class="g7" id="hm-kpis" style="margin-bottom:14px"></div>
       <div class="g2" style="margin-bottom:14px">
         <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計</div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="hm-cat-tbody"></tbody></table></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--green)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-hm-cat"></canvas></div></div>
@@ -274,7 +274,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <div><div style="font-family:var(--disp);font-size:15px;font-weight:700">NEO福岡評議会</div><div style="font-size:10px;color:var(--t2)">意思決定会議シリーズ</div></div>
         <button class="btn btn-sm btn-g admin-only" onclick="openSess('gk',null)">＋ 追加</button>
       </div>
-      <div class="g5" id="gk-kpis" style="margin-bottom:14px"></div>
+      <div class="g7" id="gk-kpis" style="margin-bottom:14px"></div>
       <div class="g2" style="margin-bottom:14px">
         <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計</div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="gk-cat-tbody"></tbody></table></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-gk-cat"></canvas></div></div>
@@ -288,7 +288,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <div><div style="font-family:var(--disp);font-size:15px;font-weight:700">応援カイギ</div><div style="font-size:10px;color:var(--t2)">毎月開催の応援・交流会</div></div>
         <button class="btn btn-sm btn-g admin-only" onclick="openSess('oe',null)">＋ 追加</button>
       </div>
-      <div class="g5" id="oe-kpis" style="margin-bottom:14px"></div>
+      <div class="g7" id="oe-kpis" style="margin-bottom:14px"></div>
       <div class="g2" style="margin-bottom:14px">
         <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計</div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="oe-cat-tbody"></tbody></table></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-oe-cat"></canvas></div></div>
@@ -297,7 +297,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
     </div>
 
     <div class="pg" id="pg-ko">
-      <div class="g5" id="ko-kpis" style="margin-bottom:14px"></div>
+      <div class="g7" id="ko-kpis" style="margin-bottom:14px"></div>
       <div class="g2" style="margin-bottom:14px">
         <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('ko')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="ko-tbody"></tbody></table></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--acc)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-ko"></canvas></div></div>
@@ -316,7 +316,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       </div>
     </div>
     <div class="pg" id="pg-aw">
-      <div class="g5" id="aw-kpis" style="margin-bottom:14px"></div>
+      <div class="g7" id="aw-kpis" style="margin-bottom:14px"></div>
       <div class="g2" style="margin-bottom:14px">
         <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('aw')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="aw-tbody"></tbody></table></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-aw"></canvas></div></div>
@@ -335,7 +335,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       </div>
     </div>
     <div class="pg" id="pg-ye">
-      <div class="g5" id="ye-kpis" style="margin-bottom:14px"></div>
+      <div class="g7" id="ye-kpis" style="margin-bottom:14px"></div>
       <div class="g2" style="margin-bottom:14px">
         <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('ye')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="ye-tbody"></tbody></table></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--purple)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-ye"></canvas></div></div>
@@ -354,7 +354,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       </div>
     </div>
     <div class="pg" id="pg-tour">
-      <div class="g5" id="tour-kpis" style="margin-bottom:14px"></div>
+      <div class="g7" id="tour-kpis" style="margin-bottom:14px"></div>
       <div class="g2" style="margin-bottom:14px">
         <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('tour')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="tour-tbody"></tbody></table></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--acc)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-tour"></canvas></div></div>
@@ -374,7 +374,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
     </div>
     <!-- CITYFES -->
     <div class="pg" id="pg-cityfes">
-      <div class="g5" id="cityfes-kpis" style="margin-bottom:14px"></div>
+      <div class="g7" id="cityfes-kpis" style="margin-bottom:14px"></div>
       <div class="card" style="margin-bottom:14px">
         <div style="display:flex;gap:0;border-bottom:2px solid var(--b1);margin-bottom:16px;overflow-x:auto">
           <button id="cityfes-tab-md" class="cityfes-tab on" onclick="switchCityFesTab('md',this)" style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--blue);border-bottom:2px solid var(--blue);margin-bottom:-2px;white-space:nowrap">⚽ マッチデイ</button>
@@ -1374,7 +1374,16 @@ function renderOv(){
   const totE=S.programs.reduce((t,p)=>t+progEstimate(p.id),0);
   const totR=S.revenues.reduce((t,r)=>t+n(r.amount),0);
   const diff=totB-totA;const arari=totR-totA;
-  document.getElementById('ov-kpis').innerHTML=`<div class="kpi p"><div class="kl">収入</div><div class="kv" style="color:var(--purple)">${fmtN(totR)}<em>円</em></div><div class="ks">参加費・協賛・補助金 合計</div></div><div class="kpi r"><div class="kl">総予算</div><div class="kv">${fmtN(totB)}<em>円</em></div><div class="ks">年間承認予算（税別）</div></div><div class="kpi b"><div class="kl">見積合計</div><div class="kv">${fmtN(totE)}<em>円</em></div><div class="ks">消化率 <strong style="color:var(--blue)">${pct(totE,totB)}</strong></div></div><div class="kpi y"><div class="kl">実績合計</div><div class="kv">${fmtN(totA)}<em>円</em></div><div class="ks"><span class="${diff>=0?'ok':'ng'}">${diff>=0?'▲ 予算内':'▼ 予算超過'} ${fmtN(Math.abs(diff))}円</span></div></div><div class="kpi g"><div class="kl">粗利（収入－実績）</div><div class="kv" style="color:${arari>=0?'var(--green)':'var(--red)'}">${arari>=0?'+':''}${fmtN(arari)}<em>円</em></div><div class="ks">${arari>=0?'黒字':'赤字'}（収入${fmtN(totR)}円 - 実績${fmtN(totA)}円）</div></div>`;
+  // 前年データ（キャッシュ済みなら使用）
+  const _ovPrevData = (_prevYearFY === _currentFiscalYear - 1) ? _prevYearData : null;
+  const prevTotA = _ovPrevData ? (() => { const sv=S; S=_ovPrevData; const v=S.programs.reduce((t,p)=>t+progActual(p.id),0); S=sv; return v; })() : null;
+  const prevTotR = _ovPrevData ? (_ovPrevData.revenues||[]).reduce((t,r)=>t+n(r.amount),0) : null;
+  const arariYosoku = totR - totB;
+
+  // KPIグリッドを7列に拡張
+  if(kpiEl) kpiEl.style.gridTemplateColumns='repeat(7,1fr)';
+
+  document.getElementById('ov-kpis').innerHTML=`<div class="kpi p"><div class="kl">収入</div><div class="kv" style="color:var(--purple)">${fmtN(totR)}<em>円</em></div><div class="ks">参加費・協賛・補助金 合計</div></div><div class="kpi r"><div class="kl">総予算</div><div class="kv">${fmtN(totB)}<em>円</em></div><div class="ks">年間承認予算（税別）</div></div><div class="kpi b"><div class="kl">見積合計</div><div class="kv">${fmtN(totE)}<em>円</em></div><div class="ks">消化率 <strong style="color:var(--blue)">${pct(totE,totB)}</strong></div></div><div class="kpi y"><div class="kl">実績合計</div><div class="kv">${fmtN(totA)}<em>円</em></div><div class="ks"><span class="${diff>=0?'ok':'ng'}">${diff>=0?'▲ 予算内':'▼ 予算超過'} ${fmtN(Math.abs(diff))}円</span></div></div><div class="kpi g"><div class="kl">粗利実績（収入－実績）</div><div class="kv" style="color:${arari>=0?'var(--green)':'var(--red)'}">${arari>=0?'+':''}${fmtN(arari)}<em>円</em></div><div class="ks">${arari>=0?'黒字':'赤字'}（収入${fmtN(totR)} - 実績${fmtN(totA)}）</div></div>${kpiArariYosoku(totR,totB)}${kpiYoY('実績',totA,prevTotA)}`;
   document.getElementById('ov-rev').innerHTML=S.revenues.map(r=>`<div class="rev-row"><div class="rev-name">${r.name}</div><div class="rev-val">${fmt(r.amount)}</div></div>`).join('')+`<div class="rev-row" style="border-top:1px solid var(--acc);margin-top:8px;padding-top:8px"><strong>収入合計</strong><span style="font-family:var(--mono);font-size:13px;color:var(--green);font-weight:700">${fmt(totR)}</span></div><div class="net-box"><div style="font-size:10px;color:var(--t2)">実質余剰額</div><div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green)">+${fmt(diff+totR)}</div></div>`;
   const CAT8_COLORS={'① 会場・施設費':'#0369a1','② 飲食・ケータリング費':'#b45309','③ 出演・キャスティング費':'#7c3aed','④ 制作・演出費':'#0f766e','⑤ 運営・人件費':'#1d4ed8','⑥ 備品・設営費':'#9a3412','⑦ マーケ・広報費':'#be185d','⑩ その他':'#4b5563','⑧ デザイン費':'#9d174d'};
   const totals8=calcCat8Totals();const maxActual8=Math.max(...ACCOUNTING_CATS.map(cat=>totals8[cat]?.actual||0),1);
@@ -1469,13 +1478,16 @@ async function renderProg(){
 let _cityFesTab='md';
 function getCityFesLabel(key){const defaults={md:'マッチデイ',sd:'スペシャルデイズ',cf3:'イベント3',cf4:'イベント4'};return(S.cityFesLabels?.[key])||defaults[key];}
 function switchCityFesTab(key,btn){_cityFesTab=key;document.querySelectorAll('.cityfes-tab').forEach(b=>{b.style.color='var(--t2)';b.style.borderBottomColor='transparent';b.style.fontWeight='600';});if(btn){btn.style.color='var(--blue)';btn.style.borderBottomColor='var(--blue)';btn.style.fontWeight='700';}CITYFES_TABS.forEach(k=>{const p=document.getElementById(`cityfes-panel-${k}`);if(p)p.style.display=k===key?'':'none';});renderEvt(key);}
-function renderCityFes(){const totB=CITYFES_TABS.reduce((t,k)=>t+evtSum(k,'budget'),0);const totE=CITYFES_TABS.reduce((t,k)=>{const est=S.estimates?.[k]||[];return t+(est.length?est.reduce((s,r)=>s+n(r.estimate),0):evtSum(k,'estimate'));},0);const totA=CITYFES_TABS.reduce((t,k)=>{const est=S.estimates?.[k]||[];return t+(est.length?est.reduce((s,r)=>s+n(r.actual),0):evtSum(k,'actual'));},0);const totR=S.revenues.filter(r=>r.prog&&r.prog.includes('シティフェス')).reduce((t,r)=>t+n(r.amount),0);const arari=totR-totA;const pctE=totB?Math.round(totE/totB*100)+'%':'—';const kpiEl=document.getElementById('cityfes-kpis');if(kpiEl)kpiEl.innerHTML=`<div class="kpi p"><div class="kl">収入</div><div class="kv" style="color:var(--purple)">${fmtN(totR)}<em>円</em></div><div class="ks">参加費・協賛 合計</div></div><div class="kpi r"><div class="kl">総予算</div><div class="kv">${fmtN(totB)}<em>円</em></div><div class="ks">全サブイベント合計</div></div><div class="kpi b"><div class="kl">見積合計</div><div class="kv">${fmtN(totE)}<em>円</em></div><div class="ks">消化率 <strong style="color:var(--blue)">${pctE}</strong></div></div><div class="kpi y"><div class="kl">実績合計</div><div class="kv">${fmtN(totA)}<em>円</em></div><div class="ks">差異 <strong style="color:${totB-totA>=0?'var(--green)':'var(--red)'}">${totB-totA>=0?'▲':'▼'}${fmtN(Math.abs(totB-totA))}</strong></div></div><div class="kpi ${arari>=0?'g':'r'}"><div class="kl">粗利（収入－実績）</div><div class="kv" style="color:${arari>=0?'var(--green)':'var(--red)'}">${arari>=0?'+':''}${fmtN(arari)}<em>円</em></div><div class="ks">${arari>=0?'✅ 黒字':'⚠️ 赤字'}</div></div>`;CITYFES_TABS.forEach(k=>{const btn=document.getElementById(`cityfes-tab-${k}`);if(btn){const icons={md:'⚽',sd:'✨',cf3:'🎪',cf4:'🎪'};btn.textContent=`${icons[k]||'🎪'} ${getCityFesLabel(k)}`;}});renderEvt(_cityFesTab);}
+function renderCityFes(){const totB=CITYFES_TABS.reduce((t,k)=>t+evtSum(k,'budget'),0);const totE=CITYFES_TABS.reduce((t,k)=>{const est=S.estimates?.[k]||[];return t+(est.length?est.reduce((s,r)=>s+n(r.estimate),0):evtSum(k,'estimate'));},0);const totA=CITYFES_TABS.reduce((t,k)=>{const est=S.estimates?.[k]||[];return t+(est.length?est.reduce((s,r)=>s+n(r.actual),0):evtSum(k,'actual'));},0);const totR=S.revenues.filter(r=>r.prog&&r.prog.includes('シティフェス')).reduce((t,r)=>t+n(r.amount),0);const arari=totR-totA;const pctE=totB?Math.round(totE/totB*100)+'%':'—';const kpiEl=document.getElementById('cityfes-kpis');if(kpiEl)kpiEl.innerHTML=`<div class="kpi p"><div class="kl">収入</div><div class="kv" style="color:var(--purple)">${fmtN(totR)}<em>円</em></div><div class="ks">参加費・協賛 合計</div></div><div class="kpi r"><div class="kl">総予算</div><div class="kv">${fmtN(totB)}<em>円</em></div><div class="ks">全サブイベント合計</div></div><div class="kpi b"><div class="kl">見積合計</div><div class="kv">${fmtN(totE)}<em>円</em></div><div class="ks">消化率 <strong style="color:var(--blue)">${pctE}</strong></div></div><div class="kpi y"><div class="kl">実績合計</div><div class="kv">${fmtN(totA)}<em>円</em></div><div class="ks">差異 <strong style="color:${totB-totA>=0?'var(--green)':'var(--red)'}">${totB-totA>=0?'▲':'▼'}${fmtN(Math.abs(totB-totA))}</strong></div></div><div class="kpi ${arari>=0?'g':'r'}"><div class="kl">粗利（収入－実績）</div><div class="kv" style="color:${arari>=0?'var(--green)':'var(--red)'}">${arari>=0?'+':''}${fmtN(arari)}<em>円</em></div><div class="ks">${arari>=0?'✅ 黒字':'⚠️ 赤字'}</div></div>${kpiArariYosoku(totR,totB)}${(()=>{const _p=(_prevYearFY===_currentFiscalYear-1&&_prevYearData)?_prevYearData:null;if(!_p)return kpiYoY('実績',totA,null);const sv=S;S=_p;const pA=CITYFES_TABS.reduce((t,k)=>{const e=S.estimates?.[k]||[];return t+(e.length?e.reduce((s,r)=>s+n(r.actual),0):evtSum(k,'actual'));},0);S=sv;return kpiYoY('実績',totA,pA);})()}`;CITYFES_TABS.forEach(k=>{const btn=document.getElementById(`cityfes-tab-${k}`);if(btn){const icons={md:'⚽',sd:'✨',cf3:'🎪',cf4:'🎪'};btn.textContent=`${icons[k]||'🎪'} ${getCityFesLabel(k)}`;}});renderEvt(_cityFesTab);}
 function renameCityFesTab(){const key=_cityFesTab;const current=getCityFesLabel(key);const newName=prompt(`「${current}」の名前を変更:`,current);if(!newName||newName===current)return;if(!S.cityFesLabels)S.cityFesLabels={};S.cityFesLabels[key]=newName;if(S.events[key])S.events[key].label=newName;save();renderCityFes();}
 
 // ── シリーズ描画 ──
 function renderSeries(key){
   const ss=S.sessions[key]||[];const totB=ss.reduce((t,s)=>t+sessSum(s,'budget'),0);const totE=ss.reduce((t,s)=>t+sessSum(s,'estimate'),0);const totA=ss.reduce((t,s)=>t+sessSum(s,'actual'),0);const done=ss.filter(s=>sessSum(s,'actual')>0).length;const seriesProgName={hm:'ホームルーム',gk:'評議会',oe:'応援カイギ'}[key]||'';const seriesRev=S.revenues.filter(r=>r.prog&&(r.prog.includes(seriesProgName)||String(r.prog).includes(key))).reduce((t,r)=>t+n(r.amount),0);const arari=seriesRev-totA;
-  document.getElementById(`${key}-kpis`).innerHTML=`<div class="kpi p"><div class="kl">収入</div><div class="kv" style="color:var(--purple)">${fmtN(seriesRev)}<em>円</em></div><div class="ks">参加費・協賛 合計</div></div><div class="kpi r"><div class="kl">総予算</div><div class="kv">${fmtN(totB)}<em>円</em></div><div class="ks">全${ss.length}回 合計</div></div><div class="kpi b"><div class="kl">見積合計</div><div class="kv">${fmtN(totE)}<em>円</em></div><div class="ks">消化率 <strong style="color:var(--blue)">${pct(totE,totB)}</strong></div></div><div class="kpi y"><div class="kl">実績合計</div><div class="kv">${fmtN(totA)}<em>円</em></div><div class="ks">実績入力済 <strong style="color:var(--yellow)">${done}/${ss.length}回</strong></div></div><div class="kpi g"><div class="kl">粗利（収入－実績）</div><div class="kv" style="color:${arari>=0?'var(--green)':'var(--red)'}">${arari>=0?'+':''}${fmtN(arari)}<em>円</em></div><div class="ks">${arari>=0?'✅ 黒字':'⚠️ 赤字'}</div></div>`;
+  // 前年比（前年の同シリーズ実績）
+  const _sPrev = (_prevYearFY === _currentFiscalYear-1 && _prevYearData) ? _prevYearData : null;
+  const prevSeriesA = _sPrev ? (() => { const sv=S; S=_sPrev; const v=(S.sessions[key]||[]).reduce((t,s)=>t+sessSum(s,'actual'),0); S=sv; return v; })() : null;
+  document.getElementById(`${key}-kpis`).innerHTML=`<div class="kpi p"><div class="kl">収入</div><div class="kv" style="color:var(--purple)">${fmtN(seriesRev)}<em>円</em></div><div class="ks">参加費・協賛 合計</div></div><div class="kpi r"><div class="kl">総予算</div><div class="kv">${fmtN(totB)}<em>円</em></div><div class="ks">全${ss.length}回 合計</div></div><div class="kpi b"><div class="kl">見積合計</div><div class="kv">${fmtN(totE)}<em>円</em></div><div class="ks">消化率 <strong style="color:var(--blue)">${pct(totE,totB)}</strong></div></div><div class="kpi y"><div class="kl">実績合計</div><div class="kv">${fmtN(totA)}<em>円</em></div><div class="ks">実績入力済 <strong style="color:var(--yellow)">${done}/${ss.length}回</strong></div></div><div class="kpi g"><div class="kl">粗利実績（収入－実績）</div><div class="kv" style="color:${arari>=0?'var(--green)':'var(--red)'}">${arari>=0?'+':''}${fmtN(arari)}<em>円</em></div><div class="ks">${arari>=0?'✅ 黒字':'⚠️ 赤字'}</div></div>${kpiArariYosoku(seriesRev,totB)}${kpiYoY('実績',totA,prevSeriesA)}`;
   const cat9Totals={};ACCOUNTING_CATS.forEach(cat=>{cat9Totals[cat]={budget:0,estimate:0,actual:0};});ss.forEach(s=>{(s.items||[]).forEach(it=>{const cat=ACCOUNTING_CATS.includes(it.name)?it.name:detectCat(it.name);if(!cat9Totals[cat])cat9Totals[cat]={budget:0,estimate:0,actual:0};cat9Totals[cat].budget+=n(it.budget);cat9Totals[cat].estimate+=n(it.estimate);cat9Totals[cat].actual+=n(it.actual);});});
   const catTbody=document.getElementById(`${key}-cat-tbody`);if(catTbody){catTbody.innerHTML=ACCOUNTING_CATS.map(cat=>{const t=cat9Totals[cat];if(!t.budget&&!t.estimate&&!t.actual)return'';const diff=t.estimate-t.actual;const cc=CAT_COLORS[cat]||{fg:'374151',bg:'f3f4f6'};return`<tr><td><span style="font-size:9px;font-weight:700;color:#${cc.fg};background:#${cc.bg};padding:2px 7px;border-radius:10px">${cat}</span></td><td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--t2)">${t.budget?fmtN(t.budget):'—'}</td><td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--blue)">${t.estimate?fmtN(t.estimate):'—'}</td><td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--green);font-weight:600">${t.actual?fmtN(t.actual):'—'}</td><td style="font-size:12px;text-align:right;font-weight:600" class="${diff>=0?'ok':'ng'}">${t.estimate||t.actual?(diff>=0?'▲':'▼')+' '+fmtN(Math.abs(diff)):'—'}</td></tr>`;}).filter(Boolean).join('');}
   const chartItems=ACCOUNTING_CATS.filter(cat=>cat9Totals[cat]?.actual>0);dc(`ch-${key}-cat`);const cvs=document.getElementById(`ch-${key}-cat`);if(cvs&&chartItems.length){_ch[`ch-${key}-cat`]=new Chart(cvs,{type:'doughnut',data:{labels:chartItems.map(c=>c),datasets:[{data:chartItems.map(c=>cat9Totals[c].actual),backgroundColor:chartItems.map(c=>(CAT_COLORS[c]?`#${CAT_COLORS[c].fg}`:'#374151')+'cc'),borderWidth:1.5,hoverOffset:5}]},options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{position:'right',labels:{boxWidth:7,padding:8,font:{size:9}}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ¥${Math.round(ctx.raw).toLocaleString()}`}}}}});}
@@ -1491,7 +1503,10 @@ function renderEvt(key){
   const EVT_PROG_KEYS={ko:['キックオフ'],aw:['アワード','AWARD'],ye:['イヤーエンド','YEAR END','YearEnd'],md:['マッチデイ','マッチ'],tour:['ツアー','TOUR'],sd:['スペシャルデイズ','スペシャル'],cf3:['イベント3'],cf4:['イベント4']};
   const evtKeywords=EVT_PROG_KEYS[key]||[];const evtRev=S.revenues.filter(r=>r.prog&&evtKeywords.some(kw=>r.prog.includes(kw))).reduce((t,r)=>t+n(r.amount),0);const arari=evtRev-totA;
   const kpiEl=document.getElementById(`${key}-kpis`);if(kpiEl)kpiEl.style.gridTemplateColumns='repeat(5,1fr)';
-  document.getElementById(`${key}-kpis`).innerHTML=`<div class="kpi p"><div class="kl">収入</div><div class="kv" style="color:var(--purple)">${fmtN(evtRev)}<em>円</em></div><div class="ks">参加費・協賛 合計</div></div><div class="kpi r"><div class="kl">総予算</div><div class="kv">${fmtN(progBudget)}<em>円</em></div><div class="ks">承認予算額</div></div><div class="kpi b"><div class="kl">見積合計</div><div class="kv">${fmtN(totE)}<em>円</em></div><div class="ks">消化率 <strong style="color:var(--blue)">${pct(totE,progBudget)}</strong></div></div><div class="kpi y"><div class="kl">実績合計</div><div class="kv">${fmtN(totA)}<em>円</em></div><div class="ks">差異 <span class="${totE>=totA?'ok':'ng'}">${totE>=totA?'▲':'▼'} ${fmtN(Math.abs(totE-totA))}円</span></div></div><div class="kpi g"><div class="kl">粗利（収入－実績）</div><div class="kv" style="color:${arari>=0?'var(--green)':'var(--red)'}">${arari>=0?'+':''}${fmtN(arari)}<em>円</em></div><div class="ks">${arari>=0?'✅ 黒字':'⚠️ 赤字'}</div></div>`;
+  // 前年比
+  const _ePrev = (_prevYearFY === _currentFiscalYear-1 && _prevYearData) ? _prevYearData : null;
+  const prevEvtA = _ePrev ? (() => { const sv=S; S=_ePrev; const v=progActual(key); S=sv; return v; })() : null;
+  document.getElementById(`${key}-kpis`).innerHTML=`<div class="kpi p"><div class="kl">収入</div><div class="kv" style="color:var(--purple)">${fmtN(evtRev)}<em>円</em></div><div class="ks">参加費・協賛 合計</div></div><div class="kpi r"><div class="kl">総予算</div><div class="kv">${fmtN(progBudget)}<em>円</em></div><div class="ks">承認予算額</div></div><div class="kpi b"><div class="kl">見積合計</div><div class="kv">${fmtN(totE)}<em>円</em></div><div class="ks">消化率 <strong style="color:var(--blue)">${pct(totE,progBudget)}</strong></div></div><div class="kpi y"><div class="kl">実績合計</div><div class="kv">${fmtN(totA)}<em>円</em></div><div class="ks">差異 <span class="${totE>=totA?'ok':'ng'}">${totE>=totA?'▲':'▼'} ${fmtN(Math.abs(totE-totA))}円</span></div></div><div class="kpi g"><div class="kl">粗利実績（収入－実績）</div><div class="kv" style="color:${arari>=0?'var(--green)':'var(--red)'}">${arari>=0?'+':''}${fmtN(arari)}<em>円</em></div><div class="ks">${arari>=0?'✅ 黒字':'⚠️ 赤字'}</div></div>${kpiArariYosoku(evtRev,progBudget)}${kpiYoY('実績',totA,prevEvtA)}`;
   const cat9Map={};(ev.items||[]).forEach(it=>{const cat=ACCOUNTING_CATS.includes(it.name)?it.name:detectCat(it.name);if(!cat9Map[cat])cat9Map[cat]={id:it.id||uid(),budget:0,estimate:0,actual:0};cat9Map[cat].budget+=n(it.budget);cat9Map[cat].estimate+=n(it.estimate);cat9Map[cat].actual+=n(it.actual);});
   document.getElementById(`${key}-tbody`).innerHTML=ACCOUNTING_CATS.map(cat=>{const vals=cat9Map[cat]||{budget:0,estimate:0,actual:0};const dispB=vals.budget,dispE=vals.estimate,dispA=vals.actual;const diff=dispB?(dispB-dispA):(dispE-dispA);const cc=CAT_COLORS[cat]||{fg:'374151',bg:'f3f4f6'};const hasValue=dispB||dispE||dispA;if(!hasValue)return'';return`<tr style="border-bottom:1px solid var(--b1)"><td style="padding:10px 0;font-weight:600;font-size:13px"><span style="font-size:9px;font-weight:700;color:#${cc.fg};background:#${cc.bg};padding:2px 8px;border-radius:10px;margin-right:8px">${cat}</span></td><td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--t2)">${dispB?fmtN(dispB):'—'}</td><td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--blue)">${dispE?fmtN(dispE):'—'}</td><td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--green);font-weight:600">${dispA?fmtN(dispA):'—'}</td><td style="font-size:12px;text-align:right;font-weight:600" class="${diff>=0?'ok':'ng'}">${dispB||dispE||dispA?(diff>=0?'▲':'▼')+' '+fmtN(Math.abs(diff)):'—'}</td></tr>`;}).filter(Boolean).join('');
   const items=ev.items.filter(i=>n(i.actual)>0);dc('ch-'+key);_ch['ch-'+key]=new Chart(document.getElementById('ch-'+key),{type:'doughnut',data:{labels:items.map(i=>i.name),datasets:[{data:items.map(i=>i.actual),backgroundColor:PAL.slice(0,items.length).map(c=>c+'cc'),borderColor:PAL.slice(0,items.length),borderWidth:1.5,hoverOffset:5}]},options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{position:'right',labels:{boxWidth:7,padding:8,font:{size:10}}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ¥${Math.round(ctx.raw).toLocaleString()}`}}}}});
@@ -1663,7 +1678,11 @@ function deleteProdById(id){const it=(S.prodItems||[]).find(x=>x.id===id);logCha
 function migrateMktToProd(){if(!S.mktItems||S.mktItems.length===0)return;if(!S.prodItems)S.prodItems=[];const alreadyMigrated=S.prodItems.some(i=>i._fromMkt);if(alreadyMigrated)return;S.mktItems.forEach(m=>{S.prodItems.push({id:m.id||uid(),cat:'マーケ',name:m.name||'',content:m.content||'',price:0,qty:1,unit:'式',stockInit:0,stockUsed:0,stockAlert:0,budget:n(m.budget),estimate:n(m.estimate),actual:n(m.actual),status:m.status||'',memo:m.memo||'',_fromMkt:true});});S.mktItems=[];save();}
 
 // ── renderPg ──
-function renderPg(id){
+async function renderPg(id){
+  // 前年データを事前ロード（KPI前年比に使用）
+  if (_currentFiscalYear > 2025) {
+    await loadPrevYearData();
+  }
   if(id==='ov')renderOv();
   else if(id==='prog')renderProg();
   else if(id==='hm')renderSeries('hm');
@@ -2629,6 +2648,43 @@ function executeMfImport() {
 function showMfError(msg) {
   const el = document.getElementById('mf-error');
   if (el) { el.textContent = msg; el.style.display = msg ? '' : 'none'; }
+}
+
+
+// ══════════════════════════════════════════════════
+// KPIカード共通ヘルパー
+// ══════════════════════════════════════════════════
+
+// 粗利予測カード（収入 - 予算）
+function kpiArariYosoku(rev, budget) {
+  const yosoku = rev - budget;
+  const color  = yosoku >= 0 ? 'var(--green)' : 'var(--red)';
+  return `<div class="kpi ${yosoku>=0?'g':'r'}" style="border:1.5px dashed ${yosoku>=0?'var(--green)':'var(--red)'}">
+    <div class="kl">粗利予測（収入－予算）</div>
+    <div class="kv" style="color:${color}">${yosoku>=0?'+':''}${fmtN(yosoku)}<em>円</em></div>
+    <div class="ks" style="color:${color}">${yosoku>=0?'✅ 黒字予測':'⚠️ 赤字予測'}（収入${fmtN(rev)} - 予算${fmtN(budget)}）</div>
+  </div>`;
+}
+
+// 前年比カード
+function kpiYoY(label, current, prev) {
+  if (prev === null || prev === undefined) {
+    return `<div class="kpi" style="opacity:.5">
+      <div class="kl">前年比（${label}）</div>
+      <div class="kv" style="color:var(--t3)">—</div>
+      <div class="ks">前年データなし</div>
+    </div>`;
+  }
+  const diff  = current - prev;
+  const ratio = prev > 0 ? Math.round(current / prev * 100) : null;
+  const color = ratio === null ? 'var(--t2)' : ratio > 110 ? 'var(--red)' : ratio < 90 ? 'var(--blue)' : 'var(--green)';
+  const diffStr = diff >= 0 ? `+${fmtN(diff)}` : `▼${fmtN(Math.abs(diff))}`;
+  const diffColor = diff >= 0 ? 'var(--red)' : 'var(--green)';
+  return `<div class="kpi" style="background:linear-gradient(135deg,var(--s2),var(--s1));border:1.5px solid var(--b2)">
+    <div class="kl">前年比（${label}）</div>
+    <div class="kv" style="color:${color}">${ratio !== null ? ratio+'%' : '—'}</div>
+    <div class="ks">前年${fmtN(prev)}円 <span style="color:${diffColor};font-weight:700">${diffStr}</span></div>
+  </div>`;
 }
 
 </script>
