@@ -262,7 +262,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       </div>
       <div class="g7" id="hm-kpis" style="margin-bottom:14px"></div>
       <div class="g2" style="margin-bottom:14px">
-        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計</div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="hm-cat-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openSeriesCatEdit('hm')">✏️ 予算・見積を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="hm-cat-tbody"></tbody></table></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--green)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-hm-cat"></canvas></div></div>
       </div>
       <div class="sg" id="hm-grid"></div>
@@ -276,7 +276,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       </div>
       <div class="g7" id="gk-kpis" style="margin-bottom:14px"></div>
       <div class="g2" style="margin-bottom:14px">
-        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計</div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="gk-cat-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openSeriesCatEdit('gk')">✏️ 予算・見積を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="gk-cat-tbody"></tbody></table></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-gk-cat"></canvas></div></div>
       </div>
       <div class="sg" id="gk-grid"></div>
@@ -290,7 +290,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       </div>
       <div class="g7" id="oe-kpis" style="margin-bottom:14px"></div>
       <div class="g2" style="margin-bottom:14px">
-        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計</div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="oe-cat-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openSeriesCatEdit('oe')">✏️ 予算・見積を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="oe-cat-tbody"></tbody></table></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-oe-cat"></canvas></div></div>
       </div>
       <div class="sg" id="oe-grid"></div>
@@ -444,7 +444,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
     <!-- 製作物管理 -->
     <div class="pg" id="pg-prod">
       <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
-        <select id="prod-filter-cat" class="fi" style="width:160px;padding:6px 10px;font-size:11px" onchange="renderProd()"><option value="">すべてのカテゴリ</option><option>グッズ（外販）</option><option>グッズ（内部向け）</option><option>イベント装飾</option><option>年間共通ツール</option><option>その他</option></select>
+        <select id="prod-filter-cat" class="fi" style="width:160px;padding:6px 10px;font-size:11px" onchange="renderProd()"><option value="">すべてのカテゴリ</option><option>グッズ（外販）</option><option>グッズ（内部向け）</option><option>イベント装飾</option><option>年間共通ツール</option><option>年間共通デザイン</option><option>その他</option></select>
         <select id="prod-filter-stock" class="fi" style="width:130px;padding:6px 10px;font-size:11px" onchange="renderProd()"><option value="">在庫：すべて</option><option value="low">⚠️ 在庫少</option><option value="out">❌ 在庫なし</option><option value="ok">✅ 在庫あり</option></select>
       </div>
       <div class="g5" id="prod-kpis" style="margin-bottom:14px"></div>
@@ -643,6 +643,34 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <div id="mf-preview" style="overflow:auto;max-height:420px;font-size:10px;font-family:var(--mono);border:1px solid var(--b1);border-radius:8px;padding:8px;background:var(--s2)">
           <div style="color:var(--t3);text-align:center;padding:40px">CSVファイルを選択してください</div>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ シリーズ会計科目編集パネル ═══ -->
+<div class="ov" id="ov-series-cat-edit">
+  <div class="panel wide">
+    <div class="ph">
+      <h2 id="series-cat-edit-title">会計科目別 予算・見積を編集</h2>
+      <button class="xbtn" onclick="closeOv('ov-series-cat-edit')">×</button>
+    </div>
+    <div class="pb-body">
+      <p style="font-size:11px;color:var(--t2);margin-bottom:12px">全回次に共通で適用される費目の予算・見積を編集します。<br>回次ごとの個別設定は各回次の編集パネルから変更できます。</p>
+      <div style="display:grid;grid-template-columns:20px 1fr 130px 130px 26px;gap:6px;padding:0 4px;margin-bottom:6px">
+        <span></span>
+        <span style="font-size:9px;font-weight:700;color:var(--t3)">会計科目</span>
+        <span style="font-size:9px;font-weight:700;color:var(--t3);text-align:right">予算（円/回）</span>
+        <span style="font-size:9px;font-weight:700;color:var(--blue);text-align:right">見積（円/回）</span>
+        <span></span>
+      </div>
+      <div id="series-cat-edit-items"></div>
+    </div>
+    <div class="pf" style="justify-content:space-between">
+      <div style="font-size:10px;color:var(--t3)" id="series-cat-edit-note"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-g" onclick="closeOv('ov-series-cat-edit')">キャンセル</button>
+        <button class="btn btn-p" onclick="saveSeriesCatEdit()">保存する</button>
       </div>
     </div>
   </div>
@@ -1407,7 +1435,7 @@ const SERIES_DEFAULTS_INIT={hm:makeDefaultItems({'① 会場・施設費':55000,
 if(!S.defaults)S.defaults=JSON.parse(JSON.stringify(SERIES_DEFAULTS_INIT));
 
 // ── 製作物カテゴリ ──
-const PROD_CATS_LIST=['グッズ（外販）','グッズ（内部向け）','イベント装飾','年間共通ツール','マーケ','その他'];
+const PROD_CATS_LIST=['グッズ（外販）','グッズ（内部向け）','イベント装飾','年間共通ツール','年間共通デザイン','マーケ','その他'];
 
 // ── OV（サマリー）描画 ──
 function renderOv(){
@@ -1683,7 +1711,7 @@ function renderCF(){const{months,cfData}=calcCF();const cfEl=document.getElement
 
 // ── 8科目集計 ──
 function calcCat8Totals(){const totals={};ACCOUNTING_CATS.forEach(cat=>{totals[cat]={budget:0,estimate:0,actual:0};});function normCat(cat){if(!cat)return'⑩ その他';if(ACCOUNTING_CATS.includes(cat))return cat;return detectCat(cat)||'⑩ その他';}function addB(cat,b){totals[normCat(cat)].budget+=n(b);}function addA(cat,e,a){const c=normCat(cat);totals[c].estimate+=n(e);totals[c].actual+=n(a);}['ko','aw','ye','md','tour','sd','cf3','cf4'].forEach(key=>{const items=S.events[key]?.items||[];if(items.length>0){items.forEach(it=>addB(it.name,it.budget));}else{(S.defaults?.[key]||[]).forEach(d=>addB(d.name,d.budget));}});['hm','gk','oe'].forEach(key=>{(S.sessions[key]||[]).forEach(sess=>(sess.items||[]).forEach(it=>addB(it.name,it.budget)));});const prodB=S.prodBudgets||{};
-const PROD_TO_ACCT={'グッズ（外販）':'④ 制作・演出費','グッズ（内部向け）':'④ 制作・演出費','イベント装飾':'④ 制作・演出費','年間共通ツール':'④ 制作・演出費','マーケ':'⑦ マーケ・広報費','その他':'⑩ その他'};
+const PROD_TO_ACCT={'グッズ（外販）':'④ 制作・演出費','グッズ（内部向け）':'④ 制作・演出費','イベント装飾':'④ 制作・演出費','年間共通ツール':'④ 制作・演出費','年間共通デザイン':'⑧ デザイン費','マーケ':'⑦ マーケ・広報費','その他':'⑩ その他'};
 PROD_CATS_LIST.forEach(cat=>{if(!prodB[cat])return;addB(PROD_TO_ACCT[cat]||'④ 制作・演出費',prodB[cat]);});Object.values(S.estimates||{}).forEach(rows=>{(rows||[]).forEach(r=>{
   if(!r.name && !r.cat) return;
   // catが会計科目でない場合はdetectCatで再判定
@@ -1691,11 +1719,19 @@ PROD_CATS_LIST.forEach(cat=>{if(!prodB[cat])return;addB(PROD_TO_ACCT[cat]||'④ 
   if(!ACCOUNTING_CATS.includes(eCat)) eCat = detectCat(r.name||'') || eCat || '⑩ その他';
   addA(eCat, r.estimate, r.actual);
 });});(S.prodItems||[]).forEach(i=>{
-  // 会計科目の場合はそのまま、PROD_CATSの場合は品目名からdetectCat
   const ACCOUNTING = ACCOUNTING_CATS;
-  let cat = ACCOUNTING.includes(i.cat) ? i.cat : detectCat(i.name||'');
-  if(!cat||cat==='⑩ その他'){
-    cat = i.cat==='マーケ' ? '⑦ マーケ・広報費' : '④ 制作・演出費';
+  let cat = ACCOUNTING.includes(i.cat) ? i.cat : '';
+  if(!cat) {
+    // prodカテゴリで会計科目を決定
+    if(i.cat==='年間共通デザイン') cat = '⑧ デザイン費';
+    else if(i.cat==='マーケ') cat = '⑦ マーケ・広報費';
+    else cat = detectCat(i.name||'') || '';
+    // detectCatでも判定できない場合はprodカテゴリで振り分け
+    if(!cat || cat==='⑩ その他') {
+      if(i.cat==='年間共通デザイン') cat = '⑧ デザイン費';
+      else if(i.cat==='マーケ') cat = '⑦ マーケ・広報費';
+      else cat = '④ 制作・演出費';
+    }
   }
   addA(cat,i.estimate||0,i.actual||0);
 });(S.mktItems||[]).forEach(i=>addA('⑦ マーケ・広報費',i.estimate||0,i.actual||0));['hm','gk','oe'].forEach(key=>{(S.sessions[key]||[]).forEach(sess=>(sess.items||[]).forEach(it=>addA(it.name,it.estimate,it.actual)));});// events.itemsは常に集計（estimatesと合算ではなく、estimatesがない費目のみ補完）
@@ -1721,7 +1757,7 @@ PROD_CATS_LIST.forEach(cat=>{if(!prodB[cat])return;addB(PROD_TO_ACCT[cat]||'④ 
 
 // ── 製作物管理 ──
 if(!S.prodItems)S.prodItems=[];
-const PROD_SECTION_COLORS={'グッズ（外販）':{h:'#7c3aed',bg:'#ede9fe',fg:'#5b21b6'},'グッズ（内部向け）':{h:'#be185d',bg:'#fce7f3',fg:'#831843'},'イベント装飾':{h:'#0f766e',bg:'#ccfbf1',fg:'#134e4a'},'年間共通ツール':{h:'#1d4ed8',bg:'#dbeafe',fg:'#1e3a8a'},'マーケ':{h:'#be185d',bg:'#fce7f3',fg:'#831843'},'その他':{h:'#374151',bg:'#f3f4f6',fg:'#1f2937'}};
+const PROD_SECTION_COLORS={'グッズ（外販）':{h:'#7c3aed',bg:'#ede9fe',fg:'#5b21b6'},'グッズ（内部向け）':{h:'#be185d',bg:'#fce7f3',fg:'#831843'},'イベント装飾':{h:'#0f766e',bg:'#ccfbf1',fg:'#134e4a'},'年間共通ツール':{h:'#1d4ed8',bg:'#dbeafe',fg:'#1e3a8a'},'年間共通デザイン':{h:'#0891b2',bg:'#cffafe',fg:'#164e63'},'マーケ':{h:'#be185d',bg:'#fce7f3',fg:'#831843'},'その他':{h:'#374151',bg:'#f3f4f6',fg:'#1f2937'}};
 function getStockStatus(it){const init=n(it.stockInit)||n(it.qty)||0,used=Math.min(n(it.stockUsed)||0,init),remain=init-used,alert=n(it.stockAlert)||0;return{init,used,remain,alert};}
 function getProdBudgets(){if(!S.prodBudgets)S.prodBudgets={};return S.prodBudgets;}
 function detectProdCat(name,origCat){const nm=(name||'').toLowerCase(),o=(origCat||'').toLowerCase();if(/マグカップ|トートバッグ|ステッカー|クリアファイル|詰め合わせ|バインダー|送料|suzuri|tシャツ|ウェア|キャップ|ピンバッジ|ポーチ/.test(nm))return'グッズ（外販）';if(/スタッフウェア|スタッフtシャツ|社内|内部|スタッフ用/.test(nm))return'グッズ（内部向け）';if(/パネル|バナー|フラッグ|装飾|フォトブース|ターポリン|ウェルカムボード|ステージ|ブース|展示/.test(nm))return'イベント装飾';if(/ロールアップ|バックパネル|ロゴパネル|手持ちパネル|スタンド/.test(nm))return'年間共通ツール';if(/マーケ|広告|sns|pr|プロモ|lp|ランディング|動画|映像|チラシ|ポスター|パンフ|広報/.test(nm))return'マーケ';return'その他';}
@@ -2898,6 +2934,115 @@ async function showPrevYearSessionRef(key, currentId) {
       </table>
     </div>`;
 }
+
+// ══════════════════════════════════════════════════
+// シリーズ会計科目別 予算・見積 編集
+// ══════════════════════════════════════════════════
+let _seriesCatKey = '';
+let _seriesCatItems = [];
+
+function openSeriesCatEdit(key) {
+  _seriesCatKey = key;
+  const labels = { hm: 'ホームルーム', gk: '評議会', oe: '応援カイギ' };
+  document.getElementById('series-cat-edit-title').textContent =
+    `${labels[key]} — 会計科目別 予算・見積を編集`;
+
+  // 現在の全回次から費目別の合計を集計
+  const ss = S.sessions[key] || [];
+  const count = ss.length;
+  const cat9 = {};
+  ACCOUNTING_CATS.forEach(c => { cat9[c] = { budget: 0, estimate: 0 }; });
+
+  ss.forEach(s => {
+    (s.items || []).forEach(it => {
+      const cat = ACCOUNTING_CATS.includes(it.name) ? it.name : detectCat(it.name);
+      if (!cat9[cat]) cat9[cat] = { budget: 0, estimate: 0 };
+      cat9[cat].budget   += n(it.budget);
+      cat9[cat].estimate += n(it.estimate);
+    });
+  });
+
+  // 1回あたりの平均に変換（編集しやすいように）
+  _seriesCatItems = ACCOUNTING_CATS.map(cat => ({
+    cat,
+    budget:   count > 0 ? Math.round(cat9[cat].budget   / count) : 0,
+    estimate: count > 0 ? Math.round(cat9[cat].estimate / count) : 0,
+    totalBudget:   cat9[cat].budget,
+    totalEstimate: cat9[cat].estimate,
+  }));
+
+  const noteEl = document.getElementById('series-cat-edit-note');
+  if (noteEl) noteEl.textContent = `全${count}回次に反映されます`;
+
+  renderSeriesCatItems();
+  openOv('ov-series-cat-edit');
+}
+
+function renderSeriesCatItems() {
+  const container = document.getElementById('series-cat-edit-items');
+  if (!container) return;
+
+  const inpStyle = 'width:100%;padding:5px 8px;border:1.5px solid var(--b2);border-radius:6px;font-size:11px;font-family:var(--mono);background:var(--s1);color:var(--t1);outline:none;text-align:right';
+
+  container.innerHTML = _seriesCatItems.map((item, i) => {
+    const cc = CAT_COLORS[item.cat] || { fg: '374151', bg: 'f3f4f6' };
+    return `<div style="display:grid;grid-template-columns:20px 1fr 130px 130px 26px;gap:6px;align-items:center;padding:4px 0;border-bottom:1px solid var(--b1)">
+      <span style="font-size:9px;color:var(--t3);text-align:center">${i + 1}</span>
+      <span style="font-size:10px;font-weight:700;color:#${cc.fg};background:#${cc.bg};padding:2px 8px;border-radius:8px;display:inline-block">${item.cat}</span>
+      <input type="number" value="${item.budget || ''}" placeholder="0"
+        style="${inpStyle}"
+        oninput="_seriesCatItems[${i}].budget = parseFloat(this.value)||0"
+        onfocus="this.style.borderColor='var(--yellow)'"
+        onblur="this.style.borderColor='var(--b2)'">
+      <input type="number" value="${item.estimate || ''}" placeholder="0"
+        style="${inpStyle};border-color:rgba(37,99,235,.3)"
+        oninput="_seriesCatItems[${i}].estimate = parseFloat(this.value)||0"
+        onfocus="this.style.borderColor='var(--blue)'"
+        onblur="this.style.borderColor='rgba(37,99,235,.3)'">
+      <span></span>
+    </div>`;
+  }).join('');
+}
+
+function saveSeriesCatEdit() {
+  const key = _seriesCatKey;
+  const ss  = S.sessions[key] || [];
+  if (!ss.length) {
+    alert('回次が登録されていません。先に回次を追加してください。');
+    return;
+  }
+
+  // 全回次の費目を更新（予算・見積を上書き）
+  ss.forEach(sess => {
+    _seriesCatItems.forEach(item => {
+      if (!item.budget && !item.estimate) return; // 0/0はスキップ
+      const existing = sess.items?.find(it => {
+        const itCat = ACCOUNTING_CATS.includes(it.name) ? it.name : detectCat(it.name);
+        return itCat === item.cat;
+      });
+      if (existing) {
+        if (item.budget)   existing.budget   = item.budget;
+        if (item.estimate) existing.estimate = item.estimate;
+      } else {
+        if (!sess.items) sess.items = [];
+        sess.items.push({
+          id: uid(),
+          name: item.cat,
+          budget:   item.budget,
+          estimate: item.estimate,
+          actual:   0,
+        });
+      }
+    });
+  });
+
+  addChangelog('series', `${key}会計科目予算更新`, null, null);
+  save();
+  closeOv('ov-series-cat-edit');
+  renderSeries(key);
+  alert(`✅ 保存しました。\n全${ss.length}回次の費目予算・見積に反映されました。`);
+}
+
 </script>
 </body>
 </html>
