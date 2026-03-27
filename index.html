@@ -300,8 +300,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
                 <th style="text-align:right;color:var(--green)">実績</th>
                 <th style="text-align:right">差異</th>
                 <th style="text-align:right;color:var(--acc)">収入</th>
-                <th style="text-align:right;background:rgba(37,99,235,.06);color:var(--blue)">粗利予測</th>
                 <th style="text-align:right;background:rgba(16,185,129,.06);color:var(--green)">粗利（実）</th>
+                <th style="text-align:right;background:rgba(37,99,235,.06);color:var(--blue)">粗利予測</th>
                 <th id="prog-yoy-header" style="text-align:right;color:var(--t3);font-size:10px;background:rgba(245,158,11,.06)">前年粗利</th>
                 <th style="text-align:right;color:var(--t3);font-size:9px">前年比</th>
               </tr>
@@ -1784,8 +1784,8 @@ async function renderProg(){
       <td style="text-align:right;font-family:var(--mono)">${fmtN(act)}</td>
       <td style="text-align:right;font-family:var(--mono)" class="${diff<0?'ng':'ok'}">${diff<0?'▼':'▲'} ${fmtN(Math.abs(diff))}</td>
       <td style="text-align:right;font-family:var(--mono);color:var(--acc)">${rev>0?fmtN(rev):'—'}</td>
-      <td style="text-align:right;font-family:var(--mono);font-weight:700;color:${gfColor};background:rgba(37,99,235,.04)">${gfStr}</td>
       <td style="text-align:right;font-family:var(--mono);font-weight:700;color:${grossColor};background:rgba(16,185,129,.04)">${grossStr}</td>
+      <td style="text-align:right;font-family:var(--mono);font-weight:700;color:${gfColor};background:rgba(37,99,235,.04)">${gfStr}</td>
       ${prevCell}
     </tr>`;
   }));
@@ -1802,8 +1802,8 @@ async function renderProg(){
       <td style="text-align:right;font-family:var(--mono)">${fmtN(totalAct)}</td>
       <td style="text-align:right;font-family:var(--mono)" class="${totalBudget-totalAct<0?'ng':'ok'}">${totalBudget-totalAct<0?'▼':'▲'} ${fmtN(Math.abs(totalBudget-totalAct))}</td>
       <td style="text-align:right;font-family:var(--mono);color:var(--acc)">${fmtN(totalRevenue)}</td>
-      <td style="text-align:right;font-family:var(--mono);font-weight:800;color:${totalGrossColor};background:rgba(16,185,129,.08)">${totalGross>=0?'+':''}${fmtN(totalGross)}</td>
       <td style="text-align:right;font-family:var(--mono);font-weight:800;color:${totalGFColor};background:rgba(37,99,235,.08)">${totalGrossForecast>=0?'+':''}${fmtN(totalGrossForecast)}</td>
+      <td style="text-align:right;font-family:var(--mono);font-weight:800;color:${totalGrossColor};background:rgba(16,185,129,.08)">${totalGross>=0?'+':''}${fmtN(totalGross)}</td>
       <td colspan="2"></td>
     </tr>`;
 
