@@ -529,10 +529,12 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
     <div style="background:var(--s1);border:1px solid var(--b1);border-radius:16px;padding:28px;box-shadow:0 8px 32px rgba(0,0,0,.08)">
       <div style="font-family:var(--disp);font-size:15px;font-weight:700;color:var(--t1);margin-bottom:20px">ログイン</div>
       <div id="login-error" style="display:none;background:rgba(232,64,96,.1);border:1px solid rgba(232,64,96,.3);border-radius:6px;padding:10px 12px;font-size:11px;color:#e84060;margin-bottom:14px;white-space:pre-wrap;line-height:1.6"></div>
-      <div class="frow"><div class="fl">メールアドレス</div><input class="fi" id="login-email" type="email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLogin()"></div>
-      <div class="frow" style="margin-top:10px"><div class="fl">パスワード</div><input class="fi" id="login-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
-      <button class="btn btn-p" style="width:100%;margin-top:18px;padding:11px" onclick="doLogin()" id="login-submit-btn">ログイン</button>
-      <p style="font-size:10px;color:var(--t3);margin-top:14px;text-align:center;line-height:1.7">アカウントは管理者が発行します。<br>ログインできない場合は管理者にお問い合わせください。</p>
+      <button onclick="doGoogleLogin()" id="login-google-btn" style="width:100%;padding:12px;background:#fff;border:1.5px solid #dadce0;border-radius:8px;font-size:14px;font-weight:600;color:#3c4043;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.15)'" onmouseout="this.style.boxShadow=''">
+        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#4285F4" d="M47.5 24.5c0-1.6-.1-3.2-.4-4.7H24v9h13.2c-.6 3-2.4 5.5-5 7.2v6h8.1c4.7-4.4 7.2-10.8 7.2-17.5z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-8.1-6c-2.1 1.4-4.7 2.2-7.8 2.2-6 0-11.1-4-12.9-9.5H2.8v6.2C6.8 42.8 14.8 48 24 48z"/><path fill="#FBBC05" d="M11.1 28.9c-.5-1.4-.7-2.9-.7-4.4s.3-3 .7-4.4v-6.2H2.8C1 17.5 0 20.6 0 24s1 6.5 2.8 9.1l8.3-4.2z"/><path fill="#EA4335" d="M24 9.5c3.4 0 6.4 1.2 8.8 3.4l6.5-6.5C35.9 2.6 30.5 0 24 0 14.8 0 6.8 5.2 2.8 13.1l8.3 6.2C12.9 13.5 18 9.5 24 9.5z"/></svg>
+        Googleでログイン
+      </button>
+      <div id="login-loading" style="display:none;text-align:center;margin-top:16px;font-size:12px;color:var(--t3)">⏳ Googleアカウントで認証中...</div>
+      <p style="font-size:10px;color:var(--t3);margin-top:16px;text-align:center;line-height:1.7">sportsnation.jp のGoogleアカウントでログインしてください。<br>アクセス権限がない場合は管理者にお問い合わせください。</p>
     </div>
   </div>
 </div>
@@ -844,43 +846,43 @@ function showLoginScreen() {
 // ══════════════════════════════════════════════════
 let _loginInProgress = false;
 
-async function doLogin() {
+async async function doGoogleLogin() {
   if (_loginInProgress) return;
-
-  const emailEl = document.getElementById('login-email');
-  const passEl  = document.getElementById('login-pass');
-  const btn     = document.getElementById('login-submit-btn');
-
-  const email = emailEl?.value.trim() || '';
-  const pass  = passEl?.value         || '';
-
-  if (!email || !pass) {
-    showLoginError('メールアドレスとパスワードを入力してください');
-    return;
-  }
-
   _loginInProgress = true;
-  if (btn) { btn.textContent = 'ログイン中...'; btn.disabled = true; }
+
+  const btn = document.getElementById('login-google-btn');
+  const loading = document.getElementById('login-loading');
+  if (btn) btn.style.display = 'none';
+  if (loading) loading.style.display = '';
 
   try {
-    // ① まずサインインを試みる
-    const { data, error } = await _sb.auth.signInWithPassword({ email, password: pass });
-
+    const { error } = await _sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + window.location.pathname,
+        queryParams: {
+          hd: 'sportsnation.jp',  // sportsnation.jpドメインのみ許可
+        },
+      },
+    });
     if (error) {
-      showLoginError(_loginErrorMessage(error, email));
-      return;
+      showLoginError('Googleログインに失敗しました: ' + error.message);
+      if (btn) btn.style.display = '';
+      if (loading) loading.style.display = 'none';
     }
-
-    // ② 成功 → プロフィール取得・画面遷移
-    startTokenRefresh();
-    await onLogin(data.user);
-
+    // リダイレクトするのでここ以降は実行されない
   } catch (e) {
-    showLoginError('予期しないエラーが発生しました: ' + e.message);
+    showLoginError('予期しないエラー: ' + e.message);
+    if (btn) btn.style.display = '';
+    if (loading) loading.style.display = 'none';
   } finally {
     _loginInProgress = false;
-    if (btn) { btn.textContent = 'ログイン'; btn.disabled = false; }
   }
+}
+
+// 後方互換（メール/パスは使わなくなるが残す）
+async function doLogin() {
+  doGoogleLogin();
 }
 
 function _loginErrorMessage(error, email) {
@@ -1039,7 +1041,7 @@ function initAuth() {
       auth: {
         autoRefreshToken:   false,
         persistSession:     true,
-        detectSessionInUrl: false,
+        detectSessionInUrl: true,
       },
     });
 
