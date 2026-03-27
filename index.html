@@ -1721,8 +1721,8 @@ async function renderProg(){
     const est  = progEstimate(p.id);
     const diff = realBudget - act;
     const rev  = getProgRev(p);
-    const gross         = rev - act;   // 粗利（実績）= 収入 - 実績（収入0なら -実績）
-    const grossForecast = rev - est;   // 粗利予測 = 収入 - 見積
+    const gross         = rev - act;          // 粗利（実）= 収入 - 実績
+    const grossForecast = rev - realBudget;   // 粗利予測 = 収入 - 予算
 
     totalBudget += realBudget;
     totalEst    += est;
@@ -1736,7 +1736,7 @@ async function renderProg(){
 
     // 収入・実績・見積が全部0なら'—'、それ以外は計算値を表示
     const grossIsBlank = (rev===0 && act===0);
-    const gfIsBlank    = (rev===0 && est===0);
+    const gfIsBlank    = (rev===0 && realBudget===0);
     const grossColor = grossIsBlank?'var(--t3)':gross>0?'var(--green)':gross<0?'var(--red)':'var(--t3)';
     const gfColor    = gfIsBlank?'var(--t3)':grossForecast>0?'var(--blue)':grossForecast<0?'var(--red)':'var(--t3)';
     const grossStr   = grossIsBlank ? '—' : `${gross>=0?'+':''}${fmtN(gross)}`;
@@ -1866,7 +1866,7 @@ async function renderProg(){
     const act  = progActual(p.id);
     const est  = progEstimate(p.id);
     const rev  = getProgRev(p);
-    return {name:p.name, gross:rev-act, forecast:rev-est};
+    return {name:p.name, gross:rev-act, forecast:rev-getProgRealBudget(p)};
   }).filter(d=>d.gross!==0||d.forecast!==0);
 
   dc('ch-prog-gross');
