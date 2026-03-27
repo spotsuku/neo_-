@@ -1734,10 +1734,13 @@ async function renderProg(){
               : act===0 ? `<span class="tag tg-z">未実施</span>`
               : `<span class="tag tg-g">正常</span>`;
 
-    const grossColor = gross>0?'var(--green)':gross<0?'var(--red)':'var(--t3)';
-    const gfColor    = grossForecast>0?'var(--blue)':grossForecast<0?'var(--red)':'var(--t3)';
-    const grossStr   = `${gross>=0?'+':''}${fmtN(gross)}`;
-    const gfStr      = `${grossForecast>=0?'+':''}${fmtN(grossForecast)}`;
+    // 収入・実績・見積が全部0なら'—'、それ以外は計算値を表示
+    const grossIsBlank = (rev===0 && act===0);
+    const gfIsBlank    = (rev===0 && est===0);
+    const grossColor = grossIsBlank?'var(--t3)':gross>0?'var(--green)':gross<0?'var(--red)':'var(--t3)';
+    const gfColor    = gfIsBlank?'var(--t3)':grossForecast>0?'var(--blue)':grossForecast<0?'var(--red)':'var(--t3)';
+    const grossStr   = grossIsBlank ? '—' : `${gross>=0?'+':''}${fmtN(gross)}`;
+    const gfStr      = gfIsBlank    ? '—' : `${grossForecast>=0?'+':''}${fmtN(grossForecast)}`;
 
     // 前年粗利の計算
     let prevGross = null;
@@ -1754,9 +1757,10 @@ async function renderProg(){
           prevRevByName[key] += n(r.amount);
         });
         const prevRev = prevRevByName[p.name] || prevRevByName[p.id] || 0;
-        prevGross = prevRev - prevActVal;  // 収入ゼロでも表示（今期と同じ）
-        const prevGrossStr = `${prevGross>=0?'+':''}${fmtN(prevGross)}`;
-        const prevGColor = prevGross>0?'var(--green)':prevGross<0?'var(--red)':'var(--t3)';
+        prevGross = prevRev - prevActVal;
+        const prevGrossIsBlank = (prevRev===0 && prevActVal===0);
+        const prevGrossStr = prevGrossIsBlank ? '—' : `${prevGross>=0?'+':''}${fmtN(prevGross)}`;
+        const prevGColor = prevGrossIsBlank?'var(--t3)':prevGross>0?'var(--green)':prevGross<0?'var(--red)':'var(--t3)';
 
         // 前年比（粗利ベース）: 今期粗利(実) ÷ 前年粗利
         let yoyStr = '—'; let yoyColor = 'var(--t3)';
