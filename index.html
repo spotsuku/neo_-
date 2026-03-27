@@ -285,7 +285,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         </div>
       </div>
 
-      <div class="g2" style="margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:3fr 1fr;gap:12px;margin-bottom:14px">
         <!-- プログラム別テーブル -->
         <div class="card" style="overflow-x:auto">
           <div class="ct"><div class="pip"></div>プログラム別 収支サマリー
@@ -1721,23 +1721,23 @@ async function renderProg(){
     const est  = progEstimate(p.id);
     const diff = realBudget - act;
     const rev  = getProgRev(p);
-    const gross = rev > 0 ? rev - act : null;          // 粗利（実績）: 収入なければnull
-    const grossForecast = rev > 0 ? rev - est : null;  // 粗利予測: 収入なければnull
+    const gross         = rev - act;   // 粗利（実績）= 収入 - 実績（収入0なら -実績）
+    const grossForecast = rev - est;   // 粗利予測 = 収入 - 見積
 
     totalBudget += realBudget;
     totalEst    += est;
     totalAct    += act;
-    if(gross !== null)         totalGross         += gross;
-    if(grossForecast !== null) totalGrossForecast += grossForecast;
+    totalGross         += gross;
+    totalGrossForecast += grossForecast;
 
     const tag = diff<0 ? `<span class="tag tg-o">超過</span>`
               : act===0 ? `<span class="tag tg-z">未実施</span>`
               : `<span class="tag tg-g">正常</span>`;
 
-    const grossColor = gross===null?'var(--t3)':gross>0?'var(--green)':gross<0?'var(--red)':'var(--t3)';
-    const gfColor    = grossForecast===null?'var(--t3)':grossForecast>0?'var(--blue)':grossForecast<0?'var(--red)':'var(--t3)';
-    const grossStr   = gross===null ? '—' : `${gross>0?'+':''}${fmtN(gross)}`;
-    const gfStr      = grossForecast===null ? '—' : `${grossForecast>0?'+':''}${fmtN(grossForecast)}`;
+    const grossColor = gross>0?'var(--green)':gross<0?'var(--red)':'var(--t3)';
+    const gfColor    = grossForecast>0?'var(--blue)':grossForecast<0?'var(--red)':'var(--t3)';
+    const grossStr   = `${gross>=0?'+':''}${fmtN(gross)}`;
+    const gfStr      = `${grossForecast>=0?'+':''}${fmtN(grossForecast)}`;
 
     // 前年粗利の計算
     let prevGross = null;
@@ -1861,9 +1861,10 @@ async function renderProg(){
 
   // 粗利内訳グラフ
   const grossData = progs.map(p=>{
-    const act = progActual(p.id);
-    const rev = progRevMap[p.id]||0;
-    return {name:p.name, gross:rev-act, forecast: rev>0?rev-progEstimate(p.id):-progEstimate(p.id)};
+    const act  = progActual(p.id);
+    const est  = progEstimate(p.id);
+    const rev  = getProgRev(p);
+    return {name:p.name, gross:rev-act, forecast:rev-est};
   }).filter(d=>d.gross!==0||d.forecast!==0);
 
   dc('ch-prog-gross');
