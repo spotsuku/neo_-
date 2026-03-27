@@ -120,9 +120,9 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 .fg2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
 .fg4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;}
-.item-hdr{display:grid;grid-template-columns:20px 1fr 90px 90px 90px 26px;gap:5px;padding:0 4px;margin-bottom:4px;}
+.item-hdr{display:grid;grid-template-columns:20px 1fr 100px 100px 100px 26px;gap:5px;padding:4px 8px;margin-bottom:4px;}
 .item-hdr span{font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;}
-.item-row{display:grid;grid-template-columns:20px 1fr 90px 90px 90px 26px;gap:5px;margin-bottom:5px;align-items:center;background:var(--s2);border:1px solid var(--b1);border-radius:8px;padding:6px 8px;}
+.item-row{display:grid;grid-template-columns:20px 1fr 100px 100px 100px 26px;gap:5px;margin-bottom:5px;align-items:center;background:var(--s2);border:1px solid var(--b1);border-radius:8px;padding:6px 8px;}
 .item-num{font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;}
 .item-row input{padding:6px 8px;background:var(--s1);border:1.5px solid var(--b2);border-radius:6px;color:var(--t1);font-size:12px;font-family:var(--mono);outline:none;transition:all .15s;width:100%;}
 .item-row input:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(37,99,235,.1);}
@@ -1383,6 +1383,26 @@ async function loadFromDB(){
       if(!S.categories)S.categories=DEF.categories;if(!S.months)S.months=DEF.months;if(!S.monthlyTotal)S.monthlyTotal=DEF.monthlyTotal;
       if(!S.ledger)S.ledger=[];if(!S.mktItems)S.mktItems=[];if(!S.prodItems)S.prodItems=[];if(!S.changelog)S.changelog=[];if(!S.defaults)S.defaults={};if(!S.orderMaster)S.orderMaster=[];if(!S.estimates)S.estimates={};if(!S.prodBudgets)S.prodBudgets={};
     }
+    // prodItemsのactual→actPrice/actQtyマイグレーション
+    if(S.prodItems) {
+      S.prodItems.forEach(item => {
+        // actPriceが未設定でactualに値がある場合 → actualをactPriceとして移行
+        if(item.actPrice === undefined && item.actual > 0) {
+          // 実績数があればそれを使う、なければ見積数を使う
+          const qty = item.actQty !== undefined ? item.actQty :
+                      (item.stockUsed > 0 ? item.stockUsed :
+                      (item.estQty || item.stockInit || item.qty || 1));
+          if(qty > 0) {
+            item.actPrice = Math.round(item.actual / qty);
+            item.actQty = qty;
+          } else {
+            item.actPrice = item.actual;
+            item.actQty = 1;
+          }
+        }
+      });
+    }
+
     // prodItemsのデザイン費を「年間共通デザイン」に移行
     if(S.prodItems) {
       const designNames = ['デザイン費', '企画制作事前諸経費'];
@@ -1903,8 +1923,9 @@ function renderProd(){
     if (estPrice > 0 && estQty > 0) it.estimate = estAmt;
     const actPrice = n(it.actPrice);
     const actQty   = n(it.actQty   !== undefined ? it.actQty   : (it.stockUsed || 0));
-    const actAmt   = actPrice > 0 && actQty > 0 ? actPrice * actQty : n(it.actual);
-    if (actPrice > 0 && actQty > 0) it.actual = actAmt;
+    // 実績単価か実績数どちらかがあれば掛け算、両方0なら旧actual値
+    const actAmt   = (actPrice > 0 || actQty > 0) ? actPrice * actQty : n(it.actual);
+    if (actPrice > 0 || actQty > 0) it.actual = actAmt;
     const INP = 'width:100%;padding:3px 5px;border:1.5px solid var(--b2);border-radius:4px;font-size:11px;background:var(--s1);color:var(--t1);font-family:var(--mono);text-align:right;outline:none;box-sizing:border-box';
     const INP_B = INP + ';border-color:rgba(37,99,235,.25)';
     const INP_G = INP + ';border-color:rgba(16,185,129,.25)';
