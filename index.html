@@ -1339,6 +1339,24 @@ async function loadFromDB(){
       if(!S.categories)S.categories=DEF.categories;if(!S.months)S.months=DEF.months;if(!S.monthlyTotal)S.monthlyTotal=DEF.monthlyTotal;
       if(!S.ledger)S.ledger=[];if(!S.mktItems)S.mktItems=[];if(!S.prodItems)S.prodItems=[];if(!S.changelog)S.changelog=[];if(!S.defaults)S.defaults={};if(!S.orderMaster)S.orderMaster=[];if(!S.estimates)S.estimates={};if(!S.prodBudgets)S.prodBudgets={};
     }
+    // prodItemsのデザイン費を「年間共通デザイン」に移行
+    if(S.prodItems) {
+      const designNames = ['デザイン費', '企画制作事前諸経費'];
+      S.prodItems.forEach(item => {
+        if(designNames.includes(item.name) && item.cat !== '年間共通デザイン') {
+          item.cat = '年間共通デザイン';
+        }
+      });
+      // 重複除去（同名+同catの重複を削除、最新を残す）
+      const seen = new Set();
+      S.prodItems = S.prodItems.filter(item => {
+        const key = item.name + '|' + item.cat;
+        if(seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
     // tourがprogramsになければ追加
     if(S.programs && !S.programs.find(p=>p.id==='tour')){
       const otherIdx=S.programs.findIndex(p=>p.id==='other');
@@ -1837,7 +1855,7 @@ async function handleXlFile(file) {
     _xlImportData = parseXlSchedule(rows);
 
     // 共通制作物シートも読み込む
-    const prodSheetName = wb.SheetNames.find(s => s.includes('共通制作物') || s.includes('製作物'));
+    const prodSheetName = wb.SheetNames.find(s => s.includes('共通制作物') || s === '製作物管理' || s.includes('製作物'));
     if (prodSheetName) {
       showXlStep(2, '製作物データを解析中...', '共通制作物シートを読み込んでいます');
       const prodWs = wb.Sheets[prodSheetName];
@@ -1852,6 +1870,9 @@ async function handleXlFile(file) {
       { names: ['イヤーエンド'], key: 'ye' },
       { names: ['ツアー'],     key: 'tour' },
     ];
+
+    // デザインシートは各プログラムに振り分け済みのサマリーのためインポートしない
+    // 製作物管理シートの「■ デザイン費」セクションで年間共通デザインを取り込む
     for (const { names, key } of EVT_SHEETS) {
       const sn = wb.SheetNames.find(s => names.some(n => s.includes(n)));
       if (sn) {
@@ -2009,13 +2030,86 @@ function parseXlEventSheet(rows) {
   return items;
 }
 
+// デザインシートをプログラム別に振り分けるパーサー
+// col1=請求月, col2=納品月, col3=品目名, col4=カテゴリ, col5=数量, col6=単価, col7=金額, col8=実数
+function parseDesignSheetByProgram(rows) {
+  const safeN = v => (v == null || v === '' || isNaN(Number(v))) ? 0 : Math.round(Number(v));
+  const safeS = v => (v == null || String(v).trim() === '' || String(v) === 'null') ? '' : String(v).replace(/　/g,'').trim();
+
+  // カテゴリ → estimatesキー のマッピング
+  const CAT_TO_KEY = {
+    '年間共通': null,        // 製作物管理の年間共通デザインへ
+    'キックオフ': 'ko',
+    'アワード': 'aw',
+    'イヤーエンド': 'ye',
+    'ツアー': 'tour',
+    'シティフェス': 'md',
+    'マーケ': null,          // マーケ→製作物管理のマーケへ
+    '応援カイギ': 'oe_design',  // シリーズはestimatesに追加
+    '評議会': 'gk_design',
+    'ホームルーム': 'hm_design',
+  };
+
+  let uidN = 0;
+  const mkId = () => `xl_ds_${++uidN}_${Date.now().toString(36)}`;
+
+  const prodItems = [];   // 製作物管理へ
+  const estimates = {};   // estimates[key]へ
+
+  for (const row of rows) {
+    const name = safeS(row[3]);
+    const cat  = safeS(row[4]);
+    const actual = safeN(row[8]);
+    const price  = safeN(row[6]);
+
+    if (!name || name === '品目' || name === 'NaN') continue;
+    if (!actual && !price) continue;
+
+    const qty   = safeN(row[5]) || 1;
+    const unit  = typeof row[5] === 'string' ? row[5].trim() : '式';
+
+    if (!cat || cat === '年間共通') {
+      // 製作物管理 → 年間共通デザイン
+      prodItems.push({
+        id: mkId(), cat: '年間共通デザイン', name,
+        content: '', price, qty, unit,
+        stockInit: qty, stockUsed: 0, stockAlert: 0,
+        budget: 0, estimate: 0, actual,
+        status: actual > 0 ? '済' : '', memo: '',
+      });
+    } else if (cat === 'マーケ') {
+      // 製作物管理 → マーケ
+      prodItems.push({
+        id: mkId(), cat: 'マーケ', name,
+        content: '', price, qty, unit,
+        stockInit: qty, stockUsed: 0, stockAlert: 0,
+        budget: 0, estimate: 0, actual,
+        status: actual > 0 ? '済' : '', memo: '',
+      });
+    } else {
+      // 各プログラムのestimates → ⑧デザイン費
+      const key = CAT_TO_KEY[cat] || cat.toLowerCase();
+      if (!estimates[key]) estimates[key] = [];
+      estimates[key].push({
+        id: mkId(), name, cat: '⑧ デザイン費',
+        budget: 0, estimate: 0, actual, payMonth: '',
+      });
+    }
+  }
+
+  return { prodItems, estimates };
+}
+
 function parseXlProdItems(rows) {
   const SECTION_MAP = {
-    'グッズ（配布キット）':       'グッズ（外販）',
-    '年間共通イベント製作物':      '年間共通ツール',
-    'シティフェス デザイン・制作': '年間共通デザイン',
-    'シティフェス 印刷・パネル':   'イベント装飾',
-    'シティフェス 会場装飾・展示': 'イベント装飾',
+    'グッズ（配布キット）':        'グッズ（外販）',
+    '年間共通イベント製作物':       '年間共通ツール',
+    'シティフェス デザイン・制作':  '年間共通デザイン',
+    'シティフェス 制作':            '年間共通デザイン',  // 新ファイル形式
+    'デザイン費':                  '年間共通デザイン',  // デザイン費セクション
+    'シティフェス 印刷・パネル':    'イベント装飾',
+    'シティフェス 会場装飾・展示':  'イベント装飾',
+    'シティフェス 会場':            'イベント装飾',
   };
 
   let uidN = 0;
@@ -2039,11 +2133,18 @@ function parseXlProdItems(rows) {
       continue;
     }
 
-    // 品目行（No.が数字）
+    // 品目行の判定：
+    // パターンA: col0が数字(No.) → col1が品目名（通常セクション）
+    // パターンB: col0が品目名でcol1が空 → デザイン費セクション
     const no = parseInt(cell0);
-    if (!no || isNaN(no)) continue;
+    const isNoPattern  = !isNaN(no) && no > 0;
+    const isNamePattern = !isNoPattern && cell0.length > 1 && !cell0.startsWith('■');
 
-    const name = cell1.replace(/　/g, '').trim();
+    if (!isNoPattern && !isNamePattern) continue;
+
+    const name = isNoPattern
+      ? cell1.replace(/　/g, '').trim()
+      : cell0.replace(/　/g, '').trim();
     if (!name) continue;
 
     const content  = safeS(row[2]);
@@ -2953,6 +3054,24 @@ async function loadFromDB(){
       if(!S.categories)S.categories=DEF.categories;if(!S.months)S.months=DEF.months;if(!S.monthlyTotal)S.monthlyTotal=DEF.monthlyTotal;
       if(!S.ledger)S.ledger=[];if(!S.mktItems)S.mktItems=[];if(!S.prodItems)S.prodItems=[];if(!S.changelog)S.changelog=[];if(!S.defaults)S.defaults={};if(!S.orderMaster)S.orderMaster=[];if(!S.estimates)S.estimates={};if(!S.prodBudgets)S.prodBudgets={};
     }
+    // prodItemsのデザイン費を「年間共通デザイン」に移行
+    if(S.prodItems) {
+      const designNames = ['デザイン費', '企画制作事前諸経費'];
+      S.prodItems.forEach(item => {
+        if(designNames.includes(item.name) && item.cat !== '年間共通デザイン') {
+          item.cat = '年間共通デザイン';
+        }
+      });
+      // 重複除去（同名+同catの重複を削除、最新を残す）
+      const seen = new Set();
+      S.prodItems = S.prodItems.filter(item => {
+        const key = item.name + '|' + item.cat;
+        if(seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
     // tourがprogramsになければ追加
     if(S.programs && !S.programs.find(p=>p.id==='tour')){
       const otherIdx=S.programs.findIndex(p=>p.id==='other');
@@ -3451,7 +3570,7 @@ async function handleXlFile(file) {
     _xlImportData = parseXlSchedule(rows);
 
     // 共通制作物シートも読み込む
-    const prodSheetName = wb.SheetNames.find(s => s.includes('共通制作物') || s.includes('製作物'));
+    const prodSheetName = wb.SheetNames.find(s => s.includes('共通制作物') || s === '製作物管理' || s.includes('製作物'));
     if (prodSheetName) {
       showXlStep(2, '製作物データを解析中...', '共通制作物シートを読み込んでいます');
       const prodWs = wb.Sheets[prodSheetName];
@@ -3466,6 +3585,9 @@ async function handleXlFile(file) {
       { names: ['イヤーエンド'], key: 'ye' },
       { names: ['ツアー'],     key: 'tour' },
     ];
+
+    // デザインシートは各プログラムに振り分け済みのサマリーのためインポートしない
+    // 製作物管理シートの「■ デザイン費」セクションで年間共通デザインを取り込む
     for (const { names, key } of EVT_SHEETS) {
       const sn = wb.SheetNames.find(s => names.some(n => s.includes(n)));
       if (sn) {
@@ -3623,13 +3745,86 @@ function parseXlEventSheet(rows) {
   return items;
 }
 
+// デザインシートをプログラム別に振り分けるパーサー
+// col1=請求月, col2=納品月, col3=品目名, col4=カテゴリ, col5=数量, col6=単価, col7=金額, col8=実数
+function parseDesignSheetByProgram(rows) {
+  const safeN = v => (v == null || v === '' || isNaN(Number(v))) ? 0 : Math.round(Number(v));
+  const safeS = v => (v == null || String(v).trim() === '' || String(v) === 'null') ? '' : String(v).replace(/　/g,'').trim();
+
+  // カテゴリ → estimatesキー のマッピング
+  const CAT_TO_KEY = {
+    '年間共通': null,        // 製作物管理の年間共通デザインへ
+    'キックオフ': 'ko',
+    'アワード': 'aw',
+    'イヤーエンド': 'ye',
+    'ツアー': 'tour',
+    'シティフェス': 'md',
+    'マーケ': null,          // マーケ→製作物管理のマーケへ
+    '応援カイギ': 'oe_design',  // シリーズはestimatesに追加
+    '評議会': 'gk_design',
+    'ホームルーム': 'hm_design',
+  };
+
+  let uidN = 0;
+  const mkId = () => `xl_ds_${++uidN}_${Date.now().toString(36)}`;
+
+  const prodItems = [];   // 製作物管理へ
+  const estimates = {};   // estimates[key]へ
+
+  for (const row of rows) {
+    const name = safeS(row[3]);
+    const cat  = safeS(row[4]);
+    const actual = safeN(row[8]);
+    const price  = safeN(row[6]);
+
+    if (!name || name === '品目' || name === 'NaN') continue;
+    if (!actual && !price) continue;
+
+    const qty   = safeN(row[5]) || 1;
+    const unit  = typeof row[5] === 'string' ? row[5].trim() : '式';
+
+    if (!cat || cat === '年間共通') {
+      // 製作物管理 → 年間共通デザイン
+      prodItems.push({
+        id: mkId(), cat: '年間共通デザイン', name,
+        content: '', price, qty, unit,
+        stockInit: qty, stockUsed: 0, stockAlert: 0,
+        budget: 0, estimate: 0, actual,
+        status: actual > 0 ? '済' : '', memo: '',
+      });
+    } else if (cat === 'マーケ') {
+      // 製作物管理 → マーケ
+      prodItems.push({
+        id: mkId(), cat: 'マーケ', name,
+        content: '', price, qty, unit,
+        stockInit: qty, stockUsed: 0, stockAlert: 0,
+        budget: 0, estimate: 0, actual,
+        status: actual > 0 ? '済' : '', memo: '',
+      });
+    } else {
+      // 各プログラムのestimates → ⑧デザイン費
+      const key = CAT_TO_KEY[cat] || cat.toLowerCase();
+      if (!estimates[key]) estimates[key] = [];
+      estimates[key].push({
+        id: mkId(), name, cat: '⑧ デザイン費',
+        budget: 0, estimate: 0, actual, payMonth: '',
+      });
+    }
+  }
+
+  return { prodItems, estimates };
+}
+
 function parseXlProdItems(rows) {
   const SECTION_MAP = {
-    'グッズ（配布キット）':       'グッズ（外販）',
-    '年間共通イベント製作物':      '年間共通ツール',
-    'シティフェス デザイン・制作': '年間共通デザイン',
-    'シティフェス 印刷・パネル':   'イベント装飾',
-    'シティフェス 会場装飾・展示': 'イベント装飾',
+    'グッズ（配布キット）':        'グッズ（外販）',
+    '年間共通イベント製作物':       '年間共通ツール',
+    'シティフェス デザイン・制作':  '年間共通デザイン',
+    'シティフェス 制作':            '年間共通デザイン',  // 新ファイル形式
+    'デザイン費':                  '年間共通デザイン',  // デザイン費セクション
+    'シティフェス 印刷・パネル':    'イベント装飾',
+    'シティフェス 会場装飾・展示':  'イベント装飾',
+    'シティフェス 会場':            'イベント装飾',
   };
 
   let uidN = 0;
@@ -3653,11 +3848,18 @@ function parseXlProdItems(rows) {
       continue;
     }
 
-    // 品目行（No.が数字）
+    // 品目行の判定：
+    // パターンA: col0が数字(No.) → col1が品目名（通常セクション）
+    // パターンB: col0が品目名でcol1が空 → デザイン費セクション
     const no = parseInt(cell0);
-    if (!no || isNaN(no)) continue;
+    const isNoPattern  = !isNaN(no) && no > 0;
+    const isNamePattern = !isNoPattern && cell0.length > 1 && !cell0.startsWith('■');
 
-    const name = cell1.replace(/　/g, '').trim();
+    if (!isNoPattern && !isNamePattern) continue;
+
+    const name = isNoPattern
+      ? cell1.replace(/　/g, '').trim()
+      : cell0.replace(/　/g, '').trim();
     if (!name) continue;
 
     const content  = safeS(row[2]);
