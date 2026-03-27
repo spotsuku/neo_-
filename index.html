@@ -1414,22 +1414,51 @@ async function loadFromDB(){
 async function save(){
   localStorage.setItem(SK,JSON.stringify(S));
   if(!_currentUser){setSaveStatus('error','未ログイン');return;}
-  try{
-    setSaveStatus('saving','保存中...');
-    _isSyncing = true;  // 自分の保存によるRealtimeイベントを無視
-    const dbId=getFiscalYearDbId(_currentFiscalYear);
-    // メールアドレスをデータに含めて誰の変更か識別できるようにする
-    const saveData = {...S, updated_by_email: _currentUser.email};
-    const{data:upData,error:upErr}=await _sb.from('dashboard_data').update({data:saveData,updated_by:_currentUser.id,updated_at:new Date().toISOString()}).eq('id',dbId).select();
-    if(upErr)throw upErr;
-    if(!upData||upData.length===0){const{error:inErr}=await _sb.from('dashboard_data').insert({id:dbId,data:saveData,updated_by:_currentUser.id,updated_at:new Date().toISOString()});if(inErr)throw inErr;}
-    setSaveStatus('saved','保存済み '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}));
-    setTimeout(()=>{ _isSyncing = false; }, 2000);  // 2秒後に解除
-  }catch(e){
-    _isSyncing = false;
-    setSaveStatus('error','保存エラー: '+e.message);
-    alert('⚠️ クラウド保存に失敗しました。\n\nエラー: '+e.message);
-  }
+
+  const MAX_RETRY = 3;
+  let attempt = 0;
+
+  const trySave = async () => {
+    attempt++;
+    try{
+      setSaveStatus('saving', attempt > 1 ? `保存中... (${attempt}回目)` : '保存中...');
+      _isSyncing = true;
+      const dbId = getFiscalYearDbId(_currentFiscalYear);
+      const saveData = {...S, updated_by_email: _currentUser.email};
+
+      const{data:upData,error:upErr} = await _sb.from('dashboard_data')
+        .update({data:saveData, updated_by:_currentUser.id, updated_at:new Date().toISOString()})
+        .eq('id',dbId).select();
+      if(upErr) throw upErr;
+
+      if(!upData||upData.length===0){
+        const{error:inErr} = await _sb.from('dashboard_data')
+          .insert({id:dbId, data:saveData, updated_by:_currentUser.id, updated_at:new Date().toISOString()});
+        if(inErr) throw inErr;
+      }
+
+      setSaveStatus('saved','保存済み '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}));
+      setTimeout(()=>{ _isSyncing = false; }, 2000);
+
+    } catch(e) {
+      _isSyncing = false;
+      const isTimeout = e.message && (e.message.includes('timeout') || e.message.includes('canceling'));
+
+      if(isTimeout && attempt < MAX_RETRY){
+        // タイムアウトなら少し待ってリトライ
+        setSaveStatus('saving', `タイムアウト、再試行中... (${attempt}/${MAX_RETRY})`);
+        await new Promise(r => setTimeout(r, 1500 * attempt));
+        return trySave();
+      }
+
+      setSaveStatus('error', '保存エラー: ' + e.message);
+      if(!isTimeout || attempt >= MAX_RETRY){
+        alert('⚠️ クラウド保存に失敗しました。\n\nエラー: ' + e.message + '\n\nデータはローカルに保存済みです。');
+      }
+    }
+  };
+
+  await trySave();
 }
 
 async function saveMemberData(){localStorage.setItem(SK,JSON.stringify(S));if(isAdmin()){save();return;}try{const dbId=getFiscalYearDbId(_currentFiscalYear);const{error}=await _sb.from('dashboard_data').update({data:S,updated_at:new Date().toISOString()}).eq('id',dbId);if(error)throw error;sdot().className='sdot';slbl().textContent='保存済み '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});}catch(e){sdot().className='sdot uns';slbl().textContent='保存エラー';}}
@@ -1849,7 +1878,57 @@ function renderProd(){
   const kpiEl=document.getElementById('prod-kpis');if(kpiEl)kpiEl.innerHTML=`<div class="kpi r"><div class="kl">品目数</div><div class="kv">${allItems.length}<em>件</em></div></div><div class="kpi r"><div class="kl">カテゴリ予算計</div><div class="kv">${fmtN(totCatB)}<em>円</em></div></div><div class="kpi b"><div class="kl">見積合計</div><div class="kv" style="color:var(--blue)">${fmtN(totE)}<em>円</em></div></div><div class="kpi g"><div class="kl">実績合計</div><div class="kv">${fmtN(totA)}<em>円</em></div></div><div class="kpi ${arari>=0?'g':'r'}"><div class="kl">粗利（予算－実績）</div><div class="kv" style="color:${arari>=0?'var(--green)':'var(--red)'}">${arari>=0?'+':''}${fmtN(arari)}<em>円</em></div><div class="ks">${outCnt>0?`❌在庫切れ${outCnt}件`:lowCnt>0?`⚠️在庫少${lowCnt}件`:'✅ 在庫正常'}</div></div>`;
   const sections={};PROD_CATS_LIST.forEach(cat=>{sections[cat]=[];});allItems.forEach(it=>{let cat=it.cat||'';if(!cat||!PROD_CATS_LIST.includes(cat)){cat=detectProdCat(it.name,cat);it.cat=cat;}if(!sections[cat])sections[cat]=[];sections[cat].push(it);});
   const container=document.getElementById('prod-sections');if(!container)return;
-  container.innerHTML=PROD_CATS_LIST.map(cat=>{let filtered=filterCat?(cat===filterCat?(sections[cat]||[]):[]):(sections[cat]||[]);if(filterStock)filtered=filtered.filter(i=>{const{remain,alert,init}=getStockStatus(i);if(filterStock==='out')return init>0&&remain<=0;if(filterStock==='low')return alert>0&&remain>0&&remain<=alert;if(filterStock==='ok')return init>0&&remain>0&&!(alert>0&&remain<=alert);return true;});if(filterCat&&cat!==filterCat)return'';const col=PROD_SECTION_COLORS[cat]||PROD_SECTION_COLORS['その他'];const secTotE=filtered.reduce((t,i)=>t+n(i.estimate),0),secTotA=filtered.reduce((t,i)=>t+n(i.actual),0);const rows=filtered.map(it=>{const realIdx=allItems.findIndex(x=>x.id===it.id);const{remain,init,alert}=getStockStatus(it);const hasStock=init>0;const stockColor=!hasStock?'var(--t3)':remain<=0?'var(--red)':alert>0&&remain<=alert?'var(--yellow)':'var(--green)';const stOpts=['','済','未','一部'].map(s=>`<option value="${s}"${it.status===s?' selected':''}>${s||'—'}</option>`).join('');const catOpts2=PROD_CATS_LIST.map(c=>`<option value="${c}"${it.cat===c?' selected':''}>${c}</option>`).join('');return`<tr><td style="padding-left:4px;width:130px"><select class="inline-sel" style="font-size:9px;font-weight:700;color:${col.fg};background:${col.bg};border:1px solid ${col.h}44;border-radius:6px;width:100%" onchange="S.prodItems[${realIdx}].cat=this.value;debouncedSave();renderProd()">${catOpts2}</select></td><td style="font-weight:600;font-size:12px"><input class="inline-inp" value="${(it.name||'').replace(/"/g,'&quot;')}" placeholder="品目名を入力" onchange="S.prodItems[${realIdx}].name=this.value;debouncedSave()" style="font-weight:500;font-size:12px"></td><td><input class="inline-inp" value="${(it.content||'').replace(/"/g,'&quot;')}" placeholder="仕様・内容" onchange="S.prodItems[${realIdx}].content=this.value;debouncedSave()" style="font-size:11px;color:var(--t2)"></td><td><input class="inline-inp num" type="number" value="${it.price||''}" placeholder="0" onchange="S.prodItems[${realIdx}].price=parseFloat(this.value)||0;debouncedSave()"></td><td><div style="display:flex;align-items:center;gap:4px"><input class="inline-inp num" type="number" value="${it.stockInit||it.qty||''}" placeholder="0" onchange="S.prodItems[${realIdx}].stockInit=parseFloat(this.value)||0;S.prodItems[${realIdx}].qty=parseFloat(this.value)||0;renderProd()" style="width:60px"><span style="font-size:10px;color:var(--t3)">${it.unit||'個'}</span></div></td><td style="font-family:var(--mono);font-size:12px;text-align:right;font-weight:700;color:${stockColor}">${hasStock?remain:'—'}</td><td><input class="inline-inp num" type="number" value="${it.stockUsed||''}" placeholder="0" onchange="S.prodItems[${realIdx}].stockUsed=parseFloat(this.value)||0;renderProd()" style="width:70px"></td><td><input class="inline-inp num" type="number" value="${it.budget||''}" placeholder="0" onchange="S.prodItems[${realIdx}].budget=parseFloat(this.value)||0;debouncedSave()"></td><td><input class="inline-inp num" type="number" value="${it.estimate||''}" placeholder="0" onchange="S.prodItems[${realIdx}].estimate=parseFloat(this.value)||0;debouncedSave()" style="color:var(--blue)"></td><td><input class="inline-inp num" type="number" value="${it.actual||''}" placeholder="0" onchange="S.prodItems[${realIdx}].actual=parseFloat(this.value)||0;debouncedSave()" style="color:var(--green)"></td><td><select class="inline-sel" onchange="S.prodItems[${realIdx}].status=this.value;debouncedSave()">${stOpts}</select></td><td><button class="del-btn" onclick="deleteProdById('${it.id}');renderProd()">×</button></td></tr>`;}).join('');return`<div class="card" style="margin-bottom:10px;border-left:3px solid ${col.h}"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--b1);flex-wrap:wrap;gap:8px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;font-weight:700;color:${col.fg};background:${col.bg};padding:4px 12px;border-radius:12px">${cat}</span><span style="font-size:11px;color:var(--t2)">${filtered.length}件</span></div><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:10px;font-weight:700;color:var(--t2)">カテゴリ予算</span><input type="number" value="${getProdBudgets()[cat]||''}" placeholder="0" style="width:110px;padding:5px 8px;border:1.5px solid var(--b2);border-radius:6px;font-size:11px;font-family:var(--mono);background:var(--s1);color:var(--t1);outline:none;text-align:right" onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--b2)'" onchange="getProdBudgets()['${cat}']=parseFloat(this.value)||0;debouncedSave();renderProd()"><span style="font-size:10px;color:var(--t2)">円</span></div><div style="display:flex;gap:14px;font-size:11px;font-family:var(--mono)">${secTotE?`<span style="color:var(--blue)">見積 <strong>${fmtN(secTotE)}</strong>円</span>`:'<span style="color:var(--t3)">見積 0円</span>'}${secTotA?`<span style="color:var(--green)">実績 <strong>${fmtN(secTotA)}</strong>円</span>`:'<span style="color:var(--t3)">実績 0円</span>'}${(()=>{const bgt=getProdBudgets()[cat]||0,diff=bgt-secTotA;return bgt?`<span style="color:${diff>=0?'var(--green)':'var(--red)'};font-weight:700">${diff>=0?'▲':'▼'}差異 ${fmtN(Math.abs(diff))}円</span>`:''})()}</div><button onclick="addProdRowInCat('${cat}')" style="font-size:9px;font-weight:700;color:${col.fg};background:${col.bg};border:none;padding:4px 10px;border-radius:6px;cursor:pointer">＋ 追加</button></div></div><div style="overflow-x:auto"><table class="tbl" style="min-width:780px"><thead><tr><th>品目名</th><th style="width:160px">仕様・内容</th><th style="text-align:right;width:80px">単価</th><th style="text-align:right;width:90px">製作数</th><th style="text-align:right;width:70px">在庫数</th><th style="text-align:right;width:70px">配布済</th><th style="text-align:right;width:90px">予算（円）</th><th style="text-align:right;width:100px">見積（円）</th><th style="text-align:right;width:100px">実績（円）</th><th style="width:70px">支払</th><th style="width:28px"></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;}).filter(Boolean).join('');}
+  container.innerHTML=PROD_CATS_LIST.map(cat=>{let filtered=filterCat?(cat===filterCat?(sections[cat]||[]):[]):(sections[cat]||[]);if(filterStock)filtered=filtered.filter(i=>{const{remain,alert,init}=getStockStatus(i);if(filterStock==='out')return init>0&&remain<=0;if(filterStock==='low')return alert>0&&remain>0&&remain<=alert;if(filterStock==='ok')return init>0&&remain>0&&!(alert>0&&remain<=alert);return true;});if(filterCat&&cat!==filterCat)return'';const col=PROD_SECTION_COLORS[cat]||PROD_SECTION_COLORS['その他'];const secTotE=filtered.reduce((t,i)=>t+n(i.estimate),0),secTotA=filtered.reduce((t,i)=>t+n(i.actual),0);const rows=filtered.map(it=>{const realIdx=allItems.findIndex(x=>x.id===it.id);const{remain,init,alert}=getStockStatus(it);const hasStock=init>0;const stockColor=!hasStock?'var(--t3)':remain<=0?'var(--red)':alert>0&&remain<=alert?'var(--yellow)':'var(--green)';const stOpts=['','済','未','一部'].map(s=>`<option value="${s}"${it.status===s?' selected':''}>${s||'—'}</option>`).join('');const catOpts2=PROD_CATS_LIST.map(c=>`<option value="${c}"${it.cat===c?' selected':''}>${c}</option>`).join('');// 見積・実績の自動計算
+    const estPrice = n(it.estPrice !== undefined ? it.estPrice : it.price);
+    const estQty   = n(it.estQty   !== undefined ? it.estQty   : (it.stockInit || it.qty || 0));
+    const estAmt   = estPrice > 0 && estQty > 0 ? estPrice * estQty : n(it.estimate);
+    // estAmtをestimateに同期
+    if (estPrice > 0 && estQty > 0) it.estimate = estAmt;
+    const actPrice = n(it.actPrice);
+    const actQty   = n(it.actQty   !== undefined ? it.actQty   : (it.stockUsed || 0));
+    const actAmt   = actPrice > 0 && actQty > 0 ? actPrice * actQty : n(it.actual);
+    if (actPrice > 0 && actQty > 0) it.actual = actAmt;
+    const INP = 'width:100%;padding:3px 5px;border:1.5px solid var(--b2);border-radius:4px;font-size:11px;background:var(--s1);color:var(--t1);font-family:var(--mono);text-align:right;outline:none;box-sizing:border-box';
+    const INP_B = INP + ';border-color:rgba(37,99,235,.25)';
+    const INP_G = INP + ';border-color:rgba(16,185,129,.25)';
+    const INP_L = INP.replace('text-align:right','text-align:left');
+    return`<tr style="border-bottom:1px solid var(--b1)">
+      <td style="padding:3px 4px;width:130px"><select class="inline-sel" style="font-size:9px;font-weight:700;color:${col.fg};background:${col.bg};border:1px solid ${col.h}44;border-radius:6px;width:100%" onchange="S.prodItems[${realIdx}].cat=this.value;debouncedSave();renderProd()">${catOpts2}</select></td>
+      <td style="padding:3px 4px;min-width:120px"><input style="${INP_L};font-weight:600" value="${(it.name||'').replace(/"/g,'&quot;')}" placeholder="品目名" onchange="S.prodItems[${realIdx}].name=this.value;debouncedSave()"></td>
+      <td style="padding:3px 4px;width:140px"><input style="${INP_L};font-size:10px;color:var(--t2)" value="${(it.content||'').replace(/"/g,'&quot;')}" placeholder="仕様・内容" onchange="S.prodItems[${realIdx}].content=this.value;debouncedSave()"></td>
+      <td style="padding:3px 2px;width:80px"><input style="${INP_B}" type="number" value="${it.estPrice!==undefined?it.estPrice:(it.price||'')}" placeholder="0"
+        onchange="const ep=parseFloat(this.value)||0;S.prodItems[${realIdx}].estPrice=ep;S.prodItems[${realIdx}].price=ep;const eq=S.prodItems[${realIdx}].estQty||S.prodItems[${realIdx}].stockInit||1;S.prodItems[${realIdx}].estimate=ep*eq;debouncedSave();renderProd()"></td>
+      <td style="padding:3px 2px;width:70px"><input style="${INP_B}" type="number" value="${it.estQty!==undefined?it.estQty:(it.stockInit||it.qty||'')}" placeholder="0"
+        onchange="const eq=parseFloat(this.value)||0;S.prodItems[${realIdx}].estQty=eq;S.prodItems[${realIdx}].stockInit=eq;S.prodItems[${realIdx}].qty=eq;const ep=S.prodItems[${realIdx}].estPrice||S.prodItems[${realIdx}].price||0;S.prodItems[${realIdx}].estimate=ep*eq;debouncedSave();renderProd()"></td>
+      <td style="padding:3px 6px;width:95px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--blue);background:rgba(37,99,235,.04)">${estAmt>0?fmtN(estAmt):'—'}</td>
+      <td style="padding:3px 2px;width:80px"><input style="${INP_G}" type="number" value="${it.actPrice||''}" placeholder="0"
+        onchange="const ap=parseFloat(this.value)||0;S.prodItems[${realIdx}].actPrice=ap;const aq=S.prodItems[${realIdx}].actQty||S.prodItems[${realIdx}].stockUsed||1;S.prodItems[${realIdx}].actual=ap*aq;debouncedSave();renderProd()"></td>
+      <td style="padding:3px 2px;width:70px"><input style="${INP_G}" type="number" value="${it.actQty!==undefined?it.actQty:(it.stockUsed||'')}" placeholder="0"
+        onchange="const aq=parseFloat(this.value)||0;S.prodItems[${realIdx}].actQty=aq;S.prodItems[${realIdx}].stockUsed=aq;const ap=S.prodItems[${realIdx}].actPrice||0;S.prodItems[${realIdx}].actual=ap*aq;debouncedSave();renderProd()"></td>
+      <td style="padding:3px 6px;width:95px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--green);background:rgba(16,185,129,.04)">${actAmt>0?fmtN(actAmt):'—'}</td>
+      <td style="padding:3px 2px;width:90px"><input style="${INP}" type="number" value="${it.budget||''}" placeholder="0" onchange="S.prodItems[${realIdx}].budget=parseFloat(this.value)||0;debouncedSave()"></td>
+      <td style="padding:3px 6px;width:65px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;color:${stockColor}">${hasStock?remain:'—'}</td>
+      <td style="padding:3px 2px;width:65px"><input style="${INP}" type="number" value="${it.stockUsed||''}" placeholder="0" onchange="S.prodItems[${realIdx}].stockUsed=parseFloat(this.value)||0;S.prodItems[${realIdx}].actQty=parseFloat(this.value)||0;debouncedSave();renderProd()"></td>
+      <td style="padding:3px 4px;width:65px"><select class="inline-sel" style="width:100%" onchange="S.prodItems[${realIdx}].status=this.value;debouncedSave()">${stOpts}</select></td>
+      <td style="text-align:center;padding:2px;width:28px"><button class="del-btn" onclick="deleteProdById('${it.id}');renderProd()">×</button></td>
+    </tr>`;}).join('');return`<div class="card" style="margin-bottom:10px;border-left:3px solid ${col.h}"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--b1);flex-wrap:wrap;gap:8px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;font-weight:700;color:${col.fg};background:${col.bg};padding:4px 12px;border-radius:12px">${cat}</span><span style="font-size:11px;color:var(--t2)">${filtered.length}件</span></div><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:10px;font-weight:700;color:var(--t2)">カテゴリ予算</span><input type="number" value="${getProdBudgets()[cat]||''}" placeholder="0" style="width:110px;padding:5px 8px;border:1.5px solid var(--b2);border-radius:6px;font-size:11px;font-family:var(--mono);background:var(--s1);color:var(--t1);outline:none;text-align:right" onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--b2)'" onchange="getProdBudgets()['${cat}']=parseFloat(this.value)||0;debouncedSave();renderProd()"><span style="font-size:10px;color:var(--t2)">円</span></div><div style="display:flex;gap:14px;font-size:11px;font-family:var(--mono)">${secTotE?`<span style="color:var(--blue)">見積 <strong>${fmtN(secTotE)}</strong>円</span>`:'<span style="color:var(--t3)">見積 0円</span>'}${secTotA?`<span style="color:var(--green)">実績 <strong>${fmtN(secTotA)}</strong>円</span>`:'<span style="color:var(--t3)">実績 0円</span>'}${(()=>{const bgt=getProdBudgets()[cat]||0,diff=bgt-secTotA;return bgt?`<span style="color:${diff>=0?'var(--green)':'var(--red)'};font-weight:700">${diff>=0?'▲':'▼'}差異 ${fmtN(Math.abs(diff))}円</span>`:''})()}</div><button onclick="addProdRowInCat('${cat}')" style="font-size:9px;font-weight:700;color:${col.fg};background:${col.bg};border:none;padding:4px 10px;border-radius:6px;cursor:pointer">＋ 追加</button></div></div><div style="overflow-x:auto"><table class="tbl" style="min-width:780px"><thead>
+  <tr style="background:var(--s2)">
+    <th style="width:130px">カテゴリ</th>
+    <th style="min-width:120px">品目名</th>
+    <th style="width:140px">仕様・内容</th>
+    <th style="text-align:right;width:80px;color:var(--blue)">見積単価</th>
+    <th style="text-align:right;width:70px;color:var(--blue)">見積数</th>
+    <th style="text-align:right;width:95px;color:var(--blue);background:rgba(37,99,235,.05)">見積金額</th>
+    <th style="text-align:right;width:80px;color:var(--green)">実績単価</th>
+    <th style="text-align:right;width:70px;color:var(--green)">実績数</th>
+    <th style="text-align:right;width:95px;color:var(--green);background:rgba(16,185,129,.05)">実績金額</th>
+    <th style="text-align:right;width:90px">予算（円）</th>
+    <th style="text-align:right;width:65px">在庫</th>
+    <th style="text-align:right;width:65px">配布済</th>
+    <th style="width:65px">支払</th>
+    <th style="width:28px"></th>
+  </tr>
+</thead><tbody>${rows}</tbody></table></div></div>`;}).filter(Boolean).join('');}
 
 function addProdRowInCat(cat){if(!S.prodItems)S.prodItems=[];S.prodItems.push({id:uid(),cat,name:'',content:'',price:0,qty:1,unit:'個',stockInit:0,stockUsed:0,stockAlert:0,budget:0,estimate:0,actual:0,status:'',memo:''});renderProd();setTimeout(()=>{const allInputs=document.querySelectorAll('#prod-sections input[placeholder="品目名を入力"]');if(allInputs.length)allInputs[allInputs.length-1].focus();},50);}
 function addProdRow(){const cat=document.getElementById('prod-filter-cat')?.value||'グッズ（外販）';addProdRowInCat(cat);}
