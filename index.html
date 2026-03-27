@@ -495,7 +495,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <div class="card">
           <div class="ct">
             <div class="pip"></div>会計科目別集計
-            <button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('ko')">✏️ 予算を編集</button>
+            <button class="btn btn-xs admin-only" style="margin-left:auto;background:rgba(168,85,247,.1);border:1.5px solid rgba(168,85,247,.3);color:#7c3aed;font-weight:700" onclick="applyPrevYearEvtBudget('ko')">📋 前年度反映</button>
+            <button class="btn btn-xs btn-g admin-only" onclick="openEvt('ko')">✏️ 予算を編集</button>
           </div>
           <table class="tbl"><thead><tr>
               <th>会計科目</th>
@@ -555,7 +556,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <div class="card">
           <div class="ct">
             <div class="pip"></div>会計科目別集計
-            <button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('aw')">✏️ 予算を編集</button>
+            <button class="btn btn-xs admin-only" style="margin-left:auto;background:rgba(168,85,247,.1);border:1.5px solid rgba(168,85,247,.3);color:#7c3aed;font-weight:700" onclick="applyPrevYearEvtBudget('aw')">📋 前年度反映</button>
+            <button class="btn btn-xs btn-g admin-only" onclick="openEvt('aw')">✏️ 予算を編集</button>
           </div>
           <table class="tbl"><thead><tr>
               <th>会計科目</th>
@@ -615,7 +617,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <div class="card">
           <div class="ct">
             <div class="pip"></div>会計科目別集計
-            <button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('ye')">✏️ 予算を編集</button>
+            <button class="btn btn-xs admin-only" style="margin-left:auto;background:rgba(168,85,247,.1);border:1.5px solid rgba(168,85,247,.3);color:#7c3aed;font-weight:700" onclick="applyPrevYearEvtBudget('ye')">📋 前年度反映</button>
+            <button class="btn btn-xs btn-g admin-only" onclick="openEvt('ye')">✏️ 予算を編集</button>
           </div>
           <table class="tbl"><thead><tr>
               <th>会計科目</th>
@@ -674,7 +677,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         <div class="card">
           <div class="ct">
             <div class="pip"></div>会計科目別集計
-            <button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('tour')">✏️ 予算を編集</button>
+            <button class="btn btn-xs admin-only" style="margin-left:auto;background:rgba(168,85,247,.1);border:1.5px solid rgba(168,85,247,.3);color:#7c3aed;font-weight:700" onclick="applyPrevYearEvtBudget('tour')">📋 前年度反映</button>
+            <button class="btn btn-xs btn-g admin-only" onclick="openEvt('tour')">✏️ 予算を編集</button>
           </div>
           <table class="tbl"><thead><tr>
             <th>会計科目</th>
@@ -764,7 +768,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
             <div class="card">
               <div class="ct">
                 <div class="pip"></div>会計科目別集計
-                <button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('md')">✏️ 予算を編集</button>
+                <button class="btn btn-xs admin-only" style="margin-left:auto;background:rgba(168,85,247,.1);border:1.5px solid rgba(168,85,247,.3);color:#7c3aed;font-weight:700" onclick="applyPrevYearEvtBudget('md')">📋 前年度反映</button>
+                <button class="btn btn-xs btn-g admin-only" onclick="openEvt('md')">✏️ 予算を編集</button>
               </div>
               <table class="tbl"><thead><tr>
                 <th>会計科目</th><th style="text-align:right">予算（円）</th>
@@ -806,7 +811,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
             <div class="card">
               <div class="ct">
                 <div class="pip"></div>会計科目別集計
-                <button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('sd')">✏️ 予算を編集</button>
+                <button class="btn btn-xs admin-only" style="margin-left:auto;background:rgba(168,85,247,.1);border:1.5px solid rgba(168,85,247,.3);color:#7c3aed;font-weight:700" onclick="applyPrevYearEvtBudget('sd')">📋 前年度反映</button>
+                <button class="btn btn-xs btn-g admin-only" onclick="openEvt('sd')">✏️ 予算を編集</button>
               </div>
               <table class="tbl"><thead><tr>
                 <th>会計科目</th><th style="text-align:right">予算（円）</th>
@@ -848,7 +854,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
             <div class="card">
               <div class="ct">
                 <div class="pip"></div>会計科目別集計
-                <button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('cf3')">✏️ 予算を編集</button>
+                <button class="btn btn-xs admin-only" style="margin-left:auto;background:rgba(168,85,247,.1);border:1.5px solid rgba(168,85,247,.3);color:#7c3aed;font-weight:700" onclick="applyPrevYearEvtBudget('cf3')">📋 前年度反映</button>
+                <button class="btn btn-xs btn-g admin-only" onclick="openEvt('cf3')">✏️ 予算を編集</button>
               </div>
               <table class="tbl"><thead><tr>
                 <th>会計科目</th><th style="text-align:right">予算（円）</th>
@@ -890,7 +897,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
             <div class="card">
               <div class="ct">
                 <div class="pip"></div>会計科目別集計
-                <button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('cf4')">✏️ 予算を編集</button>
+                <button class="btn btn-xs admin-only" style="margin-left:auto;background:rgba(168,85,247,.1);border:1.5px solid rgba(168,85,247,.3);color:#7c3aed;font-weight:700" onclick="applyPrevYearEvtBudget('cf4')">📋 前年度反映</button>
+                <button class="btn btn-xs btn-g admin-only" onclick="openEvt('cf4')">✏️ 予算を編集</button>
               </div>
               <table class="tbl"><thead><tr>
                 <th>会計科目</th><th style="text-align:right">予算（円）</th>
@@ -1036,9 +1044,11 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       <div id="prod-sections"></div>
 
       <!-- 行追加ボタン（フッター） -->
-      <div style="display:flex;gap:8px;margin-top:4px">
+      <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
         <button class="btn btn-sm btn-p" onclick="addProdRow()">＋ 行を追加</button>
         <button class="btn btn-sm btn-g" onclick="saveProdInline()" style="font-weight:700">💾 保存</button>
+        <button class="btn btn-sm admin-only" onclick="applyPrevYearProdBudget()"
+          style="margin-left:auto;background:rgba(168,85,247,.1);border:1.5px solid rgba(168,85,247,.3);color:#7c3aed;font-weight:700">📋 前年度予算を反映</button>
       </div>
     </div>
 
@@ -1841,6 +1851,272 @@ async function openFiscalYearManager() {
       </div>`).join('');
   }
   openOv('ov-fiscal-year');
+}
+
+// ══════════════════════════════════════════════════
+// 前年度データ読み込み
+// ══════════════════════════════════════════════════
+let _prevYearCache = {}; // {fiscalYear: data}
+
+async function loadPrevYearData(fy) {
+  if (!fy || fy < 2025) return null;
+  const prevFY = fy - 1;
+  if (_prevYearCache[prevFY]) return _prevYearCache[prevFY];
+  try {
+    const dbId = getFiscalYearDbId(prevFY);
+    const {data, error} = await _sb.from('dashboard_data').select('data').eq('id', dbId).maybeSingle();
+    if (error || !data?.data) return null;
+    _prevYearCache[prevFY] = data.data;
+    return data.data;
+  } catch(e) {
+    console.warn('[loadPrevYearData] failed:', e.message);
+    return null;
+  }
+}
+
+// イベント（キックオフ等）に前年度予算を反映
+async function applyPrevYearEvtBudget(key) {
+  if (!isAdmin()) { alert('管理者のみ実行できます'); return; }
+  const prev = await loadPrevYearData(_currentFiscalYear);
+  if (!prev) { alert('前年度のデータが見つかりません'); return; }
+  const prevEvt = prev.events?.[key];
+  if (!prevEvt || !prevEvt.items || prevEvt.items.length === 0) {
+    alert('前年度にこのイベントの予算データがありません');
+    return;
+  }
+
+  // 確認ダイアログで前年度データを表示
+  const lines = prevEvt.items
+    .filter(it => n(it.budget) || n(it.estimate) || n(it.actual))
+    .map(it => `${it.name}: 予算${fmtN(n(it.budget))}円 / 見積${fmtN(n(it.estimate))}円 / 実績${fmtN(n(it.actual))}円`)
+    .join('\n');
+  if (!lines) { alert('前年度にこのイベントの予算データがありません'); return; }
+
+  const mode = await showPrevYearDialog(key, 'event', prevEvt.items, prev);
+  if (!mode) return;
+
+  if (!S.events[key]) S.events[key] = {label: prevEvt.label || key, items: []};
+
+  if (mode === 'budget') {
+    // 予算のみ反映
+    prevEvt.items.forEach(prevItem => {
+      if (!n(prevItem.budget)) return;
+      let cur = S.events[key].items.find(it => it.name === prevItem.name);
+      if (!cur) {
+        cur = {id: uid(), name: prevItem.name, budget: 0, estimate: 0, actual: 0};
+        S.events[key].items.push(cur);
+      }
+      cur.budget = n(prevItem.budget);
+    });
+  } else if (mode === 'all') {
+    // 予算＋見積を反映
+    prevEvt.items.forEach(prevItem => {
+      if (!n(prevItem.budget) && !n(prevItem.estimate)) return;
+      let cur = S.events[key].items.find(it => it.name === prevItem.name);
+      if (!cur) {
+        cur = {id: uid(), name: prevItem.name, budget: 0, estimate: 0, actual: 0};
+        S.events[key].items.push(cur);
+      }
+      cur.budget = n(prevItem.budget);
+      cur.estimate = n(prevItem.estimate);
+    });
+  }
+
+  logChange('event', `前年度予算反映: ${key}`, null, null);
+  save();
+  renderEvt(key);
+  alert('✅ 前年度の予算データを反映しました');
+}
+
+// 製作物管理に前年度予算を反映
+async function applyPrevYearProdBudget() {
+  if (!isAdmin()) { alert('管理者のみ実行できます'); return; }
+  const prev = await loadPrevYearData(_currentFiscalYear);
+  if (!prev) { alert('前年度のデータが見つかりません'); return; }
+
+  const prevItems = prev.prodItems || [];
+  const prevBudgets = prev.prodBudgets || {};
+  if (prevItems.length === 0 && Object.keys(prevBudgets).length === 0) {
+    alert('前年度の製作物データがありません');
+    return;
+  }
+
+  const mode = await showPrevYearProdDialog(prevItems, prevBudgets);
+  if (!mode) return;
+
+  if (mode === 'catBudget') {
+    // カテゴリ予算のみ反映
+    if (!S.prodBudgets) S.prodBudgets = {};
+    Object.entries(prevBudgets).forEach(([cat, val]) => {
+      if (n(val)) S.prodBudgets[cat] = n(val);
+    });
+  } else if (mode === 'items') {
+    // 品目データ（予算・見積）を反映（実績はリセット）
+    if (!S.prodItems) S.prodItems = [];
+    if (!S.prodBudgets) S.prodBudgets = {};
+    // カテゴリ予算も反映
+    Object.entries(prevBudgets).forEach(([cat, val]) => {
+      if (n(val)) S.prodBudgets[cat] = n(val);
+    });
+    // 品目を追加（既存の同名品目は上書き）
+    prevItems.forEach(prevIt => {
+      if (!prevIt.name) return;
+      const existing = S.prodItems.find(it => it.name === prevIt.name && it.cat === prevIt.cat);
+      if (existing) {
+        existing.budget = n(prevIt.budget);
+        existing.estimate = n(prevIt.estimate);
+        existing.price = n(prevIt.price);
+        existing.qty = n(prevIt.qty);
+        existing.unit = prevIt.unit || existing.unit;
+        existing.content = prevIt.content || existing.content;
+        // 実績・在庫はリセットしない
+      } else {
+        S.prodItems.push({
+          id: uid(),
+          cat: prevIt.cat || 'その他',
+          name: prevIt.name,
+          content: prevIt.content || '',
+          price: n(prevIt.price),
+          qty: n(prevIt.qty),
+          unit: prevIt.unit || '個',
+          stockInit: 0, stockUsed: 0, stockAlert: n(prevIt.stockAlert),
+          budget: n(prevIt.budget),
+          estimate: n(prevIt.estimate),
+          actual: 0,
+          status: '',
+          memo: ''
+        });
+      }
+    });
+  }
+
+  logChange('prod', '前年度予算反映', null, null);
+  save();
+  renderProd();
+  alert('✅ 前年度の予算データを反映しました');
+}
+
+// 前年度データ反映ダイアログ（イベント用）
+function showPrevYearDialog(key, type, prevItems, prevData) {
+  return new Promise(resolve => {
+    const lines = prevItems
+      .filter(it => n(it.budget) || n(it.estimate) || n(it.actual))
+      .map(it => `<tr>
+        <td style="font-size:11px;padding:4px 8px">${it.name}</td>
+        <td style="font-family:var(--mono);font-size:11px;text-align:right;padding:4px 8px">${fmtN(n(it.budget))}</td>
+        <td style="font-family:var(--mono);font-size:11px;text-align:right;padding:4px 8px;color:var(--blue)">${fmtN(n(it.estimate))}</td>
+        <td style="font-family:var(--mono);font-size:11px;text-align:right;padding:4px 8px;color:var(--green)">${fmtN(n(it.actual))}</td>
+      </tr>`).join('');
+
+    const totB = prevItems.reduce((t,i) => t + n(i.budget), 0);
+    const totE = prevItems.reduce((t,i) => t + n(i.estimate), 0);
+    const totA = prevItems.reduce((t,i) => t + n(i.actual), 0);
+
+    const html = `
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;color:var(--t2);margin-bottom:8px">前年度（${_currentFiscalYear - 1}年度）のデータ：</div>
+        <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
+          <table class="tbl" style="font-size:11px">
+            <thead><tr><th>科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実績</th></tr></thead>
+            <tbody>${lines}</tbody>
+            <tfoot><tr style="border-top:2px solid var(--b2);font-weight:700">
+              <td style="padding:6px 8px">合計</td>
+              <td style="font-family:var(--mono);text-align:right;padding:6px 8px">${fmtN(totB)}</td>
+              <td style="font-family:var(--mono);text-align:right;padding:6px 8px;color:var(--blue)">${fmtN(totE)}</td>
+              <td style="font-family:var(--mono);text-align:right;padding:6px 8px;color:var(--green)">${fmtN(totA)}</td>
+            </tr></tfoot>
+          </table>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+        <button class="btn btn-g" id="prev-yr-cancel">キャンセル</button>
+        <button class="btn" id="prev-yr-budget" style="background:rgba(37,99,235,.12);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700">予算のみ反映</button>
+        <button class="btn btn-p" id="prev-yr-all">予算＋見積を反映</button>
+      </div>`;
+
+    // モーダルを動的に作成
+    let ov = document.getElementById('ov-prev-year');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.className = 'ov';
+      ov.id = 'ov-prev-year';
+      ov.innerHTML = '<div class="panel wide"><div class="ph"><h2>📋 前年度データを反映</h2><button class="xbtn" id="prev-yr-close">×</button></div><div class="pb-body" id="prev-yr-body"></div></div>';
+      document.body.appendChild(ov);
+      ov.addEventListener('click', e => { if (e.target === ov) { ov.classList.remove('open'); resolve(null); }});
+    }
+    document.getElementById('prev-yr-body').innerHTML = html;
+    ov.classList.add('open');
+
+    document.getElementById('prev-yr-close').onclick = () => { ov.classList.remove('open'); resolve(null); };
+    document.getElementById('prev-yr-cancel').onclick = () => { ov.classList.remove('open'); resolve(null); };
+    document.getElementById('prev-yr-budget').onclick = () => { ov.classList.remove('open'); resolve('budget'); };
+    document.getElementById('prev-yr-all').onclick = () => { ov.classList.remove('open'); resolve('all'); };
+  });
+}
+
+// 前年度データ反映ダイアログ（製作物用）
+function showPrevYearProdDialog(prevItems, prevBudgets) {
+  return new Promise(resolve => {
+    // カテゴリ別集計
+    const catSummary = {};
+    PROD_CATS_LIST.forEach(cat => { catSummary[cat] = {budget: n(prevBudgets[cat]), items: 0, totB: 0, totE: 0, totA: 0}; });
+    prevItems.forEach(it => {
+      const cat = it.cat || 'その他';
+      if (!catSummary[cat]) catSummary[cat] = {budget: 0, items: 0, totB: 0, totE: 0, totA: 0};
+      catSummary[cat].items++;
+      catSummary[cat].totB += n(it.budget);
+      catSummary[cat].totE += n(it.estimate);
+      catSummary[cat].totA += n(it.actual);
+    });
+
+    const catRows = Object.entries(catSummary)
+      .filter(([,v]) => v.budget || v.items)
+      .map(([cat, v]) => `<tr>
+        <td style="font-size:11px;padding:4px 8px;font-weight:600">${cat}</td>
+        <td style="font-family:var(--mono);font-size:11px;text-align:right;padding:4px 8px">${fmtN(v.budget)}</td>
+        <td style="font-family:var(--mono);font-size:11px;text-align:center;padding:4px 8px">${v.items}件</td>
+        <td style="font-family:var(--mono);font-size:11px;text-align:right;padding:4px 8px">${fmtN(v.totB)}</td>
+        <td style="font-family:var(--mono);font-size:11px;text-align:right;padding:4px 8px;color:var(--blue)">${fmtN(v.totE)}</td>
+        <td style="font-family:var(--mono);font-size:11px;text-align:right;padding:4px 8px;color:var(--green)">${fmtN(v.totA)}</td>
+      </tr>`).join('');
+
+    const html = `
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;color:var(--t2);margin-bottom:8px">前年度（${_currentFiscalYear - 1}年度）の製作物データ：</div>
+        <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
+          <table class="tbl" style="font-size:11px">
+            <thead><tr><th>カテゴリ</th><th style="text-align:right">カテゴリ予算</th><th style="text-align:center">品目数</th><th style="text-align:right">品目予算計</th><th style="text-align:right">見積計</th><th style="text-align:right">実績計</th></tr></thead>
+            <tbody>${catRows}</tbody>
+          </table>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--t3);margin-bottom:12px;padding:8px;background:var(--s2);border-radius:6px">
+        💡 「カテゴリ予算のみ」はカテゴリ予算額だけを反映します。<br>
+        「品目ごと反映」はカテゴリ予算＋品目データ（予算・見積）を反映します（実績は0でリセット）。
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+        <button class="btn btn-g" id="prev-prod-cancel">キャンセル</button>
+        <button class="btn" id="prev-prod-cat" style="background:rgba(37,99,235,.12);border:1.5px solid rgba(37,99,235,.3);color:var(--blue);font-weight:700">カテゴリ予算のみ</button>
+        <button class="btn btn-p" id="prev-prod-items">品目ごと反映</button>
+      </div>`;
+
+    let ov = document.getElementById('ov-prev-year-prod');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.className = 'ov';
+      ov.id = 'ov-prev-year-prod';
+      ov.innerHTML = '<div class="panel wide"><div class="ph"><h2>📋 前年度データを反映（製作物）</h2><button class="xbtn" id="prev-prod-close">×</button></div><div class="pb-body" id="prev-prod-body"></div></div>';
+      document.body.appendChild(ov);
+      ov.addEventListener('click', e => { if (e.target === ov) { ov.classList.remove('open'); resolve(null); }});
+    }
+    document.getElementById('prev-prod-body').innerHTML = html;
+    ov.classList.add('open');
+
+    document.getElementById('prev-prod-close').onclick = () => { ov.classList.remove('open'); resolve(null); };
+    document.getElementById('prev-prod-cancel').onclick = () => { ov.classList.remove('open'); resolve(null); };
+    document.getElementById('prev-prod-cat').onclick = () => { ov.classList.remove('open'); resolve('catBudget'); };
+    document.getElementById('prev-prod-items').onclick = () => { ov.classList.remove('open'); resolve('items'); };
+  });
 }
 
 // ══════════════════════════════════════════════════
