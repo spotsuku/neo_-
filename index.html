@@ -4754,7 +4754,7 @@ function saveSeriesCatEdit() {
     });
   });
 
-  addChangelog('series', `${key}会計科目予算更新`, null, null);
+  logChange('event', `${key}会計科目予算更新`, null, null);
   save();
   closeOv('ov-series-cat-edit');
   renderSeries(key);
