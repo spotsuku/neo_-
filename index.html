@@ -171,6 +171,11 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 #save-status-icon { display:inline-block; }
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
 </style>
 </head>
 <body>
@@ -955,6 +960,8 @@ async function onLogin(user) {
   migrateMktToProd();
   updateFYSelectorUI();
   await renderPg(_curPg || 'ov');
+  // リアルタイム同期開始
+  startRealtimeSync();
 }
 
 // ══════════════════════════════════════════════════
@@ -1407,12 +1414,20 @@ async function save(){
   if(!_currentUser){setSaveStatus('error','未ログイン');return;}
   try{
     setSaveStatus('saving','保存中...');
+    _isSyncing = true;  // 自分の保存によるRealtimeイベントを無視
     const dbId=getFiscalYearDbId(_currentFiscalYear);
-    const{data:upData,error:upErr}=await _sb.from('dashboard_data').update({data:S,updated_by:_currentUser.id,updated_at:new Date().toISOString()}).eq('id',dbId).select();
+    // メールアドレスをデータに含めて誰の変更か識別できるようにする
+    const saveData = {...S, updated_by_email: _currentUser.email};
+    const{data:upData,error:upErr}=await _sb.from('dashboard_data').update({data:saveData,updated_by:_currentUser.id,updated_at:new Date().toISOString()}).eq('id',dbId).select();
     if(upErr)throw upErr;
-    if(!upData||upData.length===0){const{error:inErr}=await _sb.from('dashboard_data').insert({id:dbId,data:S,updated_by:_currentUser.id,updated_at:new Date().toISOString()});if(inErr)throw inErr;}
+    if(!upData||upData.length===0){const{error:inErr}=await _sb.from('dashboard_data').insert({id:dbId,data:saveData,updated_by:_currentUser.id,updated_at:new Date().toISOString()});if(inErr)throw inErr;}
     setSaveStatus('saved','保存済み '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}));
-  }catch(e){setSaveStatus('error','保存エラー: '+e.message);alert('⚠️ クラウド保存に失敗しました。\n\nエラー: '+e.message);}
+    setTimeout(()=>{ _isSyncing = false; }, 2000);  // 2秒後に解除
+  }catch(e){
+    _isSyncing = false;
+    setSaveStatus('error','保存エラー: '+e.message);
+    alert('⚠️ クラウド保存に失敗しました。\n\nエラー: '+e.message);
+  }
 }
 
 async function saveMemberData(){localStorage.setItem(SK,JSON.stringify(S));if(isAdmin()){save();return;}try{const dbId=getFiscalYearDbId(_currentFiscalYear);const{error}=await _sb.from('dashboard_data').update({data:S,updated_at:new Date().toISOString()}).eq('id',dbId);if(error)throw error;sdot().className='sdot';slbl().textContent='保存済み '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});}catch(e){sdot().className='sdot uns';slbl().textContent='保存エラー';}}
@@ -1438,6 +1453,7 @@ async function changeFYQuick(delta,fy){let newFY;if(delta!==0){newFY=_currentFis
   localStorage.setItem(`neo_v5_${_currentFiscalYear}`,JSON.stringify(S));
   await save();
   _prevYearData = null; _prevYearFY = null; // 前年キャッシュをクリア
+  stopRealtimeSync();
   _currentFiscalYear=newFY;localStorage.setItem('neo_fiscal_year',newFY);S=loadS();await loadFromDB();updateFYSelectorUI();renderPg('ov');go('ov',document.querySelector('.nb'));}
 
 function updateFYSelectorUI(){const sel=document.getElementById('fy-quick-sel');if(!sel)return;const years=[];for(let y=2025;y<=_currentFiscalYear+1;y++)years.push(y);sel.innerHTML=years.map(y=>`<option value="${y}"${y===_currentFiscalYear?' selected':''}>${y}年度（${String(y).slice(2)}/4〜${String(y+1).slice(2)}/3）</option>`).join('');const prevBtn=document.getElementById('fy-prev-btn');const nextBtn=document.getElementById('fy-next-btn');if(prevBtn)prevBtn.style.opacity=_currentFiscalYear<=2025?'.3':'1';if(nextBtn)nextBtn.style.opacity='1';}
@@ -3196,6 +3212,126 @@ window.addEventListener('beforeunload', e => {
     e.returnValue = '未保存の変更があります。ページを離れますか？';
   }
 });
+
+
+// ══════════════════════════════════════════════════
+// Supabase Realtime リアルタイム同期
+// ══════════════════════════════════════════════════
+let _realtimeChannel = null;
+let _isSyncing = false;  // 自分の保存によるイベントを無視するフラグ
+
+function startRealtimeSync() {
+  if (_realtimeChannel) {
+    _sb.removeChannel(_realtimeChannel);
+    _realtimeChannel = null;
+  }
+
+  const dbId = getFiscalYearDbId(_currentFiscalYear);
+
+  _realtimeChannel = _sb
+    .channel('dashboard_data_changes')
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'dashboard_data',
+        filter: `id=eq.${dbId}`,
+      },
+      async (payload) => {
+        // 自分自身の保存は無視
+        if (_isSyncing) return;
+
+        const updatedBy = payload.new?.data?.updated_by_email || '';
+        const myEmail = _currentUser?.email || '';
+
+        // 自分の変更は無視
+        if (updatedBy && updatedBy === myEmail) return;
+
+        // 他ユーザーの変更を受信
+        const newData = payload.new?.data;
+        if (!newData || typeof newData !== 'object') return;
+
+        // 通知バナーを表示して適用確認
+        showSyncNotification(updatedBy, newData);
+      }
+    )
+    .subscribe((status) => {
+      console.log('[Realtime] status:', status);
+      if (status === 'SUBSCRIBED') {
+        setSaveStatus('saved', 'リアルタイム同期中');
+      }
+    });
+}
+
+function stopRealtimeSync() {
+  if (_realtimeChannel) {
+    _sb.removeChannel(_realtimeChannel);
+    _realtimeChannel = null;
+  }
+}
+
+// 他ユーザーの変更通知バナー
+let _pendingSyncData = null;
+
+function showSyncNotification(updatedBy, newData) {
+  _pendingSyncData = newData;
+
+  // 既存のバナーを削除
+  const existing = document.getElementById('sync-notification');
+  if (existing) existing.remove();
+
+  const banner = document.createElement('div');
+  banner.id = 'sync-notification';
+  banner.style.cssText = `
+    position:fixed;bottom:20px;right:20px;z-index:9999;
+    background:#1e3a8a;color:#fff;border-radius:10px;
+    padding:14px 18px;box-shadow:0 4px 20px rgba(0,0,0,.3);
+    font-size:12px;max-width:320px;animation:slideUp .3s ease;
+  `;
+  const name = updatedBy ? updatedBy.split('@')[0] : '他のユーザー';
+  banner.innerHTML = `
+    <div style="font-weight:700;margin-bottom:6px">🔄 ${name} が変更を保存しました</div>
+    <div style="font-size:11px;color:rgba(255,255,255,.8);margin-bottom:10px">最新データを読み込みますか？</div>
+    <div style="display:flex;gap:8px">
+      <button onclick="applySyncData()" style="flex:1;padding:6px;background:#3b82f6;border:none;border-radius:6px;color:#fff;font-weight:700;cursor:pointer;font-size:11px">今すぐ更新</button>
+      <button onclick="dismissSync()" style="flex:1;padding:6px;background:rgba(255,255,255,.2);border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:11px">後で</button>
+    </div>
+  `;
+  document.body.appendChild(banner);
+
+  // 30秒後に自動適用
+  setTimeout(() => {
+    if (_pendingSyncData) applySyncData();
+  }, 30000);
+}
+
+function applySyncData() {
+  const banner = document.getElementById('sync-notification');
+  if (banner) banner.remove();
+  if (!_pendingSyncData) return;
+
+  // 未保存の変更がある場合は警告
+  if (_hasUnsaved) {
+    if (!confirm('未保存の変更があります。\n他のユーザーのデータで上書きされますが、よろしいですか？')) {
+      _pendingSyncData = null;
+      return;
+    }
+  }
+
+  S = _pendingSyncData;
+  _pendingSyncData = null;
+  localStorage.setItem(SK, JSON.stringify(S));
+  setSaveStatus('saved', '同期済み ' + new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'}));
+  renderPg(_curPg || 'ov');
+}
+
+function dismissSync() {
+  const banner = document.getElementById('sync-notification');
+  if (banner) banner.remove();
+}
+
+// slideUpアニメーション（CSS追加済み想定）
 
 </script>
 </body>
