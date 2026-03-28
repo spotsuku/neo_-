@@ -1597,11 +1597,11 @@ function buildKpiCards({totR, totRB=0, totB, totE, totA, arariYosoku, arari, tar
 // KPIをセクション別（計画/見積/実績）にトグル表示
 function buildKpiSections({totR=0, totRB=0, totB=0, totE=0, totA=0, target=0, prevActual=null, pageKey=''}) {
   const grossForecast = (totRB>0?totRB:totR) - totB;
-  const gross     = totR - totA;
-  const grossEst  = totR - totE;
+  const gross      = totR - totA;
+  const grossEst   = totR - totE;
   const budgetRate = totB>0 ? Math.round(totE/totB*100) : 0;
   const execRate   = totE>0 ? Math.round(totA/totE*100) : 0;
-  const targetRate = target>0 ? Math.min(999,Math.round(gross/target*100)) : null;
+  const targetRate   = target>0 ? Math.min(999,Math.round(gross/target*100)) : null;
   const targetFcRate = target>0 ? Math.min(999,Math.round(grossForecast/target*100)) : null;
 
   const storKey = `kpi_open_${pageKey}`;
@@ -1616,70 +1616,70 @@ function buildKpiSections({totR=0, totRB=0, totB=0, totE=0, totA=0, target=0, pr
     sessionStorage.setItem(storKey, JSON.stringify(stored));
     const body = document.getElementById(`kpi-body-${pageKey}-${sec}`);
     const icon = document.getElementById(`kpi-icon-${pageKey}-${sec}`);
-    if(body) { body.style.display = stored[sec] ? '' : 'none'; }
+    if(body) body.style.display = stored[sec] ? 'flex' : 'none';
     if(icon) icon.textContent = stored[sec] ? '▲' : '▼';
   };
 
-  const C = (phase, label, value, sub, color='', extraStyle='') => `
-    <div class="kpi" style="border-left:3px solid ${color||'var(--t2)'};${extraStyle}">
+  // カード生成ヘルパー
+  const C = (phase, label, value, sub, color) => `
+    <div class="kpi" style="flex:1;min-width:130px;border-left:3px solid ${color}">
       <div class="kl" style="display:flex;align-items:center;gap:4px">
-        <span style="font-size:8px;background:${color||'var(--t2)'};color:#fff;padding:1px 6px;border-radius:3px">${phase}</span>${label}
+        <span style="font-size:8px;background:${color};color:#fff;padding:1px 6px;border-radius:3px">${phase}</span>${label}
       </div>
-      <div class="kv" style="color:${color||'var(--t1)'}">${value}</div>
+      <div class="kv" style="color:${color}">${value}</div>
       <div class="ks">${sub}</div>
     </div>`;
 
-  // 計画カード
+  // 各フェーズのカード群
   const planCards = [
-    totRB>0 ? C('計画','収入', fmtN(totRB)+'<em>円</em>', '収入目標', 'var(--blue)', 'background:rgba(37,99,235,.04)') : '',
-    C('計画','予算', fmtN(totB)+'<em>円</em>', '年間承認予算', 'var(--blue)', 'background:rgba(37,99,235,.04)'),
-    C('計画','粗利', (grossForecast>=0?'+':'')+fmtN(grossForecast)+'<em>円</em>', '収入 − 予算', grossForecast>=0?'var(--blue)':'var(--red)', 'background:rgba(37,99,235,.04)'),
+    totRB>0 ? C('計画','収入', fmtN(totRB)+'<em>円</em>', '収入目標', 'var(--blue)') : '',
+    C('計画','予算', fmtN(totB)+'<em>円</em>', '年間承認予算', 'var(--blue)'),
+    C('計画','粗利', (grossForecast>=0?'+':'')+fmtN(grossForecast)+'<em>円</em>', '収入 − 予算', grossForecast>=0?'var(--blue)':'var(--red)'),
   ].join('');
 
-  // 見積カード
   const estCards = [
-    C('見積','合計', fmtN(totE)+'<em>円</em>', `予算消化率 <strong>${budgetRate}%</strong>`, 'var(--green)', 'background:rgba(16,185,129,.04)'),
-    C('見積','粗利', (grossEst>=0?'+':'')+fmtN(grossEst)+'<em>円</em>', '収入 − 見積', grossEst>=0?'var(--green)':'var(--red)', 'background:rgba(16,185,129,.04)'),
+    C('見積','合計', fmtN(totE)+'<em>円</em>', `予算消化率 <strong>${budgetRate}%</strong>`, 'var(--green)'),
+    C('見積','粗利', (grossEst>=0?'+':'')+fmtN(grossEst)+'<em>円</em>', '収入 − 見積', grossEst>=0?'var(--green)':'var(--red)'),
   ].join('');
 
-  // 実績カード
   const yoyCard = (prevActual!==null && prevActual>0) ? (() => {
     const ratio = Math.round(totA/prevActual*100);
     const rc = ratio>110?'var(--acc)':ratio<90?'var(--blue)':'var(--t1)';
-    return C('前年比','実績', ratio+'<em>%</em>', `前年 ${fmtN(prevActual)}円`, rc, 'background:rgba(249,115,22,.04)');
+    return C('前年比','実績', ratio+'<em>%</em>', `前年 ${fmtN(prevActual)}円`, rc);
   })() : '';
 
   const targetCard = target>0 ? C('目標','達成率',
     (targetRate||0)+'<em>%</em>',
     `目標${fmtN(target)}円`,
-    targetRate>=100?'var(--acc)':targetRate>=70?'var(--yellow)':'var(--red)',
-    'background:rgba(249,115,22,.04)'
+    targetRate>=100?'var(--acc)':targetRate>=70?'var(--yellow)':'var(--red)'
   ) : '';
 
   const actCards = [
-    C('実績','収入', fmtN(totR)+'<em>円</em>', totRB>0?`達成率 <strong>${Math.round(totR/totRB*100)}%</strong>`:`参加費・協賛`, 'var(--acc)', 'background:rgba(249,115,22,.04)'),
-    C('実績','合計', fmtN(totA)+'<em>円</em>', `見積進捗 <strong>${execRate}%</strong>`, 'var(--acc)', 'background:rgba(249,115,22,.04)'),
-    C('実績','粗利', (gross>=0?'+':'')+fmtN(gross)+'<em>円</em>', `収入 − 実績${gross>=0?' ✅ 黒字':' ⚠️ 赤字'}`, gross>=0?'var(--acc)':'var(--red)', 'background:rgba(249,115,22,.04)'),
+    C('実績','収入', fmtN(totR)+'<em>円</em>', totRB>0?`達成率 <strong>${Math.round(totR/totRB*100)}%</strong>`:`参加費・協賛`, 'var(--acc)'),
+    C('実績','合計', fmtN(totA)+'<em>円</em>', `見積進捗 <strong>${execRate}%</strong>`, 'var(--acc)'),
+    C('実績','粗利', (gross>=0?'+':'')+fmtN(gross)+'<em>円</em>', `収入 − 実績${gross>=0?' ✅ 黒字':' ⚠️ 赤字'}`, gross>=0?'var(--acc)':'var(--red)'),
     yoyCard,
     targetCard,
   ].join('');
 
-  const sec = (key, label, emoji, color, bg, cards, open) => `
-    <div style="border-radius:10px;overflow:hidden;border:1.5px solid ${color}22">
-      <div style="display:flex;align-items:center;padding:8px 12px;background:${bg};color:${color};font-size:11px;font-weight:700;cursor:pointer;user-select:none"
+  // 行レイアウト（ラベル行 + カード横並び行）
+  const row = (key, label, emoji, color, bg, cards, open) => `
+    <div style="margin-bottom:8px">
+      <div style="display:flex;align-items:center;padding:6px 12px;background:${bg};border-radius:8px 8px ${open?'0 0':'8px 8px'};cursor:pointer;user-select:none"
            onclick="_kpiToggle_${pageKey}('${key}')">
-        ${emoji} ${label}
-        <span id="kpi-icon-${pageKey}-${key}" style="margin-left:auto;font-size:10px">${open?'▲':'▼'}</span>
+        <span style="font-size:11px;font-weight:700;color:${color}">${emoji} ${label}</span>
+        <span id="kpi-icon-${pageKey}-${key}" style="margin-left:auto;font-size:10px;color:${color}">${open?'▲':'▼'}</span>
       </div>
-      <div id="kpi-body-${pageKey}-${key}" style="${open?'display:flex':'display:none'};flex-direction:column;gap:8px;padding:8px">
+      <div id="kpi-body-${pageKey}-${key}"
+           style="${open?'display:flex':'display:none'};flex-wrap:wrap;gap:8px;padding:8px;background:${bg}33;border-radius:0 0 8px 8px">
         ${cards}
       </div>
     </div>`;
 
-  return `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:start">
-    ${sec('plan','計画','📋','var(--blue)','rgba(37,99,235,.08)', planCards, planOpen)}
-    ${sec('est', '見積','📝','var(--green)','rgba(16,185,129,.08)', estCards, estOpen)}
-    ${sec('act', '実績','✅','var(--acc)','rgba(249,115,22,.08)', actCards, actOpen)}
+  return `<div>
+    ${row('plan','計画','📋','var(--blue)','rgba(37,99,235,.1)', planCards, planOpen)}
+    ${row('est', '見積','📝','var(--green)','rgba(16,185,129,.1)', estCards, estOpen)}
+    ${row('act', '実績','✅','var(--acc)','rgba(249,115,22,.1)', actCards, actOpen)}
   </div>`;
 }
 
