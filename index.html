@@ -323,7 +323,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
                 <th style="text-align:right;color:var(--blue)">見積</th>
                 <th style="text-align:right;color:var(--green)">実績</th>
                 <th style="text-align:right">差異</th>
-                <th style="text-align:right;color:var(--acc)">収入</th>
+                <th style="text-align:right;color:var(--acc)">収入<br><span style="font-size:8px;color:var(--blue)">予算</span><span style="font-size:8px;color:var(--t3)"> / </span><span style="font-size:8px;color:var(--acc)">実</span></th>
                 <th style="text-align:right;background:rgba(37,99,235,.06);color:var(--blue)">粗利予測</th>
                 <th style="text-align:right;background:rgba(16,185,129,.06);color:var(--green)">粗利（実）</th>
                 <th id="prog-yoy-header" style="text-align:right;color:var(--t3);font-size:10px;background:rgba(245,158,11,.06)">前年粗利</th>
@@ -814,15 +814,32 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 // 粗利予測カード（収入 - 予算）
 // ── 収入ヘルパー ──
 // prog名（収入管理で設定）→ プログラムIDに変換して収入合計を返す
-function getRevByProgId(progId) {
-  // S.programsのidと名前のマッピング
+function getRevBudgetByProgId(progId) {
   const prog = S.programs.find(p => p.id === progId);
   if(!prog) return 0;
   const progName = prog.name;
-  // 名前で完全一致 or 部分一致
+  return (S.revenues||[])
+    .filter(r => r.prog && (r.prog === progName || r.prog.includes(progName) || progName.includes(r.prog)))
+    .reduce((t,r) => t + n(r.budget), 0);
+}
+
+function getRevByProgId(progId) {
+  const prog = S.programs.find(p => p.id === progId);
+  if(!prog) return 0;
+  const progName = prog.name;
   return (S.revenues||[])
     .filter(r => r.prog && (r.prog === progName || r.prog.includes(progName) || progName.includes(r.prog)))
     .reduce((t,r) => t + n(r.amount), 0);
+}
+
+// 収入予算（計画値）をプログラムIDで取得
+function getRevBudgetByProgId(progId) {
+  const prog = S.programs.find(p => p.id === progId);
+  if(!prog) return 0;
+  const progName = prog.name;
+  return (S.revenues||[])
+    .filter(r => r.prog && (r.prog === progName || r.prog.includes(progName) || progName.includes(r.prog)))
+    .reduce((t,r) => t + n(r.budget), 0);
 }
 
 // cityfes（複数タブ）の収入合計
@@ -1968,22 +1985,25 @@ async function renderProg(){
   const totalRevenue = (S.revenues||[]).reduce((t,r)=>t+n(r.amount),0);
 
   const progs = S.programs.filter(p=>p.id!=='marketing');
-  let totalBudget=0, totalEst=0, totalAct=0, totalGross=0, totalGrossForecast=0, totalPrevGross=0;
+  let totalBudget=0, totalEst=0, totalAct=0, totalGross=0, totalGrossForecast=0, totalPrevGross=0, totalRevBudget=0;
 
   const rows = await Promise.all(progs.map(async (p, pi) => {
     const realBudget = getProgRealBudget(p);
     const act  = progActual(p.id);
     const est  = progEstimate(p.id);
     const diff = realBudget - act;
-    const rev  = getProgRev(p);
-    const gross         = rev - act;          // 粗利（実）= 収入 - 実績
-    const grossForecast = rev - realBudget;   // 粗利予測 = 収入 - 予算
+    const rev       = getProgRev(p);            // 実収入
+    const revBudget = getRevBudgetByProgId(p.id); // 収入予算
+    const revForKpi = revBudget > 0 ? revBudget : rev; // 表示用（予算優先）
+    const gross         = rev - act;          // 粗利（実）= 実収入 - 実績
+    const grossForecast = revForKpi - realBudget; // 粗利予測 = 収入予算(or実収入) - 予算
 
-    totalBudget += realBudget;
-    totalEst    += est;
-    totalAct    += act;
+    totalBudget    += realBudget;
+    totalEst       += est;
+    totalAct       += act;
     totalGross         += gross;
     totalGrossForecast += grossForecast;
+    totalRevBudget += revBudget;
 
     const tag = diff<0 ? `<span class="tag tg-o">超過</span>`
               : act===0 ? `<span class="tag tg-z">未実施</span>`
@@ -2041,7 +2061,10 @@ async function renderProg(){
       <td style="text-align:right;color:var(--blue);font-family:var(--mono)">${fmtN(est)}</td>
       <td style="text-align:right;font-family:var(--mono)">${fmtN(act)}</td>
       <td style="text-align:right;font-family:var(--mono)" class="${diff<0?'ng':'ok'}">${diff<0?'▼':'▲'} ${fmtN(Math.abs(diff))}</td>
-      <td style="text-align:right;font-family:var(--mono);color:var(--acc)">${rev>0?fmtN(rev):'—'}</td>
+      <td style="text-align:right;font-family:var(--mono);font-size:11px">
+        ${revBudget>0?`<div style="color:var(--blue);font-size:10px">${fmtN(revBudget)}</div>`:''}
+        <div style="color:${rev>0?'var(--acc)':'var(--t3)'}">${rev>0?fmtN(rev):'—'}</div>
+      </td>
       <td style="text-align:right;font-family:var(--mono);font-weight:700;color:${gfColor};background:rgba(37,99,235,.04)">${gfStr}</td>
       <td style="text-align:right;font-family:var(--mono);font-weight:700;color:${grossColor};background:rgba(16,185,129,.04)">${grossStr}</td>
       ${prevCell}
@@ -2059,7 +2082,10 @@ async function renderProg(){
       <td style="text-align:right;font-family:var(--mono);color:var(--blue)">${fmtN(totalEst)}</td>
       <td style="text-align:right;font-family:var(--mono)">${fmtN(totalAct)}</td>
       <td style="text-align:right;font-family:var(--mono)" class="${totalBudget-totalAct<0?'ng':'ok'}">${totalBudget-totalAct<0?'▼':'▲'} ${fmtN(Math.abs(totalBudget-totalAct))}</td>
-      <td style="text-align:right;font-family:var(--mono);color:var(--acc)">${fmtN(totalRevenue)}</td>
+      <td style="text-align:right;font-family:var(--mono);font-size:11px">
+        ${totalRevBudget>0?`<div style="color:var(--blue);font-size:10px">${fmtN(totalRevBudget)}</div>`:''}
+        <div style="color:var(--acc);font-weight:800">${fmtN(totalRevenue)}</div>
+      </td>
       <td style="text-align:right;font-family:var(--mono);font-weight:800;color:${totalGFColor};background:rgba(37,99,235,.08)">${totalGrossForecast>=0?'+':''}${fmtN(totalGrossForecast)}</td>
       <td style="text-align:right;font-family:var(--mono);font-weight:800;color:${totalGrossColor};background:rgba(16,185,129,.08)">${totalGross>=0?'+':''}${fmtN(totalGross)}</td>
       <td style="text-align:right;font-family:var(--mono);font-weight:800;color:${totalPrevGross>0?'var(--green)':totalPrevGross<0?'var(--red)':'var(--t3)'};background:rgba(245,158,11,.06)">${totalPrevGross>=0?'+':''}\${fmtN(totalPrevGross)}</td>
@@ -2113,7 +2139,9 @@ async function renderProg(){
   const grossData = progs.map(p=>{
     const act  = progActual(p.id);
     const est  = progEstimate(p.id);
-    const rev  = getProgRev(p);
+    const rev     = getProgRev(p);
+    const revBudget = getRevBudgetByProgId(p.id);
+    const revDisplay = revBudget > 0 ? revBudget : rev;  // 収入予算があればそちらを表示
     return {name:p.name, gross:rev-act, forecast:rev-getProgRealBudget(p)};
   }).filter(d=>d.gross!==0||d.forecast!==0);
 
