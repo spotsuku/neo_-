@@ -1596,7 +1596,8 @@ function buildKpiCards({totR, totRB=0, totB, totE, totA, arariYosoku, arari, tar
 
 // KPIをセクション別（計画/見積/実績）にトグル表示
 function buildKpiSections({totR=0, totRB=0, totB=0, totE=0, totA=0, target=0, prevActual=null, pageKey=''}) {
-  const grossForecast = (totRB>0?totRB:totR) - totB;
+  const revForPlan   = totRB>0 ? totRB : totR;
+  const grossForecast = revForPlan - totB;
   const gross      = totR - totA;
   const grossEst   = totR - totE;
   const budgetRate = totB>0 ? Math.round(totE/totB*100) : 0;
@@ -1620,7 +1621,6 @@ function buildKpiSections({totR=0, totRB=0, totB=0, totE=0, totA=0, target=0, pr
     if(icon) icon.textContent = stored[sec] ? '▲' : '▼';
   };
 
-  // カード生成ヘルパー
   const C = (phase, label, value, sub, color) => `
     <div class="kpi" style="flex:1;min-width:130px;border-left:3px solid ${color}">
       <div class="kl" style="display:flex;align-items:center;gap:4px">
@@ -1630,25 +1630,29 @@ function buildKpiSections({totR=0, totRB=0, totB=0, totE=0, totA=0, target=0, pr
       <div class="ks">${sub}</div>
     </div>`;
 
-  // 各フェーズのカード群
+  // 計画: 収入 / 予算 / 粗利
   const planCards = [
-    totRB>0 ? C('計画','収入', fmtN(totRB)+'<em>円</em>', '収入目標', 'var(--blue)') : '',
+    C('計画','収入', fmtN(revForPlan)+'<em>円</em>', totRB>0?'収入目標':'実収入（目標未設定）', 'var(--blue)'),
     C('計画','予算', fmtN(totB)+'<em>円</em>', '年間承認予算', 'var(--blue)'),
     C('計画','粗利', (grossForecast>=0?'+':'')+fmtN(grossForecast)+'<em>円</em>', '収入 − 予算', grossForecast>=0?'var(--blue)':'var(--red)'),
   ].join('');
 
+  // 見積: 収入（計画値） / 合計 / 粗利
   const estCards = [
+    C('計画','収入', fmtN(revForPlan)+'<em>円</em>', totRB>0?'収入目標':'実収入', 'var(--blue)'),
     C('見積','合計', fmtN(totE)+'<em>円</em>', `予算消化率 <strong>${budgetRate}%</strong>`, 'var(--green)'),
     C('見積','粗利', (grossEst>=0?'+':'')+fmtN(grossEst)+'<em>円</em>', '収入 − 見積', grossEst>=0?'var(--green)':'var(--red)'),
   ].join('');
 
+  // 実績: 収入 / 合計 / 粗利 / 前年粗利 / 粗利達成率
   const yoyCard = (prevActual!==null && prevActual>0) ? (() => {
-    const ratio = Math.round(totA/prevActual*100);
-    const rc = ratio>110?'var(--acc)':ratio<90?'var(--blue)':'var(--t1)';
-    return C('前年比','実績', ratio+'<em>%</em>', `前年 ${fmtN(prevActual)}円`, rc);
+    const prevGross = totR > 0 ? totR - prevActual : -prevActual;
+    const ratio = prevGross!==0 ? Math.round(gross/prevGross*100) : null;
+    const rc = ratio===null?'var(--t3)':ratio>110?'var(--acc)':ratio<90?'var(--red)':'var(--t1)';
+    return C('前年比','粗利', (ratio!==null?ratio+'<em>%</em>':'—'), `前年粗利 ${fmtN(prevGross)}円`, rc);
   })() : '';
 
-  const targetCard = target>0 ? C('目標','達成率',
+  const targetCard = target>0 ? C('目標','粗利達成率',
     (targetRate||0)+'<em>%</em>',
     `目標${fmtN(target)}円`,
     targetRate>=100?'var(--acc)':targetRate>=70?'var(--yellow)':'var(--red)'
@@ -1662,7 +1666,6 @@ function buildKpiSections({totR=0, totRB=0, totB=0, totE=0, totA=0, target=0, pr
     targetCard,
   ].join('');
 
-  // 行レイアウト（ラベル行 + カード横並び行）
   const row = (key, label, emoji, color, bg, cards, open) => `
     <div style="margin-bottom:8px">
       <div style="display:flex;align-items:center;padding:6px 12px;background:${bg};border-radius:8px 8px ${open?'0 0':'8px 8px'};cursor:pointer;user-select:none"
@@ -1671,7 +1674,7 @@ function buildKpiSections({totR=0, totRB=0, totB=0, totE=0, totA=0, target=0, pr
         <span id="kpi-icon-${pageKey}-${key}" style="margin-left:auto;font-size:10px;color:${color}">${open?'▲':'▼'}</span>
       </div>
       <div id="kpi-body-${pageKey}-${key}"
-           style="${open?'display:flex':'display:none'};flex-wrap:wrap;gap:8px;padding:8px;background:${bg}33;border-radius:0 0 8px 8px">
+           style="${open?'display:flex':'display:none'};flex-wrap:wrap;gap:8px;padding:8px;background:${bg}55;border-radius:0 0 8px 8px">
         ${cards}
       </div>
     </div>`;
