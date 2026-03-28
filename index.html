@@ -1517,72 +1517,53 @@ function buildKpiCards({totR, totRB=0, totB, totE, totA, arariYosoku, arari, tar
   const phase = totA > 0 ? 3 : totE > 0 ? 2 : 1;
 
   return `
-    <!-- Phase1: 計画 -->
-    <div class="kpi" style="border-left:3px solid rgba(139,92,246,.6)">
-      <div class="kl" style="display:flex;align-items:center;gap:5px">
-        <span style="font-size:8px;background:rgba(139,92,246,.7);color:#fff;padding:1px 5px;border-radius:3px">計画</span>収入予算
-      </div>
-      <div class="kv" style="color:var(--purple)">${totRB>0?fmtN(totRB):'未設定'}<em>${totRB>0?'円':''}</em></div>
+    <!-- 計画(青): 収入予算 / 予算 / 粗利 -->
+    <div class="kpi" style="border-left:3px solid var(--blue);background:rgba(37,99,235,.04)">
+      <div class="kl"><span style="font-size:8px;background:var(--blue);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">計画</span>収入</div>
+      <div class="kv" style="color:var(--blue)">${totRB>0?fmtN(totRB):'未設定'}<em>${totRB>0?'円':''}</em></div>
       <div class="ks">${totRB>0?'収入目標':'収入管理で設定してください'}</div>
     </div>
-    <div class="kpi" style="border-left:3px solid var(--acc)">
-      <div class="kl" style="display:flex;align-items:center;gap:5px">
-        <span style="font-size:8px;background:var(--acc);color:#fff;padding:1px 5px;border-radius:3px">実績</span>実収入
-      </div>
-      <div class="kv" style="color:var(--acc)">${fmtN(totR)}<em>円</em></div>
-      <div class="ks">${totRB>0?'収入達成率 <strong style="color:'+(totR>=totRB?'var(--green)':'var(--red)')+'">'+Math.round(totR/totRB*100)+'%</strong>':'参加費・協賛・補助金'}</div>
-    </div>
-    <div class="kpi" style="border-left:3px solid var(--t2)">
-      <div class="kl" style="display:flex;align-items:center;gap:5px">
-        <span style="font-size:8px;background:var(--t2);color:#fff;padding:1px 5px;border-radius:3px">計画</span>総予算
-      </div>
-      <div class="kv">${fmtN(totB)}<em>円</em></div>
+    <div class="kpi" style="border-left:3px solid var(--blue);background:rgba(37,99,235,.04)">
+      <div class="kl"><span style="font-size:8px;background:var(--blue);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">計画</span>予算</div>
+      <div class="kv" style="color:var(--blue)">${fmtN(totB)}<em>円</em></div>
       <div class="ks">年間承認予算</div>
     </div>
-    <div class="kpi" style="border-left:3px solid ${grossForecast>=0?'var(--blue)':'var(--red)'}">
-      <div class="kl" style="display:flex;align-items:center;gap:5px">
-        <span style="font-size:8px;background:var(--blue);color:#fff;padding:1px 5px;border-radius:3px">計画</span>粗利予測
-      </div>
+    <div class="kpi" style="border-left:3px solid var(--blue);background:rgba(37,99,235,.04)">
+      <div class="kl"><span style="font-size:8px;background:var(--blue);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">計画</span>粗利</div>
       <div class="kv" style="color:${grossForecast>=0?'var(--blue)':'var(--red)'}">${grossForecast>=0?'+':''}${fmtN(grossForecast)}<em>円</em></div>
       <div class="ks">収入 − 予算</div>
     </div>
-    <!-- Phase2: 見積 -->
-    <div class="kpi" style="border-left:3px solid var(--blue)">
-      <div class="kl" style="display:flex;align-items:center;gap:5px">
-        <span style="font-size:8px;background:var(--blue);color:#fff;padding:1px 5px;border-radius:3px">見積</span>見積合計
-      </div>
-      <div class="kv" style="color:var(--blue)">${fmtN(totE)}<em>円</em></div>
-      <div class="ks">予算消化率 <strong style="color:${budgetRate>100?'var(--red)':'var(--blue)'}">${budgetRate}%</strong></div>
+    <!-- 見積(緑): 見積合計 / 粗利 -->
+    <div class="kpi" style="border-left:3px solid var(--green);background:rgba(16,185,129,.04)">
+      <div class="kl"><span style="font-size:8px;background:var(--green);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">見積</span>合計</div>
+      <div class="kv" style="color:var(--green)">${fmtN(totE)}<em>円</em></div>
+      <div class="ks">予算消化率 <strong style="color:${budgetRate>100?'var(--red)':'var(--green)'}">${budgetRate}%</strong></div>
     </div>
-    <div class="kpi" style="border-left:3px solid ${grossEst>=0?'var(--blue)':'var(--red)'}">
-      <div class="kl" style="display:flex;align-items:center;gap:5px">
-        <span style="font-size:8px;background:var(--blue);color:#fff;padding:1px 5px;border-radius:3px">見積</span>粗利見積
-      </div>
-      <div class="kv" style="color:${grossEst>=0?'var(--blue)':'var(--red)'};font-size:${fmtN(grossEst).length>8?'16px':'inherit'}">${grossEst>=0?'+':''}${fmtN(grossEst)}<em>円</em></div>
+    <div class="kpi" style="border-left:3px solid var(--green);background:rgba(16,185,129,.04)">
+      <div class="kl"><span style="font-size:8px;background:var(--green);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">見積</span>粗利</div>
+      <div class="kv" style="color:${grossEst>=0?'var(--green)':'var(--red)'}">${grossEst>=0?'+':''}${fmtN(grossEst)}<em>円</em></div>
       <div class="ks">収入 − 見積</div>
     </div>
-    <!-- Phase3: 実績 -->
-    <div class="kpi" style="border-left:3px solid var(--green)">
-      <div class="kl" style="display:flex;align-items:center;gap:5px">
-        <span style="font-size:8px;background:var(--green);color:#fff;padding:1px 5px;border-radius:3px">実績</span>実績合計
-      </div>
-      <div class="kv">${fmtN(totA)}<em>円</em></div>
-      <div class="ks">見積進捗 <strong style="color:${execRate>100?'var(--red)':'var(--green)'}">${execRate}%</strong></div>
+    <!-- 実績(オレンジ): 収入 / 合計 / 粗利 -->
+    <div class="kpi" style="border-left:3px solid var(--acc);background:rgba(249,115,22,.04)">
+      <div class="kl"><span style="font-size:8px;background:var(--acc);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">実績</span>収入</div>
+      <div class="kv" style="color:var(--acc)">${fmtN(totR)}<em>円</em></div>
+      <div class="ks">${totRB>0?'達成率 <strong style="color:'+(totR>=totRB?'var(--acc)':'var(--red)')+'">'+Math.round(totR/totRB*100)+'%</strong>':'参加費・協賛・補助金'}</div>
     </div>
-    <div class="kpi" style="border-left:3px solid ${gross>=0?'var(--green)':'var(--red)'}">
-      <div class="kl" style="display:flex;align-items:center;gap:5px">
-        <span style="font-size:8px;background:var(--green);color:#fff;padding:1px 5px;border-radius:3px">実績</span>粗利実績
-      </div>
-      <div class="kv" style="color:${gross>=0?'var(--green)':'var(--red)'};font-size:${fmtN(gross).length>8?'16px':'inherit'}">${gross>=0?'+':''}${fmtN(gross)}<em>円</em></div>
+    <div class="kpi" style="border-left:3px solid var(--acc);background:rgba(249,115,22,.04)">
+      <div class="kl"><span style="font-size:8px;background:var(--acc);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">実績</span>合計</div>
+      <div class="kv" style="color:var(--acc)">${fmtN(totA)}<em>円</em></div>
+      <div class="ks">見積進捗 <strong style="color:${execRate>100?'var(--red)':'var(--acc)'}">${execRate}%</strong></div>
+    </div>
+    <div class="kpi" style="border-left:3px solid var(--acc);background:rgba(249,115,22,.04)">
+      <div class="kl"><span style="font-size:8px;background:var(--acc);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">実績</span>粗利</div>
+      <div class="kv" style="color:${gross>=0?'var(--acc)':'var(--red)'}">${gross>=0?'+':''}${fmtN(gross)}<em>円</em></div>
       <div class="ks">収入 − 実績${gross>=0?' ✅ 黒字':' ⚠️ 赤字'}</div>
     </div>
-    <!-- Phase4: 粗利目標 -->
     ${target > 0 ? `
-    <div class="kpi" style="border-left:3px solid ${targetRate>=100?'var(--green)':targetRate>=70?'var(--yellow)':'var(--red)'}">
-      <div class="kl" style="display:flex;align-items:center;gap:5px">
-        <span style="font-size:8px;background:var(--acc2);color:#fff;padding:1px 5px;border-radius:3px">目標</span>達成率
-      </div>
-      <div class="kv" style="color:${targetRate>=100?'var(--green)':targetRate>=70?'var(--yellow)':'var(--red)'}">${targetRate}<em>%</em></div>
+    <div class="kpi" style="border-left:3px solid ${targetRate>=100?'var(--acc)':targetRate>=70?'var(--yellow)':'var(--red)'}">
+      <div class="kl"><span style="font-size:8px;background:var(--acc2);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">目標</span>達成率</div>
+      <div class="kv" style="color:${targetRate>=100?'var(--acc)':targetRate>=70?'var(--yellow)':'var(--red)'}">${targetRate}<em>%</em></div>
       <div class="ks">目標 ${fmtN(target)}円 / 予測 ${targetFcRate}%</div>
     </div>` : ''}
     ${yoyHtml}
