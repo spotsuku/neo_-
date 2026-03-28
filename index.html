@@ -178,7 +178,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 }
 
 /* KPIトグル */
-.kpi-section { margin-bottom: 14px; }
+.kpi-section { flex:1; min-width:0; }
 .kpi-section-header {
   display: flex; align-items: center; gap: 8px;
   padding: 6px 12px; border-radius: 8px; cursor: pointer;
@@ -188,11 +188,17 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 }
 .kpi-section-header:hover { opacity: .8; }
 .kpi-section-body {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px; transition: all .2s;
+  display: grid; grid-template-columns: 1fr;
+  gap: 8px; transition: all .2s;
 }
 .kpi-section-body.collapsed { display: none; }
 .kpi-toggle-icon { font-size: 10px; margin-left: auto; }
+
+/* KPIセクションコンテナはbuildKpiSections内部で3列グリッドを使うためblockにする */
+[id$="-kpis"].g7, #ov-kpis, #prog-kpi-cards {
+  display: block !important;
+  grid-template-columns: unset !important;
+}
 </style>
 </head>
 <body>
@@ -268,7 +274,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 
     <!-- OVERVIEW -->
     <div class="pg on" id="pg-ov">
-      <div class="g5" id="ov-kpis"></div>
+      <div class="g5" id="ov-kpis" style="display:block"></div>
       <div class="g31">
         <div class="card"><div class="ct"><div class="pip"></div>月別支出推移（実績）</div><div class="ch"><canvas id="ch-monthly"></canvas></div></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--green)"></div>収入内訳</div><div id="ov-rev"></div></div>
@@ -287,7 +293,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
     <!-- PROGRAMS -->
     <div class="pg" id="pg-prog">
       <!-- 全体KPIカード -->
-      <div id="prog-kpi-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px"></div>
+      <div id="prog-kpi-cards" style="margin-bottom:16px"></div>
 
       <!-- 粗利目標設定バー -->
       <div class="card" style="margin-bottom:14px;padding:12px 16px">
@@ -1591,118 +1597,92 @@ function buildKpiCards({totR, totRB=0, totB, totE, totA, arariYosoku, arari, tar
 // KPIをセクション別（計画/見積/実績）にトグル表示
 function buildKpiSections({totR=0, totRB=0, totB=0, totE=0, totA=0, target=0, prevActual=null, pageKey=''}) {
   const grossForecast = (totRB>0?totRB:totR) - totB;
-  const gross         = totR - totA;
-  const grossEst      = totR - totE;
-  const budgetRate    = totB>0 ? Math.round(totE/totB*100) : 0;
-  const execRate      = totE>0 ? Math.round(totA/totE*100) : 0;
-  const targetRate    = target>0 ? Math.min(999,Math.round(gross/target*100)) : null;
-  const targetFcRate  = target>0 ? Math.min(999,Math.round(grossForecast/target*100)) : null;
+  const gross     = totR - totA;
+  const grossEst  = totR - totE;
+  const budgetRate = totB>0 ? Math.round(totE/totB*100) : 0;
+  const execRate   = totE>0 ? Math.round(totA/totE*100) : 0;
+  const targetRate = target>0 ? Math.min(999,Math.round(gross/target*100)) : null;
+  const targetFcRate = target>0 ? Math.min(999,Math.round(grossForecast/target*100)) : null;
 
   const storKey = `kpi_open_${pageKey}`;
   const openSecs = JSON.parse(sessionStorage.getItem(storKey)||'{"plan":true,"est":true,"act":true}');
+  const planOpen = openSecs.plan !== false;
+  const estOpen  = openSecs.est  !== false;
+  const actOpen  = openSecs.act  !== false;
 
-  const toggle = (sec) => {
+  window[`_kpiToggle_${pageKey}`] = (sec) => {
     const stored = JSON.parse(sessionStorage.getItem(storKey)||'{"plan":true,"est":true,"act":true}');
     stored[sec] = !stored[sec];
     sessionStorage.setItem(storKey, JSON.stringify(stored));
     const body = document.getElementById(`kpi-body-${pageKey}-${sec}`);
     const icon = document.getElementById(`kpi-icon-${pageKey}-${sec}`);
-    if(body) body.classList.toggle('collapsed', !stored[sec]);
+    if(body) { body.style.display = stored[sec] ? '' : 'none'; }
     if(icon) icon.textContent = stored[sec] ? '▲' : '▼';
   };
-  window[`_kpiToggle_${pageKey}`] = toggle;
 
-  const planOpen = openSecs.plan !== false;
-  const estOpen  = openSecs.est  !== false;
-  const actOpen  = openSecs.act  !== false;
+  const C = (phase, label, value, sub, color='', extraStyle='') => `
+    <div class="kpi" style="border-left:3px solid ${color||'var(--t2)'};${extraStyle}">
+      <div class="kl" style="display:flex;align-items:center;gap:4px">
+        <span style="font-size:8px;background:${color||'var(--t2)'};color:#fff;padding:1px 6px;border-radius:3px">${phase}</span>${label}
+      </div>
+      <div class="kv" style="color:${color||'var(--t1)'}">${value}</div>
+      <div class="ks">${sub}</div>
+    </div>`;
 
-  // 前年比
-  let yoyCard = '';
-  if(prevActual !== null && prevActual > 0) {
+  // 計画カード
+  const planCards = [
+    totRB>0 ? C('計画','収入', fmtN(totRB)+'<em>円</em>', '収入目標', 'var(--blue)', 'background:rgba(37,99,235,.04)') : '',
+    C('計画','予算', fmtN(totB)+'<em>円</em>', '年間承認予算', 'var(--blue)', 'background:rgba(37,99,235,.04)'),
+    C('計画','粗利', (grossForecast>=0?'+':'')+fmtN(grossForecast)+'<em>円</em>', '収入 − 予算', grossForecast>=0?'var(--blue)':'var(--red)', 'background:rgba(37,99,235,.04)'),
+  ].join('');
+
+  // 見積カード
+  const estCards = [
+    C('見積','合計', fmtN(totE)+'<em>円</em>', `予算消化率 <strong>${budgetRate}%</strong>`, 'var(--green)', 'background:rgba(16,185,129,.04)'),
+    C('見積','粗利', (grossEst>=0?'+':'')+fmtN(grossEst)+'<em>円</em>', '収入 − 見積', grossEst>=0?'var(--green)':'var(--red)', 'background:rgba(16,185,129,.04)'),
+  ].join('');
+
+  // 実績カード
+  const yoyCard = (prevActual!==null && prevActual>0) ? (() => {
     const ratio = Math.round(totA/prevActual*100);
     const rc = ratio>110?'var(--acc)':ratio<90?'var(--blue)':'var(--t1)';
-    yoyCard = `<div class="kpi" style="border-left:3px solid var(--t3)">
-      <div class="kl"><span style="font-size:8px;background:var(--t3);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">前年比</span>実績</div>
-      <div class="kv" style="color:${rc}">${ratio}<em>%</em></div>
-      <div class="ks">前年 ${fmtN(prevActual)}円</div>
-    </div>`;
-  }
+    return C('前年比','実績', ratio+'<em>%</em>', `前年 ${fmtN(prevActual)}円`, rc, 'background:rgba(249,115,22,.04)');
+  })() : '';
 
-  return `
-    <!-- 計画(青) -->
-    <div class="kpi-section">
-      <div class="kpi-section-header" style="background:rgba(37,99,235,.08);color:var(--blue)" onclick="_kpiToggle_${pageKey}('plan')">
-        📋 計画
-        <span id="kpi-icon-${pageKey}-plan" class="kpi-toggle-icon">${planOpen?'▲':'▼'}</span>
+  const targetCard = target>0 ? C('目標','達成率',
+    (targetRate||0)+'<em>%</em>',
+    `目標${fmtN(target)}円`,
+    targetRate>=100?'var(--acc)':targetRate>=70?'var(--yellow)':'var(--red)',
+    'background:rgba(249,115,22,.04)'
+  ) : '';
+
+  const actCards = [
+    C('実績','収入', fmtN(totR)+'<em>円</em>', totRB>0?`達成率 <strong>${Math.round(totR/totRB*100)}%</strong>`:`参加費・協賛`, 'var(--acc)', 'background:rgba(249,115,22,.04)'),
+    C('実績','合計', fmtN(totA)+'<em>円</em>', `見積進捗 <strong>${execRate}%</strong>`, 'var(--acc)', 'background:rgba(249,115,22,.04)'),
+    C('実績','粗利', (gross>=0?'+':'')+fmtN(gross)+'<em>円</em>', `収入 − 実績${gross>=0?' ✅ 黒字':' ⚠️ 赤字'}`, gross>=0?'var(--acc)':'var(--red)', 'background:rgba(249,115,22,.04)'),
+    yoyCard,
+    targetCard,
+  ].join('');
+
+  const sec = (key, label, emoji, color, bg, cards, open) => `
+    <div style="border-radius:10px;overflow:hidden;border:1.5px solid ${color}22">
+      <div style="display:flex;align-items:center;padding:8px 12px;background:${bg};color:${color};font-size:11px;font-weight:700;cursor:pointer;user-select:none"
+           onclick="_kpiToggle_${pageKey}('${key}')">
+        ${emoji} ${label}
+        <span id="kpi-icon-${pageKey}-${key}" style="margin-left:auto;font-size:10px">${open?'▲':'▼'}</span>
       </div>
-      <div id="kpi-body-${pageKey}-plan" class="kpi-section-body${planOpen?'':' collapsed'}">
-        ${totRB>0?`<div class="kpi" style="border-left:3px solid var(--blue);background:rgba(37,99,235,.04)">
-          <div class="kl"><span style="font-size:8px;background:var(--blue);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">計画</span>収入</div>
-          <div class="kv" style="color:var(--blue)">${fmtN(totRB)}<em>円</em></div>
-          <div class="ks">収入目標</div>
-        </div>`:''}
-        <div class="kpi" style="border-left:3px solid var(--blue);background:rgba(37,99,235,.04)">
-          <div class="kl"><span style="font-size:8px;background:var(--blue);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">計画</span>予算</div>
-          <div class="kv" style="color:var(--blue)">${fmtN(totB)}<em>円</em></div>
-          <div class="ks">年間承認予算</div>
-        </div>
-        <div class="kpi" style="border-left:3px solid var(--blue);background:rgba(37,99,235,.04)">
-          <div class="kl"><span style="font-size:8px;background:var(--blue);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">計画</span>粗利</div>
-          <div class="kv" style="color:${grossForecast>=0?'var(--blue)':'var(--red)'}">${grossForecast>=0?'+':''}${fmtN(grossForecast)}<em>円</em></div>
-          <div class="ks">収入 − 予算</div>
-        </div>
-      </div>
-    </div>
-    <!-- 見積(緑) -->
-    <div class="kpi-section">
-      <div class="kpi-section-header" style="background:rgba(16,185,129,.08);color:var(--green)" onclick="_kpiToggle_${pageKey}('est')">
-        📝 見積
-        <span id="kpi-icon-${pageKey}-est" class="kpi-toggle-icon">${estOpen?'▲':'▼'}</span>
-      </div>
-      <div id="kpi-body-${pageKey}-est" class="kpi-section-body${estOpen?'':' collapsed'}">
-        <div class="kpi" style="border-left:3px solid var(--green);background:rgba(16,185,129,.04)">
-          <div class="kl"><span style="font-size:8px;background:var(--green);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">見積</span>合計</div>
-          <div class="kv" style="color:var(--green)">${fmtN(totE)}<em>円</em></div>
-          <div class="ks">予算消化率 <strong style="color:${budgetRate>100?'var(--red)':'var(--green)'}">${budgetRate}%</strong></div>
-        </div>
-        <div class="kpi" style="border-left:3px solid var(--green);background:rgba(16,185,129,.04)">
-          <div class="kl"><span style="font-size:8px;background:var(--green);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">見積</span>粗利</div>
-          <div class="kv" style="color:${grossEst>=0?'var(--green)':'var(--red)'}">${grossEst>=0?'+':''}${fmtN(grossEst)}<em>円</em></div>
-          <div class="ks">収入 − 見積</div>
-        </div>
-      </div>
-    </div>
-    <!-- 実績(オレンジ) -->
-    <div class="kpi-section">
-      <div class="kpi-section-header" style="background:rgba(249,115,22,.08);color:var(--acc)" onclick="_kpiToggle_${pageKey}('act')">
-        ✅ 実績
-        <span id="kpi-icon-${pageKey}-act" class="kpi-toggle-icon">${actOpen?'▲':'▼'}</span>
-      </div>
-      <div id="kpi-body-${pageKey}-act" class="kpi-section-body${actOpen?'':' collapsed'}">
-        <div class="kpi" style="border-left:3px solid var(--acc);background:rgba(249,115,22,.04)">
-          <div class="kl"><span style="font-size:8px;background:var(--acc);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">実績</span>収入</div>
-          <div class="kv" style="color:var(--acc)">${fmtN(totR)}<em>円</em></div>
-          <div class="ks">${totRB>0?'達成率 <strong style="color:'+(totR>=totRB?'var(--acc)':'var(--red)')+'">'+Math.round(totR/totRB*100)+'%</strong>':'参加費・協賛'}</div>
-        </div>
-        <div class="kpi" style="border-left:3px solid var(--acc);background:rgba(249,115,22,.04)">
-          <div class="kl"><span style="font-size:8px;background:var(--acc);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">実績</span>合計</div>
-          <div class="kv" style="color:var(--acc)">${fmtN(totA)}<em>円</em></div>
-          <div class="ks">見積進捗 <strong style="color:${execRate>100?'var(--red)':'var(--acc)'}">${execRate}%</strong></div>
-        </div>
-        <div class="kpi" style="border-left:3px solid var(--acc);background:rgba(249,115,22,.04)">
-          <div class="kl"><span style="font-size:8px;background:var(--acc);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">実績</span>粗利</div>
-          <div class="kv" style="color:${gross>=0?'var(--acc)':'var(--red)'}">${gross>=0?'+':''}${fmtN(gross)}<em>円</em></div>
-          <div class="ks">収入 − 実績${gross>=0?' ✅ 黒字':' ⚠️ 赤字'}</div>
-        </div>
-        ${yoyCard}
-        ${target>0?`<div class="kpi" style="border-left:3px solid ${targetRate>=100?'var(--acc)':targetRate>=70?'var(--yellow)':'var(--red)'}">
-          <div class="kl"><span style="font-size:8px;background:var(--acc2);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">目標</span>達成率</div>
-          <div class="kv" style="color:${targetRate>=100?'var(--acc)':targetRate>=70?'var(--yellow)':'var(--red)'}">${targetRate}<em>%</em></div>
-          <div class="ks">目標${fmtN(target)}円/予測${targetFcRate}%</div>
-        </div>`:''}
+      <div id="kpi-body-${pageKey}-${key}" style="${open?'display:flex':'display:none'};flex-direction:column;gap:8px;padding:8px">
+        ${cards}
       </div>
     </div>`;
+
+  return `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:start">
+    ${sec('plan','計画','📋','var(--blue)','rgba(37,99,235,.08)', planCards, planOpen)}
+    ${sec('est', '見積','📝','var(--green)','rgba(16,185,129,.08)', estCards, estOpen)}
+    ${sec('act', '実績','✅','var(--acc)','rgba(249,115,22,.08)', actCards, actOpen)}
+  </div>`;
 }
+
 
 // 最後のスナップショット保存時刻
 let _lastSnapshotTs = 0;
@@ -1876,7 +1856,6 @@ function renderOv(){
   // 粗利目標
   const ovTarget = n(S.grossProfitTarget);
   const totRB = (S.revenues||[]).reduce((t,r)=>t+n(r.budget),0);
-  if(kpiEl) kpiEl.style.gridTemplateColumns = '';
   document.getElementById('ov-kpis').innerHTML = buildKpiSections({
     totR, totRB, totB, totE, totA,
     target: ovTarget,
@@ -2076,7 +2055,6 @@ async function renderProg(){
   const kpiEl = document.getElementById('prog-kpi-cards');
   if(kpiEl) {
     const totRBProg = (S.revenues||[]).reduce((t,r)=>t+n(r.budget),0);
-    kpiEl.style.gridTemplateColumns = '';
     kpiEl.innerHTML = buildKpiSections({
       totR: totalRevenue,
       totRB: totRBProg,
@@ -2145,7 +2123,6 @@ function renderSeries(key){
     prevActual: prevSeriesA,
     pageKey: key,
   });
-  document.getElementById(`${key}-kpis`).style.gridTemplateColumns = '';
   const cat9Totals={};ACCOUNTING_CATS.forEach(cat=>{cat9Totals[cat]={budget:0,estimate:0,actual:0};});ss.forEach(s=>{(s.items||[]).forEach(it=>{const cat=ACCOUNTING_CATS.includes(it.name)?it.name:detectCat(it.name);if(!cat9Totals[cat])cat9Totals[cat]={budget:0,estimate:0,actual:0};cat9Totals[cat].budget+=n(it.budget);cat9Totals[cat].estimate+=n(it.estimate);cat9Totals[cat].actual+=n(it.actual);});});
   const catTbody=document.getElementById(`${key}-cat-tbody`);if(catTbody){catTbody.innerHTML=ACCOUNTING_CATS.map(cat=>{const t=cat9Totals[cat];if(!t.budget&&!t.estimate&&!t.actual)return'';const diff=t.estimate-t.actual;const cc=CAT_COLORS[cat]||{fg:'374151',bg:'f3f4f6'};return`<tr><td><span style="font-size:9px;font-weight:700;color:#${cc.fg};background:#${cc.bg};padding:2px 7px;border-radius:10px">${cat}</span></td><td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--t2)">${t.budget?fmtN(t.budget):'—'}</td><td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--blue)">${t.estimate?fmtN(t.estimate):'—'}</td><td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--green);font-weight:600">${t.actual?fmtN(t.actual):'—'}</td><td style="font-size:12px;text-align:right;font-weight:600" class="${diff>=0?'ok':'ng'}">${t.estimate||t.actual?(diff>=0?'▲':'▼')+' '+fmtN(Math.abs(diff)):'—'}</td></tr>`;}).filter(Boolean).join('');}
   const chartItems=ACCOUNTING_CATS.filter(cat=>cat9Totals[cat]?.actual>0);dc(`ch-${key}-cat`);const cvs=document.getElementById(`ch-${key}-cat`);if(cvs&&chartItems.length){_ch[`ch-${key}-cat`]=new Chart(cvs,{type:'doughnut',data:{labels:chartItems.map(c=>c),datasets:[{data:chartItems.map(c=>cat9Totals[c].actual),backgroundColor:chartItems.map(c=>(CAT_COLORS[c]?`#${CAT_COLORS[c].fg}`:'#374151')+'cc'),borderWidth:1.5,hoverOffset:5}]},options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{position:'right',labels:{boxWidth:7,padding:8,font:{size:9}}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ¥${Math.round(ctx.raw).toLocaleString()}`}}}}});}
@@ -2172,7 +2149,6 @@ function renderEvt(key){
     prevActual: prevEvtA,
     pageKey: key,
   });
-  document.getElementById(`${key}-kpis`).style.gridTemplateColumns = '';
   const cat9Map={};(ev.items||[]).forEach(it=>{const cat=ACCOUNTING_CATS.includes(it.name)?it.name:detectCat(it.name);if(!cat9Map[cat])cat9Map[cat]={id:it.id||uid(),budget:0,estimate:0,actual:0};cat9Map[cat].budget+=n(it.budget);cat9Map[cat].estimate+=n(it.estimate);cat9Map[cat].actual+=n(it.actual);});
   document.getElementById(`${key}-tbody`).innerHTML=ACCOUNTING_CATS.map(cat=>{const vals=cat9Map[cat]||{budget:0,estimate:0,actual:0};const dispB=vals.budget,dispE=vals.estimate,dispA=vals.actual;const diff=dispB?(dispB-dispA):(dispE-dispA);const cc=CAT_COLORS[cat]||{fg:'374151',bg:'f3f4f6'};const hasValue=dispB||dispE||dispA;if(!hasValue)return'';return`<tr style="border-bottom:1px solid var(--b1)"><td style="padding:10px 0;font-weight:600;font-size:13px"><span style="font-size:9px;font-weight:700;color:#${cc.fg};background:#${cc.bg};padding:2px 8px;border-radius:10px;margin-right:8px">${cat}</span></td><td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--t2)">${dispB?fmtN(dispB):'—'}</td><td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--blue)">${dispE?fmtN(dispE):'—'}</td><td style="font-family:var(--mono);font-size:12px;text-align:right;color:var(--green);font-weight:600">${dispA?fmtN(dispA):'—'}</td><td style="font-size:12px;text-align:right;font-weight:600" class="${diff>=0?'ok':'ng'}">${dispB||dispE||dispA?(diff>=0?'▲':'▼')+' '+fmtN(Math.abs(diff)):'—'}</td></tr>`;}).filter(Boolean).join('');
   const items=ev.items.filter(i=>n(i.actual)>0);dc('ch-'+key);_ch['ch-'+key]=new Chart(document.getElementById('ch-'+key),{type:'doughnut',data:{labels:items.map(i=>i.name),datasets:[{data:items.map(i=>i.actual),backgroundColor:PAL.slice(0,items.length).map(c=>c+'cc'),borderColor:PAL.slice(0,items.length),borderWidth:1.5,hoverOffset:5}]},options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{position:'right',labels:{boxWidth:7,padding:8,font:{size:10}}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ¥${Math.round(ctx.raw).toLocaleString()}`}}}}});
