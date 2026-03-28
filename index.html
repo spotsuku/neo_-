@@ -1821,8 +1821,23 @@ async function openFiscalYearManager(){const years=await loadAvailableFiscalYear
 const PROG_KEYWORDS={annual:['年間共通','annual'],ko:['キックオフ','ko'],hm:['ホームルーム','hm'],aw:['アワード','aw','award'],cityfes:['シティフェス','cityfes','city fes'],ye:['イヤーエンド','ye','year end','yearend'],gk:['評議会','gk'],oe:['応援カイギ','oe'],other:['その他','other'],marketing:['マーケ','マーケ関連','marketing']};
 function matchProg(progStr,id){if(!progStr)return false;const p=progStr.toLowerCase();return(PROG_KEYWORDS[id]||[]).some(kw=>p.includes(kw.toLowerCase()));}
 const CITYFES_TABS=['md','sd','cf3','cf4'];
-function progActual(id){if(id==='cityfes'){return CITYFES_TABS.reduce((t,k)=>{const est=S.estimates?.[k]||[];return t+(est.length?est.reduce((s,r)=>s+n(r.actual),0):evtSum(k,'actual'));},0);}if(S.events[id]!==undefined){const estRows=S.estimates?.[id]||[];if(estRows.length>0)return estRows.reduce((t,r)=>t+n(r.actual),0);return evtSum(id,'actual');}let t=(S.sessions[id]||[]).reduce((s,sess)=>s+sessSum(sess,'actual'),0);t+=(S.ledger||[]).filter(i=>matchProg(i.prog,id)).reduce((s,i)=>s+n(i.actual),0);if(id==='marketing')t+=(S.mktItems||[]).reduce((s,i)=>s+n(i.actual),0);if(id==='annual')t+=(S.prodItems||[]).reduce((s,i)=>s+n(i.actual),0);return t;}
-function progEstimate(id){if(S.events[id]){let t=evtSum(id,'estimate');t+=(S.ledger||[]).filter(i=>matchProg(i.prog,id)).reduce((s,i)=>s+n(i.estimate),0);return t;}let t=(S.sessions[id]||[]).reduce((s,sess)=>s+sessSum(sess,'estimate'),0);t+=(S.ledger||[]).filter(i=>matchProg(i.prog,id)).reduce((s,i)=>s+n(i.estimate),0);if(id==='marketing')t+=(S.mktItems||[]).reduce((s,i)=>s+n(i.estimate),0);if(id==='annual')t+=(S.prodItems||[]).reduce((s,i)=>s+n(i.estimate),0);return t;}
+function progActual(id){if(id==='cityfes'){return CITYFES_TABS.reduce((t,k)=>{const est=S.estimates?.[k]||[];
+    // estimatesキーが存在すれば（0行でも）estimatesを使う、存在しない場合のみeventsを使う
+    return t+(k in (S.estimates||{})?est.reduce((s,r)=>s+n(r.actual),0):evtSum(k,'actual'));},0);}
+  if(S.events[id]!==undefined){const estRows=S.estimates?.[id]||[];
+    // estimatesキーが存在すれば（0行でも）estimatesを使う
+    if(id in (S.estimates||{}))return estRows.reduce((t,r)=>t+n(r.actual),0);
+    return evtSum(id,'actual');}
+  let t=(S.sessions[id]||[]).reduce((s,sess)=>s+sessSum(sess,'actual'),0);t+=(S.ledger||[]).filter(i=>matchProg(i.prog,id)).reduce((s,i)=>s+n(i.actual),0);if(id==='marketing')t+=(S.mktItems||[]).reduce((s,i)=>s+n(i.actual),0);if(id==='annual')t+=(S.prodItems||[]).reduce((s,i)=>s+n(i.actual),0);return t;}
+function progEstimate(id){if(S.events[id]){
+    // estimatesキーが存在すればestimatesを使う
+    if(id in (S.estimates||{})){
+      const estRows=S.estimates[id]||[];
+      let t=estRows.reduce((s,r)=>s+n(r.estimate),0);
+      t+=(S.ledger||[]).filter(i=>matchProg(i.prog,id)).reduce((s,i)=>s+n(i.estimate),0);
+      return t;
+    }
+    let t=evtSum(id,'estimate');t+=(S.ledger||[]).filter(i=>matchProg(i.prog,id)).reduce((s,i)=>s+n(i.estimate),0);return t;}let t=(S.sessions[id]||[]).reduce((s,sess)=>s+sessSum(sess,'estimate'),0);t+=(S.ledger||[]).filter(i=>matchProg(i.prog,id)).reduce((s,i)=>s+n(i.estimate),0);if(id==='marketing')t+=(S.mktItems||[]).reduce((s,i)=>s+n(i.estimate),0);if(id==='annual')t+=(S.prodItems||[]).reduce((s,i)=>s+n(i.estimate),0);return t;}
 function getEventBudget(key){const evtBudget=evtSum(key,'budget');if(evtBudget>0)return evtBudget;const defaults=S.defaults?.[key]||[];const defBudget=defaults.reduce((t,d)=>t+n(d.budget),0);if(defBudget>0)return defBudget;const prog=S.programs.find(p=>p.id===key);return prog?n(prog.budget):0;}
 function getSeriesBudget(key){return(S.sessions[key]||[]).reduce((t,s)=>t+(s.items||[]).reduce((tt,it)=>tt+n(it.budget),0),0);}
 function getProgRealBudget(p){
