@@ -604,7 +604,16 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 <!-- ═══ 各種パネル ═══ -->
 <div class="ov" id="ov-sess"><div class="panel wide"><div class="ph"><h2 id="sess-title">回次を編集</h2><button class="xbtn" onclick="closeOv('ov-sess')">×</button></div><div class="pb-body"><div class="fg2" style="margin-bottom:10px"><div class="frow"><div class="fl">タイトル</div><input class="fi" id="s-title" placeholder="例: 第1回"></div><div class="frow"><div class="fl">開催日</div><input class="fi" id="s-date" type="date"></div></div><div class="sec-div">合計金額</div><div class="fg3" style="margin-bottom:12px"><div class="frow"><div class="fl">予算</div><input class="fi" id="s-budget-total" readonly style="color:var(--t2)"></div><div class="frow"><div class="fl" style="color:#5590dd">見積</div><input class="fi" id="s-est-total" readonly style="color:var(--blue)"></div><div class="frow"><div class="fl" style="color:#2ab890">実数</div><input class="fi" id="s-act-total" readonly style="color:var(--green)"></div></div><div class="sec-div">費目別内訳</div><div class="item-hdr"><span></span><span>費目名</span><span style="text-align:right">予算</span><span style="text-align:right">見積</span><span style="text-align:right">実数</span><span></span></div><div id="sess-items"></div><button class="add-btn admin-only" onclick="addSessItem()">＋ 費目を追加</button><div class="sec-div" style="margin-top:14px">メモ</div><input class="fi" id="s-memo" placeholder="任意のメモ"></div><div class="pf" style="justify-content:space-between"><button class="btn btn-red btn-sm admin-only" id="sess-del-btn" onclick="deleteSess()">削除</button><div style="display:flex;gap:7px"><button class="btn btn-g" onclick="closeOv('ov-sess')">キャンセル</button><button class="btn btn-xs" onclick="showPrevYearSessionRef(_sCtx.key,_sCtx.id)" style="background:rgba(139,92,246,.1);border:1.5px solid rgba(139,92,246,.3);color:#7c3aed;font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:10px">📋 前年実績参照</button><button class="btn btn-p" onclick="saveSess()">保存</button></div></div></div></div>
 <div class="ov" id="ov-evt"><div class="panel wide"><div class="ph"><h2 id="evt-title">費目別明細を編集</h2><button class="xbtn" onclick="closeOv('ov-evt')">×</button></div><div class="pb-body"><div class="item-hdr"><span></span><span>費目名</span><span style="text-align:right">予算</span><span style="text-align:right">見積</span><span style="text-align:right">実数</span><span></span></div><div id="evt-items"></div><button class="add-btn admin-only" onclick="addEvtItem()">＋ 費目を追加</button></div><div class="pf"><button class="btn btn-g" onclick="closeOv('ov-evt')">キャンセル</button><button class="btn btn-p" onclick="saveEvt()">保存</button></div></div></div>
-<div class="ov" id="ov-rev-edit"><div class="panel"><div class="ph"><h2>収入を編集</h2><button class="xbtn" onclick="closeOv('ov-rev-edit')">×</button></div><div class="pb-body"><div style="display:grid;grid-template-columns:20px 1fr 120px 90px 110px 26px;gap:5px;padding:0 2px;margin-bottom:4px"><span></span><span style="font-size:8px;font-weight:700;color:var(--t3)">項目名</span><span style="font-size:8px;font-weight:700;color:var(--t3)">プログラム</span><span style="font-size:8px;font-weight:700;color:var(--t3)">種別</span><span style="font-size:8px;font-weight:700;color:var(--t3);text-align:right">金額</span><span></span></div><div id="rev-items"></div><button class="add-btn admin-only" onclick="addRevItem()">＋ 収入項目を追加</button></div><div class="pf"><button class="btn btn-g" onclick="closeOv('ov-rev-edit')">キャンセル</button><button class="btn btn-p" onclick="saveRev()">保存</button></div></div></div>
+<div class="ov" id="ov-rev-edit"><div class="panel"><div class="ph"><h2>収入を編集</h2><button class="xbtn" onclick="closeOv('ov-rev-edit')">×</button></div><div class="pb-body"><div style="display:grid;grid-template-columns:20px 1fr 120px 90px 110px 26px;gap:5px;padding:0 2px;margin-bottom:4px"><span></span><span style="font-size:8px;font-weight:700;color:var(--t3)">項目名</span><span style="font-size:8px;font-weight:700;color:var(--t3)">プログラム</span><span style="font-size:8px;font-weight:700;color:var(--t3)">種別</span><span style="font-size:8px;font-weight:700;color:var(--t3);text-align:right">金額</span><span></span></div><div style="display:grid;grid-template-columns:20px 1fr 110px 90px 100px 100px 26px;gap:6px;padding:0 4px;margin-bottom:4px">
+          <span></span>
+          <span style="font-size:9px;font-weight:700;color:var(--t3)">収入名</span>
+          <span style="font-size:9px;font-weight:700;color:var(--t3)">プログラム</span>
+          <span style="font-size:9px;font-weight:700;color:var(--t3)">種別</span>
+          <span style="font-size:9px;font-weight:700;color:var(--blue);text-align:right">収入予算</span>
+          <span style="font-size:9px;font-weight:700;color:var(--green);text-align:right">実収入</span>
+          <span></span>
+        </div>
+        <div id="rev-items"></div><button class="add-btn admin-only" onclick="addRevItem()">＋ 収入項目を追加</button></div><div class="pf"><button class="btn btn-g" onclick="closeOv('ov-rev-edit')">キャンセル</button><button class="btn btn-p" onclick="saveRev()">保存</button></div></div></div>
 <div class="ov" id="ov-defaults"><div class="panel wide"><div class="ph"><h2>⚙️ デフォルト費目設定</h2><button class="xbtn" onclick="closeOv('ov-defaults')">×</button></div><div class="pb-body"><p style="font-size:11px;color:var(--t2);margin-bottom:14px">各シリーズで「＋ 追加」したとき、この費目と予算が自動で入力されます。</p><div class="tabs" id="defaults-tabs" style="flex-wrap:wrap;gap:4px"><button class="tab on" onclick="switchDefaultsTab('hm',this)">🏫 ホームルーム</button><button class="tab" onclick="switchDefaultsTab('gk',this)">🏛 評議会</button><button class="tab" onclick="switchDefaultsTab('oe',this)">📣 応援カイギ</button><button class="tab" onclick="switchDefaultsTab('ko',this)">🚀 キックオフ</button><button class="tab" onclick="switchDefaultsTab('aw',this)">🏆 アワード</button><button class="tab" onclick="switchDefaultsTab('ye',this)">🎉 イヤーエンド</button><button class="tab" onclick="switchDefaultsTab('tour',this)">✈️ ツアー</button></div><div id="defaults-apply-row" style="display:none;margin-bottom:10px"><button class="btn btn-sm" onclick="applyDefaultsToEvent()" style="background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.3);color:var(--blue);font-size:10px">📋 デフォルトをイベント費目に適用</button></div><div id="defaults-content"><div style="display:grid;grid-template-columns:20px 1fr 110px 26px;gap:5px;padding:0 4px;margin-bottom:4px"><span></span><span style="font-size:10px;font-weight:700;color:var(--t3)">会計科目</span><span style="font-size:10px;font-weight:700;color:var(--t3);text-align:right">デフォルト予算</span><span></span></div><div id="defaults-items"></div><button class="add-btn" onclick="addDefaultItem()">＋ 費目を追加</button></div><div style="margin-top:14px;padding:10px 12px;background:var(--s2);border-radius:7px;border:1px solid var(--b1)"><div style="font-size:10px;color:var(--t2);margin-bottom:6px">💡 プレビュー</div><div id="defaults-preview" style="font-family:var(--mono);font-size:12px;color:var(--t1)"></div></div></div><div class="pf" style="justify-content:space-between"><button class="btn btn-red btn-sm" onclick="resetDefaults()" style="font-size:9px">リセット</button><div style="display:flex;gap:7px"><button class="btn btn-g" onclick="closeOv('ov-defaults')">キャンセル</button><button class="btn btn-p" onclick="saveDefaults()">保存する</button></div></div></div></div>
 <div class="ov" id="ov-cat-master"><div class="panel wide"><div class="ph"><h2>🗂 カテゴリ判定設定</h2><button class="xbtn" onclick="closeOv('ov-cat-master')">×</button></div><div class="pb-body"><p style="font-size:11px;color:var(--t2);margin-bottom:14px">費目名にこのキーワードが含まれると自動でカテゴリが判定されます。</p><div class="tabs" id="cat-tabs" style="flex-wrap:wrap;gap:4px"><button class="tab on" onclick="switchCatTab('① 会場・施設費',this)">① 会場・施設費</button><button class="tab" onclick="switchCatTab('② 飲食・ケータリング費',this)">② 飲食</button><button class="tab" onclick="switchCatTab('③ 出演・キャスティング費',this)">③ 出演</button><button class="tab" onclick="switchCatTab('④ 制作・演出費',this)">④ 制作</button><button class="tab" onclick="switchCatTab('⑤ 運営・人件費',this)">⑤ 運営</button><button class="tab" onclick="switchCatTab('⑥ 備品・設営費',this)">⑥ 備品</button><button class="tab" onclick="switchCatTab('⑦ マーケ・広報費',this)">⑦ マーケ</button><button class="tab" onclick="switchCatTab('⑨ 旅費交通費',this)">⑨ 旅費<br>交通費</button><button class="tab" onclick="switchCatTab('⑩ その他',this)">⑩ その他</button><button class="tab" onclick="switchCatTab('⑧ デザイン費',this)">⑧ デザイン</button></div><div id="cat-master-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:120px;padding:10px 0"></div><div style="margin-top:12px;display:flex;gap:8px;align-items:center"><input class="fi" id="cat-new-keyword" placeholder="新しいキーワードを入力..." style="flex:1" onkeydown="if(event.key==='Enter')addCatKeyword()"><button class="btn btn-p btn-sm" onclick="addCatKeyword()">＋ 追加</button></div><div style="margin-top:14px;padding:10px 12px;background:var(--s2);border-radius:8px;border:1px solid var(--b1)"><div style="font-size:10px;color:var(--t2)">💡 テスト</div><div style="display:flex;gap:8px;margin-top:8px;align-items:center"><input class="fi" id="cat-test-input" placeholder="例: カメラマン" style="flex:1" oninput="testCatDetect()"><div id="cat-test-result" style="font-size:12px;font-weight:700;min-width:140px;text-align:center;padding:6px 10px;border-radius:6px;background:var(--s3)">判定結果</div></div></div></div><div class="pf" style="justify-content:space-between"><button class="btn btn-red btn-sm" onclick="resetCatMaster()">初期値に戻す</button><div style="display:flex;gap:7px"><button class="btn btn-g" onclick="closeOv('ov-cat-master')">キャンセル</button><button class="btn btn-p" onclick="saveCatMaster()">保存する</button></div></div></div></div>
 <div class="ov" id="ov-fiscal-year"><div class="panel" style="width:520px"><div class="ph"><h2>📅 年度管理</h2><button class="xbtn" onclick="closeOv('ov-fiscal-year')">×</button></div><div class="pb-body"><p style="font-size:11px;color:var(--t2);margin-bottom:16px">年度ごとにデータを分けて管理できます。</p><div style="font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">利用可能な年度</div><div id="fy-list" style="margin-bottom:20px"></div><div style="border-top:1px solid var(--b1);padding-top:16px" class="admin-only"><div style="font-size:10px;font-weight:700;color:var(--t3);margin-bottom:10px">新年度を作成</div><div style="display:flex;gap:8px;align-items:center"><input id="new-fy-input" type="number" class="fi" placeholder="例: 2026" style="width:120px" min="2024" max="2040" value="2026"><span style="font-size:11px;color:var(--t2)">年度（4月〜翌3月）</span><button class="btn btn-p btn-sm" onclick="createNewFiscalYear()">＋ 新年度作成</button></div></div></div><div class="pf"><button class="btn btn-g" onclick="closeOv('ov-fiscal-year')">閉じる</button></div></div></div>
@@ -1481,8 +1490,9 @@ async function loadFromDB(){
 // ══════════════════════════════════════════════════
 // 共通KPIカード生成関数（サマリー・プログラム別で統一）
 // ══════════════════════════════════════════════════
-function buildKpiCards({totR, totB, totE, totA, arariYosoku, arari, target, prevActual}) {
-  const grossForecast = totR - totB;   // 粗利予測 = 収入 - 予算
+function buildKpiCards({totR, totRB=0, totB, totE, totA, arariYosoku, arari, target, prevActual}) {
+  const revForForecast = totRB > 0 ? totRB : totR;  // 収入予算があればそれを使う
+  const grossForecast = revForForecast - totB;   // 粗利予測 = 収入予算(or実収入) - 予算
   const gross         = totR - totA;   // 粗利実績 = 収入 - 実績
   const grossEst      = totR - totE;   // 粗利見積 = 収入 - 見積
   const budgetRate    = totB > 0 ? Math.round(totE / totB * 100) : 0;
@@ -1508,12 +1518,19 @@ function buildKpiCards({totR, totB, totE, totA, arariYosoku, arari, target, prev
 
   return `
     <!-- Phase1: 計画 -->
+    <div class="kpi" style="border-left:3px solid rgba(139,92,246,.6)">
+      <div class="kl" style="display:flex;align-items:center;gap:5px">
+        <span style="font-size:8px;background:rgba(139,92,246,.7);color:#fff;padding:1px 5px;border-radius:3px">計画</span>収入予算
+      </div>
+      <div class="kv" style="color:var(--purple)">${totRB>0?fmtN(totRB):'未設定'}<em>${totRB>0?'円':''}</em></div>
+      <div class="ks">${totRB>0?'収入目標':'収入管理で設定してください'}</div>
+    </div>
     <div class="kpi" style="border-left:3px solid var(--acc)">
       <div class="kl" style="display:flex;align-items:center;gap:5px">
-        <span style="font-size:8px;background:var(--acc);color:#fff;padding:1px 5px;border-radius:3px">収入</span>
+        <span style="font-size:8px;background:var(--acc);color:#fff;padding:1px 5px;border-radius:3px">実績</span>実収入
       </div>
       <div class="kv" style="color:var(--acc)">${fmtN(totR)}<em>円</em></div>
-      <div class="ks">参加費・協賛・補助金</div>
+      <div class="ks">${totRB>0?'収入達成率 <strong style="color:'+(totR>=totRB?'var(--green)':'var(--red)')+'">'+Math.round(totR/totRB*100)+'%</strong>':'参加費・協賛・補助金'}</div>
     </div>
     <div class="kpi" style="border-left:3px solid var(--t2)">
       <div class="kl" style="display:flex;align-items:center;gap:5px">
@@ -1733,8 +1750,9 @@ function renderOv(){
 
   // 粗利目標
   const ovTarget = n(S.grossProfitTarget);
+  const totRB = (S.revenues||[]).reduce((t,r)=>t+n(r.budget),0);
   document.getElementById('ov-kpis').innerHTML = buildKpiCards({
-    totR, totB, totE, totA,
+    totR, totRB, totB, totE, totA,
     arariYosoku: arariYosoku,
     arari,
     target: ovTarget,
@@ -1933,15 +1951,17 @@ async function renderProg(){
   // 全体KPIカード（buildKpiCardsで統一）
   const kpiEl = document.getElementById('prog-kpi-cards');
   if(kpiEl) {
+    const totRBProg = (S.revenues||[]).reduce((t,r)=>t+n(r.budget),0);
     kpiEl.innerHTML = buildKpiCards({
       totR: totalRevenue,
+      totRB: totRBProg,
       totB: totalBudget,
       totE: totalEst,
       totA: totalAct,
       arariYosoku: totalGrossForecast,
       arari: totalGross,
       target,
-      prevActual: totalPrevGross !== 0 ? null : null, // プログラム別は前年粗利ベースのため個別表示
+      prevActual: null,
     });
     kpiEl.style.gridTemplateColumns = 'repeat(auto-fit,minmax(150px,1fr))';
   }
@@ -2066,9 +2086,9 @@ function saveEvt(){const key=_eCtx.key;const before=JSON.stringify(S.events[key]
 // ── 収入パネル ──
 let _revItems=[];
 function openRev(){_revItems=JSON.parse(JSON.stringify(S.revenues));renderRevItems();openOv('ov-rev-edit');}
-function renderRevItems(){const progs=[''].concat(S.programs.map(p=>p.name));const types=['参加費','協賛・協力金','補助金','その他'];document.getElementById('rev-items').innerHTML=_revItems.map((r,i)=>`<div class="item-row" style="grid-template-columns:20px 1fr 120px 90px 110px 26px;margin-bottom:6px"><div class="item-num">${i+1}</div><input type="text" value="${r.name||''}" placeholder="収入名" data-i="${i}" data-f="name" oninput="updateRevItem(this)" style="padding:5px 7px;background:var(--s2);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--mono);outline:none;width:100%"><select data-i="${i}" data-f="prog" onchange="updateRevItem(this)" style="padding:5px 7px;background:var(--s2);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:10px;outline:none;width:100%">${progs.map(p=>`<option value="${p}"${r.prog===p?' selected':''}>${p||'—プログラム—'}</option>`).join('')}</select><select data-i="${i}" data-f="type" onchange="updateRevItem(this)" style="padding:5px 7px;background:var(--s2);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:10px;outline:none;width:100%">${types.map(t=>`<option${r.type===t?' selected':''}>${t}</option>`).join('')}</select><input type="number" value="${r.amount||''}" placeholder="0" data-i="${i}" data-f="amount" oninput="updateRevItem(this)" style="padding:5px 7px;background:var(--s2);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--mono);outline:none;text-align:right;width:100%"><button class="del-btn" onclick="removeRevItem(${i})">×</button></div>`).join('');}
+function renderRevItems(){const progs=[''].concat(S.programs.map(p=>p.name));const types=['参加費','協賛・協力金','補助金','その他'];document.getElementById('rev-items').innerHTML=_revItems.map((r,i)=>`<div class="item-row" style="grid-template-columns:20px 1fr 110px 90px 100px 100px 26px;margin-bottom:6px"><div class="item-num">${i+1}</div><input type="text" value="${r.name||''}" placeholder="収入名（計画）" data-i="${i}" data-f="name" oninput="updateRevItem(this)" style="padding:5px 7px;background:var(--s2);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--mono);outline:none;width:100%"><select data-i="${i}" data-f="prog" onchange="updateRevItem(this)" style="padding:5px 7px;background:var(--s2);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:10px;outline:none;width:100%">${progs.map(p=>`<option value="${p}"${r.prog===p?' selected':''}>${p||'—プログラム—'}</option>`).join('')}</select><select data-i="${i}" data-f="type" onchange="updateRevItem(this)" style="padding:5px 7px;background:var(--s2);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:10px;outline:none;width:100%">${types.map(t=>`<option${r.type===t?' selected':''}>${t}</option>`).join('')}</select><input type="number" value="${r.amount||''}" placeholder="0" data-i="${i}" data-f="budget" oninput="updateRevItem(this)" style="padding:5px 7px;background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.3);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--mono);outline:none;text-align:right;width:100%"><input type="number" value="${r.amount||''}" placeholder="実収入" data-i="${i}" data-f="amount" oninput="updateRevItem(this)" style="padding:5px 7px;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.3);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--mono);outline:none;text-align:right;width:100%"><button class="del-btn" onclick="removeRevItem(${i})">×</button></div>`).join('');}
 function updateRevItem(inp){const i=parseInt(inp.dataset.i),f=inp.dataset.f;_revItems[i][f]=(f==='name'||f==='prog'||f==='type')?inp.value:parseFloat(inp.value)||0;}
-function addRevItem(){_revItems.push({id:uid(),name:'',amount:0,prog:'',type:'参加費'});renderRevItems();}
+function addRevItem(){_revItems.push({id:uid(),name:'',budget:0,amount:0,prog:'',type:'参加費'});renderRevItems();}
 function removeRevItem(i){_revItems.splice(i,1);renderRevItems();}
 function saveRev(){if(!isAdmin()){alert('収入管理は管理者のみ変更できます');return;}S.revenues=_revItems.filter(r=>r.name);save();closeOv('ov-rev-edit');renderRev();}
 
