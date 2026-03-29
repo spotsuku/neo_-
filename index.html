@@ -2020,6 +2020,18 @@ function calcProgActualFromData(sData, progId) {
 }
 
 // 開催日から1ヶ月前を発注月として費目に自動設定
+function setProgDate(pi, dateVal) {
+  const prog = S.programs[pi];
+  if(!prog) return;
+  prog.date = dateVal;
+  // S.eventsにも同期
+  if(S.events[prog.id]) S.events[prog.id].date = dateVal;
+  // 発注月を自動設定
+  autoSetOrderMonths(prog);
+  debouncedSave();
+  renderProg();
+}
+
 function autoSetOrderMonths(prog) {
   if(!prog.date) return;
   const d = new Date(prog.date);
@@ -2172,7 +2184,7 @@ async function renderProg(){
       <td style="padding:3px 4px;text-align:center">
         <input type="date" value="${p.date||''}"
           style="font-size:10px;padding:3px 5px;border:1.5px solid var(--b2);border-radius:5px;background:var(--s1);color:var(--t2);outline:none;width:100px"
-          onchange="S.programs[${pi}].date=this.value;if(S.events[S.programs[${pi}].id])S.events[S.programs[${pi}].id].date=this.value;autoSetOrderMonths(S.programs[${pi}]);debouncedSave();renderProg()"
+          onchange="setProgDate(${pi}, this.value)"
           title="開催日を設定すると発注月が自動設定されます">
       </td>
       <td style="text-align:right"><input type="number" value="${realBudget||''}" placeholder="0"
@@ -2296,7 +2308,7 @@ function renderProgMonthly() {
   const type   = document.getElementById('prog-monthly-type')?.value || 'actual';
   const filter = document.getElementById('prog-monthly-prog')?.value || '';
 
-  // プログラムフィルタのオプションを初期化
+  // プログラムセレクト初期化
   const sel = document.getElementById('prog-monthly-prog');
   if(sel && sel.options.length <= 1) {
     S.programs.filter(p=>p.id!=='marketing').forEach(p=>{
@@ -2306,359 +2318,144 @@ function renderProgMonthly() {
     });
   }
 
-  // 月リスト（年度の4月〜翌3月）
+  // 月リスト: 年度の4月〜翌3月（形式: "2025/4"）
   const months = [];
   for(let m=4;m<=12;m++) months.push(`${_currentFiscalYear}/${m}`);
   for(let m=1;m<=3;m++)  months.push(`${_currentFiscalYear+1}/${m}`);
   const monthLabels = months.map(m=>m.split('/')[1]+'月');
 
-  // 対象プログラム
   const progs = S.programs.filter(p=>p.id!=='marketing' && (!filter || p.id===filter));
 
-  // 会計科目×月のマトリクスを集計
-  // estimates[key]のpayMonthフィールドを使用
-  // payMonthがない場合はS.events[key].itemsから推定不可→0
-
   // プログラム別・月別の集計
-  const progMonthData = {}; // {progId: {month: value}}
+  const progMonthData = {};
   progs.forEach(p => {
     progMonthData[p.id] = {};
     months.forEach(m => progMonthData[p.id][m] = 0);
   });
 
-  // estimates（見積テーブル）のpayMonthを使って集計
-  Object.entries(S.estimates||{}).forEach(([key, rows]) => {
-    const prog = S.programs.find(p=>p.id===key);
-    if(!prog) return;
-    if(filter && prog.id !== filter) return;
-    rows.forEach(r => {
-      // 発注月ベース or 支払月ベース
-      const useOrderMonth = (type === 'order');
-      const monthKey = useOrderMonth ? r.orderMonth : r.payMonth;
-      if(!monthKey || !months.includes(monthKey)) return;
-      const val = (type==='actual') ? n(r.actual) : (type==='order'||type==='estimate') ? n(r.estimate) : n(r.budget);
-      if(!progMonthData[prog.id]) progMonthData[prog.id] = {};
-      progMonthData[prog.id][monthKey] = (progMonthData[prog.id][monthKey]||0) + val;
-    });
-  });
+  const addVal = (progId, monthKey, val) => {
+    if(!monthKey || !months.includes(monthKey)) return;
+    if(!progMonthData[progId]) return;
+    progMonthData[progId][monthKey] = (progMonthData[progId][monthKey]||0) + val;
+  };
 
-  // イベントのorderMonth（費目別編集パネルで設定）
-  ['ko','aw','ye','tour','md','sd','cf3','cf4'].forEach(key => {
-    const prog = S.programs.find(p=>p.id===key);
-    if(!prog || (filter && prog.id!==filter)) return;
-    (S.events[key]?.items||[]).forEach(it => {
-      if(!it.orderMonth || !months.includes(it.orderMonth)) return;
-      const val = type==='budget' ? n(it.budget) : type==='order' ? n(it.estimate) : 0;
-      if(val===0) return;
-      if(!progMonthData[prog.id]) return;
-      progMonthData[prog.id][it.orderMonth] = (progMonthData[prog.id][it.orderMonth]||0) + val;
-    });
-  });
-
-  // セッション（シリーズ）のpayMonthは日付から推定
-  ['hm','gk','oe'].forEach(key => {
-    const prog = S.programs.find(p=>p.id===key);
-    if(!prog || (filter && prog.id!==filter)) return;
-    (S.sessions[key]||[]).forEach(sess => {
-      if(!sess.date) return;
-      const d = new Date(sess.date);
-      const m = d.getMonth()+1;
-      const y = d.getFullYear();
-      const mk = `${String(y).slice(2)}/${m}`;
-      // 月キーを年度形式に変換
-      const monthKey = months.find(mo => {
-        const [yr,mn] = mo.split('/');
-        const fullYear = parseInt(yr) + 2000;
-        return fullYear===y && parseInt(mn)===m;
+  if(type === 'actual' || type === 'estimate' || type === 'order') {
+    // 見積テーブル（estimates）を使用
+    Object.entries(S.estimates||{}).forEach(([key, rows]) => {
+      const prog = S.programs.find(p=>p.id===key);
+      if(!prog || (filter && prog.id!==filter)) return;
+      rows.forEach(r => {
+        const monthKey = (type==='order') ? r.orderMonth : r.payMonth;
+        const val = (type==='actual') ? n(r.actual) : n(r.estimate);
+        addVal(prog.id, monthKey, val);
       });
-      if(!monthKey) return;
-      const val = type==='actual' ? sessSum(sess,'actual') : type==='estimate' ? sessSum(sess,'estimate') : sessSum(sess,'budget');
-      progMonthData[key][monthKey] = (progMonthData[key][monthKey]||0) + val;
     });
-  });
+
+    // セッション（シリーズ）: 各セッションの日付 or orderMonth
+    ['hm','gk','oe'].forEach(key => {
+      const prog = S.programs.find(p=>p.id===key);
+      if(!prog || (filter && prog.id!==filter)) return;
+      (S.sessions[key]||[]).forEach(sess => {
+        // orderMonthが設定されていればそれを使う
+        // なければ開催日から計算
+        let monthKey = '';
+        if(type==='order') {
+          monthKey = (sess.items||[])[0]?.orderMonth || '';
+          if(!monthKey && sess.date) {
+            const d = new Date(sess.date);
+            let m = d.getMonth(), y = d.getFullYear();
+            if(m===0){m=12;y--;} else {}
+            monthKey = `${y}/${m}`;
+          }
+        } else {
+          // actual/estimate: セッションの日付月を使用
+          if(sess.date) {
+            const d = new Date(sess.date);
+            monthKey = `${d.getFullYear()}/${d.getMonth()+1}`;
+          }
+        }
+        const val = (type==='actual') ? sessSum(sess,'actual') : sessSum(sess,'estimate');
+        addVal(key, monthKey, val);
+      });
+    });
+
+  } else {
+    // 予算（budget）: S.events[key].itemsのorderMonthを使用
+    ['ko','aw','ye','tour','md','sd','cf3','cf4'].forEach(key => {
+      const prog = S.programs.find(p=>p.id===key);
+      if(!prog || (filter && prog.id!==filter)) return;
+      (S.events[key]?.items||[]).forEach(it => {
+        addVal(prog.id, it.orderMonth, n(it.budget));
+      });
+    });
+    // シリーズの予算
+    ['hm','gk','oe'].forEach(key => {
+      const prog = S.programs.find(p=>p.id===key);
+      if(!prog || (filter && prog.id!==filter)) return;
+      (S.sessions[key]||[]).forEach(sess => {
+        let monthKey = (sess.items||[])[0]?.orderMonth || '';
+        if(!monthKey && sess.date) {
+          const d = new Date(sess.date);
+          let m = d.getMonth(), y = d.getFullYear();
+          if(m===0){m=12;y--;}
+          monthKey = `${y}/${m}`;
+        }
+        addVal(key, monthKey, sessSum(sess,'budget'));
+      });
+    });
+  }
 
   // 月合計
   const monthTotals = {};
   months.forEach(m => {
-    monthTotals[m] = progs.reduce((t,p) => t + (progMonthData[p.id]?.[m]||0), 0);
+    monthTotals[m] = progs.reduce((t,p)=>t+(progMonthData[p.id]?.[m]||0),0);
   });
-  const grandTotal = progs.reduce((t,p) => t + months.reduce((s,m) => s+(progMonthData[p.id]?.[m]||0),0), 0);
+  const grandTotal = progs.reduce((t,p)=>t+months.reduce((s,m)=>s+(progMonthData[p.id]?.[m]||0),0),0);
+  const maxVal = Math.max(...Object.values(monthTotals),1);
 
-  // テーブル描画
-  const typeLabel = type==='actual'?'実績':type==='estimate'?'見積':'予算';
-  const maxVal = Math.max(...Object.values(monthTotals), 1);
+  const typeLabel = {actual:'実績',order:'見積（発注月）',estimate:'見積（支払月）',budget:'予算'}[type]||type;
 
   let tbl = `<table class="tbl" style="min-width:900px;font-size:11px">
     <thead>
       <tr style="background:var(--s2)">
         <th style="min-width:100px">プログラム</th>
-        ${monthLabels.map(l=>`<th style="text-align:right;min-width:70px">${l}</th>`).join('')}
+        ${monthLabels.map(l=>`<th style="text-align:right;min-width:65px">${l}</th>`).join('')}
         <th style="text-align:right;min-width:80px">合計</th>
       </tr>
-    </thead>
-    <tbody>`;
+    </thead><tbody>`;
 
   progs.forEach(p => {
     const rowTotal = months.reduce((t,m)=>t+(progMonthData[p.id]?.[m]||0),0);
-    if(rowTotal===0 && !filter) return; // 0行はスキップ（全表示時）
+    if(rowTotal===0 && !filter) return;
     tbl += `<tr>
       <td style="font-weight:600">${p.name}</td>
-      ${months.map(m => {
-        const v = progMonthData[p.id]?.[m]||0;
+      ${months.map(m=>{
+        const v=progMonthData[p.id]?.[m]||0;
         return `<td style="text-align:right;font-family:var(--mono);color:${v>0?'var(--t1)':'var(--t3)'}">${v>0?fmtN(v):'—'}</td>`;
       }).join('')}
       <td style="text-align:right;font-family:var(--mono);font-weight:700;color:var(--blue)">${rowTotal>0?fmtN(rowTotal):'—'}</td>
     </tr>`;
   });
 
-  // 合計行
   tbl += `<tr style="border-top:2px solid var(--b2);background:var(--s2);font-weight:700">
     <td>合計</td>
-    ${months.map(m => {
-      const v = monthTotals[m]||0;
-      return `<td style="text-align:right;font-family:var(--mono);color:${v>0?'var(--acc)':'var(--t3)'}">${v>0?fmtN(v):'—'}</td>`;
-    }).join('')}
+    ${months.map(m=>{const v=monthTotals[m]||0;return`<td style="text-align:right;font-family:var(--mono);color:${v>0?'var(--acc)':'var(--t3)'}">${v>0?fmtN(v):'—'}</td>`;}).join('')}
     <td style="text-align:right;font-family:var(--mono);color:var(--acc)">${grandTotal>0?fmtN(grandTotal):'—'}</td>
-  </tr>`;
-
-  // 月別バーチャート行
-  tbl += `<tr style="background:var(--s2)">
+  </tr>
+  <tr style="background:var(--s2)">
     <td style="font-size:9px;color:var(--t3)">割合</td>
-    ${months.map(m => {
-      const v = monthTotals[m]||0;
-      const pct = maxVal>0?Math.round(v/maxVal*100):0;
-      return `<td style="padding:4px 4px 2px">
-        <div style="height:4px;background:var(--b1);border-radius:2px">
-          <div style="height:100%;width:${pct}%;background:var(--acc);border-radius:2px"></div>
-        </div>
-      </td>`;
+    ${months.map(m=>{const v=monthTotals[m]||0;const pct=maxVal>0?Math.round(v/maxVal*100):0;
+      return`<td style="padding:4px 4px 2px"><div style="height:4px;background:var(--b1);border-radius:2px"><div style="height:100%;width:${pct}%;background:var(--acc);border-radius:2px"></div></div></td>`;
     }).join('')}
     <td></td>
-  </tr>`;
-
-  tbl += `</tbody></table>`;
-  tbl += `<div style="margin-top:8px;font-size:10px;color:var(--t3)">
-    ※ 各イベントの見積テーブルで「支払月」を設定すると月次に反映されます。
-    シリーズ（ホームルーム等）は開催日付から自動配分されます。
+  </tr></tbody></table>
+  <div style="margin-top:8px;font-size:10px;color:var(--t3)">
+    ${typeLabel} の月次集計 / 見積テーブルで「${type==='order'?'発注月':'支払月'}」を設定すると反映されます。
+    予算は費目別編集パネルで「発注月」を設定すると反映されます。
   </div>`;
 
   el.innerHTML = tbl;
 }
-
-// ══════════════════════════════════════════════════
-// スケジュール一覧ページ
-// ══════════════════════════════════════════════════
-// 日付が指定年度内か判定（年度=4月始まり）
-function isDateInFY(dateStr, fy) {
-  if(!dateStr) return true;
-  try {
-    const d = new Date(dateStr);
-    if(isNaN(d)) return true;
-    const y = d.getFullYear(), m = d.getMonth()+1; // m: 1-12
-    // FY年の4月〜FY+1年の3月
-    if(m >= 4) return y === fy;
-    else       return y === fy + 1;
-  } catch(e) { return true; }
-}
-
-function renderSchedule() {
-  const filterPhase = document.getElementById('sch-filter-phase')?.value || '';
-  const filterProg  = document.getElementById('sch-filter-prog')?.value  || '';
-  const search      = (document.getElementById('sch-search')?.value || '').toLowerCase();
-
-  // プログラムフィルタ初期化
-  const progSel = document.getElementById('sch-filter-prog');
-  if(progSel && progSel.options.length <= 1) {
-    [{id:'hm',name:'ホームルーム'},{id:'gk',name:'評議会'},{id:'oe',name:'応援カイギ'},
-     {id:'ko',name:'キックオフ'},{id:'aw',name:'アワード'},{id:'ye',name:'イヤーエンド'},
-     {id:'tour',name:'ツアー'},{id:'cityfes',name:'シティフェス'}
-    ].forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.id; opt.textContent = p.name;
-      progSel.appendChild(opt);
-    });
-  }
-
-  // 全イベント・セッションを収集
-  const items = [];
-
-  // シリーズ（セッションの日付が現年度内のものだけ表示）
-  [{key:'hm',name:'ホームルーム',icon:'🏫'},{key:'gk',name:'評議会',icon:'🏛'},{key:'oe',name:'応援カイギ',icon:'📣'}]
-  .forEach(({key,name,icon}) => {
-    const progRev = getRevByProgId(key);
-    const sessInFY = (S.sessions[key]||[]).filter(s => !s.date || isDateInFY(s.date, _currentFiscalYear));
-    sessInFY.forEach(sess => {
-      items.push({
-        id: sess.id, progId: key, progName: name, icon,
-        title: sess.title||'(未設定)', date: sess.date||'',
-        budget: sessSum(sess,'budget'), est: sessSum(sess,'estimate'), actual: sessSum(sess,'actual'),
-        rev: progRev / Math.max(sessInFY.length, 1),
-        type: 'series', onClick: `openSess('${key}','${sess.id}')`,
-      });
-    });
-  });
-
-  // 単発イベント（S.programsのdateが年度内かチェック）
-  [{key:'ko',name:'キックオフ',icon:'🚀'},{key:'aw',name:'アワード',icon:'🏆'},
-   {key:'ye',name:'イヤーエンド',icon:'🎉'},{key:'tour',name:'ツアー',icon:'✈️'}
-  ].forEach(({key,name,icon}) => {
-    // 開催日を取得（S.programsのdateを優先、なければS.events[key].date）
-    const prog = S.programs.find(p=>p.id===key);
-    const date = prog?.date || S.events[key]?.date || '';
-    // 年度フィルタ: 開催日が現年度（4月〜翌3月）内、または日付未設定
-    const inFY = !date || isDateInFY(date, _currentFiscalYear);
-    if(!inFY) return;
-    items.push({
-      id: key, progId: key, progName: name, icon,
-      title: name, date,
-      budget: getEventBudget(key), est: progEstimate(key), actual: progActual(key),
-      rev: getRevByProgId(key),
-      type: 'event', onClick: `go('${key}',null)`,
-    });
-  });
-
-  // シティフェス（年度フィルタあり）
-  CITYFES_TABS.forEach(key => {
-    const prog = S.programs.find(p=>p.id==='cityfes');
-    const date = S.events[key]?.date || prog?.date || '';
-    const inFY = !date || isDateInFY(date, _currentFiscalYear);
-    if(!inFY) return;
-    const estRows = S.estimates?.[key]||[];
-    items.push({
-      id: key, progId: 'cityfes', progName: 'シティフェス', icon: '🎪',
-      title: getCityFesLabel(key), date,
-      budget: getEventBudget(key),
-      est:    estRows.length ? estRows.reduce((t,r)=>t+n(r.estimate),0) : evtSum(key,'estimate'),
-      actual: evtSum(key,'actual'),
-      rev: 0,
-      type: 'event', onClick: `go('${key}',null)`,
-    });
-  });
-
-  // 日付ソート
-  items.sort((a,b) => {
-    if(!a.date&&!b.date) return 0;
-    if(!a.date) return 1;
-    if(!b.date) return -1;
-    return a.date.localeCompare(b.date);
-  });
-
-  // フィルタ
-  const filtered = items.filter(it => {
-    if(filterProg && it.progId !== filterProg) return false;
-    if(search && !it.title.toLowerCase().includes(search) && !it.progName.toLowerCase().includes(search)) return false;
-    if(filterPhase==='done' && it.actual===0) return false;
-    if(filterPhase==='est'  && (it.est===0 || it.actual>0)) return false;
-    if(filterPhase==='none' && (it.est>0 || it.actual>0)) return false;
-    return true;
-  });
-
-  // 全体KPI
-  const totBudget = filtered.reduce((t,i)=>t+i.budget,0);
-  const totEst    = filtered.reduce((t,i)=>t+i.est,0);
-  const totAct    = filtered.reduce((t,i)=>t+i.actual,0);
-  const totRev    = filtered.reduce((t,i)=>t+i.rev,0);
-  const kpiEl = document.getElementById('sch-kpis');
-  if(kpiEl) {
-    kpiEl.innerHTML = buildKpiSections({
-      totR: totRev, totB: totBudget, totE: totEst, totA: totAct,
-      pageKey: 'sch',
-    });
-  }
-
-  // カード一覧描画
-  const tbl = document.getElementById('sch-table');
-  if(!tbl) return;
-
-  if(!filtered.length) {
-    tbl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--t3)">該当するイベントがありません</div>';
-    return;
-  }
-
-  // 月グループでカードを並べる
-  let html = '';
-  let currentMonth = '';
-
-  filtered.forEach(it => {
-    const d = it.date ? new Date(it.date) : null;
-    const monthKey = d ? `${d.getFullYear()}年${d.getMonth()+1}月` : '日付未定';
-    const dateStr  = d ? `${d.getMonth()+1}/${d.getDate()}` : '日付未定';
-
-    if(monthKey !== currentMonth) {
-      currentMonth = monthKey;
-      html += `<div style="padding:10px 4px 6px;font-size:11px;font-weight:700;color:var(--t3);
-        letter-spacing:.08em;border-bottom:2px solid var(--b2);margin-bottom:10px;margin-top:${html?'20px':'0'}">
-        ${monthKey}
-      </div>`;
-    }
-
-    const phase = it.actual>0 ? 'act' : it.est>0 ? 'est' : 'plan';
-    const phaseBadge = phase==='act'
-      ? `<span style="font-size:8px;background:rgba(249,115,22,.15);color:var(--acc);padding:2px 7px;border-radius:4px;font-weight:700">実績済</span>`
-      : phase==='est'
-      ? `<span style="font-size:8px;background:rgba(16,185,129,.15);color:var(--green);padding:2px 7px;border-radius:4px;font-weight:700">見積中</span>`
-      : `<span style="font-size:8px;background:var(--s3);color:var(--t3);padding:2px 7px;border-radius:4px">未着手</span>`;
-
-    const grossB = it.rev>0 ? it.rev - it.budget : -it.budget;
-    const grossE = it.rev>0 ? it.rev - it.est    : -it.est;
-    const gross  = it.rev>0 ? it.rev - it.actual  : -it.actual;
-    const execRate = it.est>0 ? Math.round(it.actual/it.est*100) : 0;
-    const budgRate = it.budget>0 ? Math.round(it.est/it.budget*100) : 0;
-
-    // KPI 3行（計画・見積・実績）
-    const kpiRow = (phase, label, emoji, color, bg, cells) => `
-      <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:${bg};border-radius:6px;margin-bottom:4px">
-        <span style="font-size:9px;font-weight:700;color:${color};white-space:nowrap">${emoji} ${label}</span>
-        ${cells.map(c => `<div style="flex:1;text-align:right">
-          <div style="font-size:9px;color:var(--t3)">${c.label}</div>
-          <div style="font-family:var(--mono);font-size:11px;font-weight:700;color:${c.color||color}">${c.value}</div>
-        </div>`).join('')}
-      </div>`;
-
-    const planKpi  = kpiRow('計画','計画','📋','var(--blue)','rgba(37,99,235,.06)',[
-      {label:'予算',      value: it.budget>0?fmtN(it.budget):'—'},
-      {label:'収入',      value: it.rev>0?fmtN(it.rev):'—'},
-      {label:'粗利',      value: it.budget>0?(grossB>=0?'+':'')+fmtN(grossB):'—', color: grossB>=0?'var(--blue)':'var(--red)'},
-    ]);
-    const estKpi   = kpiRow('見積','見積','📝','var(--green)','rgba(16,185,129,.06)',[
-      {label:'見積合計',  value: it.est>0?fmtN(it.est):'—'},
-      {label:'予算消化率',value: it.budget>0?budgRate+'%':'—'},
-      {label:'粗利',      value: it.est>0?(grossE>=0?'+':'')+fmtN(grossE):'—', color: grossE>=0?'var(--green)':'var(--red)'},
-    ]);
-    const actKpi   = kpiRow('実績','実績','✅','var(--acc)','rgba(249,115,22,.06)',[
-      {label:'実績合計',  value: it.actual>0?fmtN(it.actual):'—'},
-      {label:'見積進捗',  value: it.est>0?execRate+'%':'—'},
-      {label:'粗利',      value: it.actual>0?(gross>=0?'+':'')+fmtN(gross):'—', color: gross>=0?'var(--acc)':'var(--red)'},
-    ]);
-
-    html += `
-      <div style="display:grid;grid-template-columns:180px 1fr;gap:12px;margin-bottom:10px;
-        background:var(--s1);border:1.5px solid var(--b1);border-radius:10px;overflow:hidden;
-        cursor:pointer;transition:box-shadow .15s"
-        onclick="${it.onClick}"
-        onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.1)'"
-        onmouseout="this.style.boxShadow=''">
-        <!-- 左: 日程・プログラム名 -->
-        <div style="padding:16px;background:var(--s2);display:flex;flex-direction:column;justify-content:center;border-right:1.5px solid var(--b1)">
-          <div style="font-size:22px;margin-bottom:6px">${it.icon}</div>
-          <div style="font-size:13px;font-weight:700;color:var(--t1);margin-bottom:4px">${it.title}</div>
-          <div style="font-size:10px;color:var(--t3);margin-bottom:8px">${it.progName}</div>
-          <div style="font-family:var(--mono);font-size:12px;color:var(--t2);margin-bottom:8px">📅 ${dateStr}</div>
-          ${phaseBadge}
-        </div>
-        <!-- 右: KPI 3行 -->
-        <div style="padding:10px">
-          ${planKpi}
-          ${estKpi}
-          ${actKpi}
-        </div>
-      </div>`;
-  });
-
-  tbl.innerHTML = `<div>${html}</div>
-    <div style="padding:6px 4px;font-size:10px;color:var(--t3)">${filtered.length}件 / 全${items.length}件</div>`;
-}
-
 
 function getCityFesLabel(key){const defaults={md:'マッチデイ',sd:'スペシャルデイズ',cf3:'イベント3',cf4:'イベント4'};return(S.cityFesLabels?.[key])||defaults[key];}
 function switchCityFesTab(key,btn){_cityFesTab=key;document.querySelectorAll('.cityfes-tab').forEach(b=>{b.style.color='var(--t2)';b.style.borderBottomColor='transparent';b.style.fontWeight='600';});if(btn){btn.style.color='var(--blue)';btn.style.borderBottomColor='var(--blue)';btn.style.fontWeight='700';}CITYFES_TABS.forEach(k=>{const p=document.getElementById(`cityfes-panel-${k}`);if(p)p.style.display=k===key?'':'none';});renderEvt(key);}
