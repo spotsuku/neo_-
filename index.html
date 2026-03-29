@@ -2063,7 +2063,7 @@ function setOvMonthlyType(type) {
     btn.style.borderColor   = isActive ? (t==='budget'?'var(--blue)':t==='estimate'?'var(--green)':t==='actual'?'var(--acc)':'var(--acc2)') : 'var(--b2)';
     btn.style.color         = isActive ? (t==='budget'?'var(--blue)':t==='estimate'?'var(--green)':t==='actual'?'var(--acc)':'var(--acc2)') : 'var(--t2)';
   });
-  setOvMonthlyType(_ovMonthlyType || 'all');
+  renderOvMonthly();
 }
 
 function calcOvMonthlyData() {
