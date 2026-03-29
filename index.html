@@ -2457,6 +2457,203 @@ function renderProgMonthly() {
   el.innerHTML = tbl;
 }
 
+// 日付が指定年度内か判定（年度=4月始まり）
+function isDateInFY(dateStr, fy) {
+  if(!dateStr) return true;
+  try {
+    const d = new Date(dateStr);
+    if(isNaN(d)) return true;
+    const y = d.getFullYear(), m = d.getMonth()+1;
+    if(m >= 4) return y === fy;
+    else       return y === fy + 1;
+  } catch(e) { return true; }
+}
+
+function renderSchedule() {
+  const filterPhase = document.getElementById('sch-filter-phase')?.value || '';
+  const filterProg  = document.getElementById('sch-filter-prog')?.value  || '';
+  const search      = (document.getElementById('sch-search')?.value || '').toLowerCase();
+
+  const progSel = document.getElementById('sch-filter-prog');
+  if(progSel && progSel.options.length <= 1) {
+    [{id:'hm',name:'ホームルーム'},{id:'gk',name:'評議会'},{id:'oe',name:'応援カイギ'},
+     {id:'ko',name:'キックオフ'},{id:'aw',name:'アワード'},{id:'ye',name:'イヤーエンド'},
+     {id:'tour',name:'ツアー'},{id:'cityfes',name:'シティフェス'}
+    ].forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id; opt.textContent = p.name;
+      progSel.appendChild(opt);
+    });
+  }
+
+  const items = [];
+
+  // シリーズ（年度内のセッションのみ）
+  [{key:'hm',name:'ホームルーム',icon:'🏫'},{key:'gk',name:'評議会',icon:'🏛'},{key:'oe',name:'応援カイギ',icon:'📣'}]
+  .forEach(({key,name,icon}) => {
+    const progRev = getRevByProgId(key);
+    const sessAll = S.sessions[key]||[];
+    const sessInFY = sessAll.filter(s => isDateInFY(s.date, _currentFiscalYear));
+    // 日付未設定のセッションが多い場合は全件表示
+    const sessList = sessInFY.length > 0 ? sessInFY : sessAll;
+    sessList.forEach(sess => {
+      items.push({
+        id: sess.id, progId: key, progName: name, icon,
+        title: sess.title||'(未設定)', date: sess.date||'',
+        budget: sessSum(sess,'budget'), est: sessSum(sess,'estimate'), actual: sessSum(sess,'actual'),
+        rev: progRev / Math.max(sessList.length, 1),
+        type: 'series', onClick: `openSess('${key}','${sess.id}')`,
+      });
+    });
+  });
+
+  // 単発イベント
+  [{key:'ko',name:'キックオフ',icon:'🚀'},{key:'aw',name:'アワード',icon:'🏆'},
+   {key:'ye',name:'イヤーエンド',icon:'🎉'},{key:'tour',name:'ツアー',icon:'✈️'}
+  ].forEach(({key,name,icon}) => {
+    const prog = S.programs.find(p=>p.id===key);
+    const date = S.events[key]?.date || prog?.date || '';
+    const inFY = !date || isDateInFY(date, _currentFiscalYear);
+    if(!inFY) return;
+    items.push({
+      id: key, progId: key, progName: name, icon,
+      title: name, date,
+      budget: getEventBudget(key), est: progEstimate(key), actual: progActual(key),
+      rev: getRevByProgId(key),
+      type: 'event', onClick: `go('${key}',null)`,
+    });
+  });
+
+  // シティフェス
+  CITYFES_TABS.forEach(key => {
+    const prog = S.programs.find(p=>p.id==='cityfes');
+    const date = S.events[key]?.date || prog?.date || '';
+    const inFY = !date || isDateInFY(date, _currentFiscalYear);
+    if(!inFY) return;
+    const estRows = S.estimates?.[key]||[];
+    items.push({
+      id: key, progId: 'cityfes', progName: 'シティフェス', icon: '🎪',
+      title: getCityFesLabel(key), date,
+      budget: getEventBudget(key),
+      est: estRows.length ? estRows.reduce((t,r)=>t+n(r.estimate),0) : evtSum(key,'estimate'),
+      actual: evtSum(key,'actual'),
+      rev: 0,
+      type: 'event', onClick: `go('${key}',null)`,
+    });
+  });
+
+  // 日付ソート
+  items.sort((a,b) => {
+    if(!a.date&&!b.date) return 0;
+    if(!a.date) return 1;
+    if(!b.date) return -1;
+    return a.date.localeCompare(b.date);
+  });
+
+  // フィルタ
+  const filtered = items.filter(it => {
+    if(filterProg && it.progId !== filterProg) return false;
+    if(search && !it.title.toLowerCase().includes(search) && !it.progName.toLowerCase().includes(search)) return false;
+    if(filterPhase==='done' && it.actual===0) return false;
+    if(filterPhase==='est'  && (it.est===0 || it.actual>0)) return false;
+    if(filterPhase==='none' && (it.est>0 || it.actual>0)) return false;
+    return true;
+  });
+
+  // 全体KPI
+  const totBudget = filtered.reduce((t,i)=>t+i.budget,0);
+  const totEst    = filtered.reduce((t,i)=>t+i.est,0);
+  const totAct    = filtered.reduce((t,i)=>t+i.actual,0);
+  const totRev    = filtered.reduce((t,i)=>t+i.rev,0);
+  const kpiEl = document.getElementById('sch-kpis');
+  if(kpiEl) kpiEl.innerHTML = buildKpiSections({
+    totR: totRev, totB: totBudget, totE: totEst, totA: totAct, pageKey: 'sch',
+  });
+
+  const tbl = document.getElementById('sch-table');
+  if(!tbl) return;
+
+  if(!filtered.length) {
+    tbl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--t3)">該当するイベントがありません</div>';
+    return;
+  }
+
+  let html2 = '';
+  let currentMonth = '';
+
+  filtered.forEach(it => {
+    const d = it.date ? new Date(it.date) : null;
+    const monthKey = d ? `${d.getFullYear()}年${d.getMonth()+1}月` : '日付未定';
+    const dateStr  = d ? `${d.getMonth()+1}/${d.getDate()}` : '日付未定';
+
+    if(monthKey !== currentMonth) {
+      currentMonth = monthKey;
+      html2 += `<div style="padding:10px 4px 6px;font-size:11px;font-weight:700;color:var(--t3);
+        letter-spacing:.08em;border-bottom:2px solid var(--b2);margin-bottom:10px;margin-top:${html2?'20px':'0'}">
+        ${monthKey}</div>`;
+    }
+
+    const phase = it.actual>0?'act':it.est>0?'est':'plan';
+    const phaseBadge = phase==='act'
+      ? `<span style="font-size:8px;background:rgba(249,115,22,.15);color:var(--acc);padding:2px 7px;border-radius:4px;font-weight:700">実績済</span>`
+      : phase==='est'
+      ? `<span style="font-size:8px;background:rgba(16,185,129,.15);color:var(--green);padding:2px 7px;border-radius:4px;font-weight:700">見積中</span>`
+      : `<span style="font-size:8px;background:var(--s3);color:var(--t3);padding:2px 7px;border-radius:4px">未着手</span>`;
+
+    const grossB = it.rev>0 ? it.rev-it.budget : -it.budget;
+    const grossE = it.rev>0 ? it.rev-it.est    : -it.est;
+    const gross  = it.rev>0 ? it.rev-it.actual  : -it.actual;
+    const execRate = it.est>0 ? Math.round(it.actual/it.est*100) : 0;
+    const budgRate = it.budget>0 ? Math.round(it.est/it.budget*100) : 0;
+
+    const kpiRow = (label, emoji, color, bg, cells) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:${bg};border-radius:6px;margin-bottom:4px">
+        <span style="font-size:9px;font-weight:700;color:${color};white-space:nowrap;width:48px">${emoji} ${label}</span>
+        ${cells.map(c=>`<div style="flex:1;text-align:right">
+          <div style="font-size:9px;color:var(--t3)">${c.label}</div>
+          <div style="font-family:var(--mono);font-size:11px;font-weight:700;color:${c.color||color}">${c.value}</div>
+        </div>`).join('')}
+      </div>`;
+
+    html2 += `
+      <div style="display:grid;grid-template-columns:160px 1fr;gap:0;margin-bottom:10px;
+        background:var(--s1);border:1.5px solid var(--b1);border-radius:10px;overflow:hidden;
+        cursor:pointer;transition:box-shadow .15s"
+        onclick="${it.onClick}"
+        onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.1)'"
+        onmouseout="this.style.boxShadow=''">
+        <div style="padding:14px;background:var(--s2);display:flex;flex-direction:column;justify-content:center;border-right:1.5px solid var(--b1)">
+          <div style="font-size:20px;margin-bottom:5px">${it.icon}</div>
+          <div style="font-size:12px;font-weight:700;color:var(--t1);margin-bottom:3px">${it.title}</div>
+          <div style="font-size:10px;color:var(--t3);margin-bottom:6px">${it.progName}</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--t2);margin-bottom:6px">📅 ${dateStr}</div>
+          ${phaseBadge}
+        </div>
+        <div style="padding:10px">
+          ${kpiRow('計画','📋','var(--blue)','rgba(37,99,235,.06)',[
+            {label:'予算',      value:it.budget>0?fmtN(it.budget):'—'},
+            {label:'収入',      value:it.rev>0?fmtN(it.rev):'—'},
+            {label:'粗利',      value:it.budget>0?(grossB>=0?'+':'')+fmtN(grossB):'—', color:grossB>=0?'var(--blue)':'var(--red)'},
+          ])}
+          ${kpiRow('見積','📝','var(--green)','rgba(16,185,129,.06)',[
+            {label:'見積合計',  value:it.est>0?fmtN(it.est):'—'},
+            {label:'予算消化率',value:it.budget>0?budgRate+'%':'—'},
+            {label:'粗利',      value:it.est>0?(grossE>=0?'+':'')+fmtN(grossE):'—', color:grossE>=0?'var(--green)':'var(--red)'},
+          ])}
+          ${kpiRow('実績','✅','var(--acc)','rgba(249,115,22,.06)',[
+            {label:'実績合計',  value:it.actual>0?fmtN(it.actual):'—'},
+            {label:'見積進捗',  value:it.est>0?execRate+'%':'—'},
+            {label:'粗利',      value:it.actual>0?(gross>=0?'+':'')+fmtN(gross):'—', color:gross>=0?'var(--acc)':'var(--red)'},
+          ])}
+        </div>
+      </div>`;
+  });
+
+  tbl.innerHTML = `<div>${html2}</div>
+    <div style="padding:6px 4px;font-size:10px;color:var(--t3)">${filtered.length}件 / 全${items.length}件</div>`;
+}
+
+
 function getCityFesLabel(key){const defaults={md:'マッチデイ',sd:'スペシャルデイズ',cf3:'イベント3',cf4:'イベント4'};return(S.cityFesLabels?.[key])||defaults[key];}
 function switchCityFesTab(key,btn){_cityFesTab=key;document.querySelectorAll('.cityfes-tab').forEach(b=>{b.style.color='var(--t2)';b.style.borderBottomColor='transparent';b.style.fontWeight='600';});if(btn){btn.style.color='var(--blue)';btn.style.borderBottomColor='var(--blue)';btn.style.fontWeight='700';}CITYFES_TABS.forEach(k=>{const p=document.getElementById(`cityfes-panel-${k}`);if(p)p.style.display=k===key?'':'none';});renderEvt(key);}
 function renderCityFes(){const totB=CITYFES_TABS.reduce((t,k)=>t+evtSum(k,'budget'),0);const totE=CITYFES_TABS.reduce((t,k)=>{const est=S.estimates?.[k]||[];return t+(est.length?est.reduce((s,r)=>s+n(r.estimate),0):evtSum(k,'estimate'));},0);const totA=CITYFES_TABS.reduce((t,k)=>{const est=S.estimates?.[k]||[];return t+(est.length?est.reduce((s,r)=>s+n(r.actual),0):evtSum(k,'actual'));},0);const totR=getRevForCityfes();const arari=totR-totA;const pctE=totB?Math.round(totE/totB*100)+'%':'—';const kpiEl=document.getElementById('cityfes-kpis');if(kpiEl)kpiEl.innerHTML = buildKpiSections({
