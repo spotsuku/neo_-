@@ -2494,14 +2494,28 @@ function renderProgMonthly() {
   if(type === 'actual' || type === 'estimate' || type === 'order') {
     // 見積テーブル（estimates）を使用
     Object.entries(S.estimates||{}).forEach(([key, rows]) => {
-      const prog = S.programs.find(p=>p.id===key);
+      // cityfesタブ（md/sd/cf3/cf4）はcityfesプログラムとして集計
+      const isCFTab = CITYFES_TABS.includes(key);
+      const progId = isCFTab ? 'cityfes' : key;
+      const prog = S.programs.find(p=>p.id===progId);
       if(!prog || (filter && prog.id!==filter)) return;
       rows.forEach(r => {
         const monthKey = (type==='order') ? r.orderMonth : r.payMonth;
         const val = (type==='actual') ? n(r.actual) : n(r.estimate);
-        addVal(prog.id, monthKey, val);
+        addVal(progId, monthKey, val);
       });
     });
+
+    // 製作物管理の実績・見積（支払月/発注月ベース）
+    const annualProg2 = S.programs.find(p=>p.id==='annual');
+    if(annualProg2 && (!filter || filter==='annual')) {
+      const pb = getProdBudgets();
+      (S.prodItems||[]).forEach(it => {
+        const monthKey = (type==='order') ? it.orderMonth : it.payMonth;
+        const val = (type==='actual') ? n(it.actual) : n(it.estimate);
+        addVal('annual', monthKey, val);
+      });
+    }
 
     // セッション（シリーズ）: 各セッションの日付 or orderMonth
     ['hm','gk','oe'].forEach(key => {
@@ -2555,6 +2569,18 @@ function renderProgMonthly() {
         addVal(key, monthKey, sessSum(sess,'budget'));
       });
     });
+
+    // 製作物管理のカテゴリ予算（発注月ベース）
+    const prodBudgets = getProdBudgets();
+    const annualProg = S.programs.find(p=>p.id==='annual');
+    if(annualProg && (!filter || filter==='annual')) {
+      PROD_CATS_LIST.forEach(cat => {
+        const budget = n(prodBudgets[cat]);
+        if(!budget) return;
+        const orderMonth = prodBudgets[cat+'_orderMonth'] || '';
+        addVal('annual', orderMonth, budget);
+      });
+    }
   }
 
   // 月合計
@@ -3149,7 +3175,7 @@ function renderProd(){
       <td style="padding:3px 2px;width:72px">${(()=>{const fy=_currentFiscalYear;const ms=[];for(let m=4;m<=12;m++)ms.push(`${fy}/${m}`);for(let m=1;m<=3;m++)ms.push(`${fy+1}/${m}`);return`<select style="width:100%;font-size:10px;padding:3px 4px;border:1.5px solid rgba(139,92,246,.3);border-radius:4px;background:rgba(139,92,246,.04);color:var(--t1);outline:none" onchange="S.prodItems[${realIdx}].orderMonth=this.value;debouncedSave()" title="発注月"><option value="">—</option>${ms.map(m=>`<option value="${m}"${it.orderMonth===m?' selected':''}>${m.split('/')[1]}月</option>`).join('')}</select>`;})()}</td>
       <td style="padding:3px 2px;width:72px">${(()=>{const fy=_currentFiscalYear;const ms=[];for(let m=4;m<=12;m++)ms.push(`${fy}/${m}`);for(let m=1;m<=3;m++)ms.push(`${fy+1}/${m}`);return`<select style="width:100%;font-size:10px;padding:3px 4px;border:1.5px solid var(--b2);border-radius:4px;background:var(--s1);color:var(--t1);outline:none" onchange="S.prodItems[${realIdx}].payMonth=this.value;debouncedSave()" title="支払月"><option value="">—</option>${ms.map(m=>`<option value="${m}"${it.payMonth===m?' selected':''}>${m.split('/')[1]}月</option>`).join('')}</select>`;})()}</td>
       <td style="text-align:center;padding:2px;width:28px"><button class="del-btn" onclick="deleteProdById('${it.id}');renderProd()">×</button></td>
-    </tr>`;}).join('');return`<div class="card" style="margin-bottom:10px;border-left:3px solid ${col.h}"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--b1);flex-wrap:wrap;gap:8px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;font-weight:700;color:${col.fg};background:${col.bg};padding:4px 12px;border-radius:12px">${cat}</span><span style="font-size:11px;color:var(--t2)">${filtered.length}件</span></div><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:10px;font-weight:700;color:var(--t2)">カテゴリ予算</span><input type="number" value="${getProdBudgets()[cat]||''}" placeholder="0" style="width:110px;padding:5px 8px;border:1.5px solid var(--b2);border-radius:6px;font-size:11px;font-family:var(--mono);background:var(--s1);color:var(--t1);outline:none;text-align:right" onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--b2)'" onchange="getProdBudgets()['${cat}']=parseFloat(this.value)||0;debouncedSave();renderProd()"><span style="font-size:10px;color:var(--t2)">円</span></div><div style="display:flex;gap:14px;font-size:11px;font-family:var(--mono)">${secTotE?`<span style="color:var(--blue)">見積 <strong>${fmtN(secTotE)}</strong>円</span>`:'<span style="color:var(--t3)">見積 0円</span>'}${secTotA?`<span style="color:var(--green)">実績 <strong>${fmtN(secTotA)}</strong>円</span>`:'<span style="color:var(--t3)">実績 0円</span>'}${(()=>{const bgt=getProdBudgets()[cat]||0,diff=bgt-secTotA;return bgt?`<span style="color:${diff>=0?'var(--green)':'var(--red)'};font-weight:700">${diff>=0?'▲':'▼'}差異 ${fmtN(Math.abs(diff))}円</span>`:''})()}</div><button onclick="addProdRowInCat('${cat}')" style="font-size:9px;font-weight:700;color:${col.fg};background:${col.bg};border:none;padding:4px 10px;border-radius:6px;cursor:pointer">＋ 追加</button></div></div><div style="overflow-x:auto"><table class="tbl" style="min-width:780px"><thead>
+    </tr>`;}).join('');return`<div class="card" style="margin-bottom:10px;border-left:3px solid ${col.h}"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--b1);flex-wrap:wrap;gap:8px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;font-weight:700;color:${col.fg};background:${col.bg};padding:4px 12px;border-radius:12px">${cat}</span><span style="font-size:11px;color:var(--t2)">${filtered.length}件</span></div><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:10px;font-weight:700;color:var(--t2)">カテゴリ予算</span><input type="number" value="${getProdBudgets()[cat]||''}" placeholder="0" style="width:110px;padding:5px 8px;border:1.5px solid var(--b2);border-radius:6px;font-size:11px;font-family:var(--mono);background:var(--s1);color:var(--t1);outline:none;text-align:right" onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--b2)'" onchange="getProdBudgets()['${cat}']=parseFloat(this.value)||0;debouncedSave();renderProd()"><span style="font-size:10px;color:var(--t2)">円</span>${(()=>{const fy=_currentFiscalYear;const ms=[];for(let m=4;m<=12;m++)ms.push(`${fy}/${m}`);for(let m=1;m<=3;m++)ms.push(`${fy+1}/${m}`);const budgets=getProdBudgets();const om=(budgets[cat+'_orderMonth'])||'';const pm=(budgets[cat+'_payMonth'])||'';return`<select title="発注月" style="font-size:10px;padding:4px 6px;border:1.5px solid rgba(139,92,246,.3);border-radius:5px;background:rgba(139,92,246,.04);color:var(--t1);outline:none" onchange="getProdBudgets()['${cat}_orderMonth']=this.value;debouncedSave()"><option value="">発注月—</option>${ms.map(m=>`<option value="${m}"${om===m?' selected':''}>${m.split('/')[1]}月</option>`).join('')}</select><select title="支払月" style="font-size:10px;padding:4px 6px;border:1.5px solid var(--b2);border-radius:5px;background:var(--s1);color:var(--t1);outline:none" onchange="getProdBudgets()['${cat}_payMonth']=this.value;debouncedSave()"><option value="">支払月—</option>${ms.map(m=>`<option value="${m}"${pm===m?' selected':''}>${m.split('/')[1]}月</option>`).join('')}</select>`;})()}</div><div style="display:flex;gap:14px;font-size:11px;font-family:var(--mono)">${secTotE?`<span style="color:var(--blue)">見積 <strong>${fmtN(secTotE)}</strong>円</span>`:'<span style="color:var(--t3)">見積 0円</span>'}${secTotA?`<span style="color:var(--green)">実績 <strong>${fmtN(secTotA)}</strong>円</span>`:'<span style="color:var(--t3)">実績 0円</span>'}${(()=>{const bgt=getProdBudgets()[cat]||0,diff=bgt-secTotA;return bgt?`<span style="color:${diff>=0?'var(--green)':'var(--red)'};font-weight:700">${diff>=0?'▲':'▼'}差異 ${fmtN(Math.abs(diff))}円</span>`:''})()}</div><button onclick="addProdRowInCat('${cat}')" style="font-size:9px;font-weight:700;color:${col.fg};background:${col.bg};border:none;padding:4px 10px;border-radius:6px;cursor:pointer">＋ 追加</button></div></div><div style="overflow-x:auto"><table class="tbl" style="min-width:780px"><thead>
   <tr style="background:var(--s2)">
     <th style="width:130px">カテゴリ</th>
     <th style="min-width:120px">品目名</th>
