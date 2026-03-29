@@ -297,6 +297,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
   <button class="nb" onclick="go('ordermaster',this)"><span class="ic">📋</span>発注マスタ</button>
   <button class="nb" onclick="go('prod',this)"><span class="ic">📦</span>製作物管理</button>
   <button class="nb" onclick="go('rev',this)"><span class="ic">💰</span>収入管理</button>
+  <button class="nb" onclick="go('pl',this)"><span class="ic">📈</span>月次PL入力</button>
   <div class="sb-sec">設定</div>
   <button class="nb" id="nb-defaults" onclick="openSeriesDefaults()"><span class="ic">⚙️</span>デフォルト費目設定</button>
   <button class="nb" onclick="openCatMaster()"><span class="ic">🗂</span>カテゴリ判定設定</button>
@@ -1088,6 +1089,51 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       </div>
     </div>
 
+    <!-- 月次PL入力 -->
+    <div class="pg" id="pg-pl">
+      <div class="card" style="margin-bottom:14px">
+        <div class="ct">
+          <div class="pip" style="background:var(--green)"></div>
+          月次PL入力テーブル（千円）
+          <span style="font-size:9px;font-weight:400;color:var(--t2);margin-left:8px">テーブルかグラフのどちらからでも編集できます</span>
+          <div style="margin-left:auto;display:flex;gap:6px">
+            <button class="btn btn-xs btn-p admin-only" onclick="openPlBudgetModal()">シミュレーションから予算に反映</button>
+          </div>
+        </div>
+        <div id="pl-table" style="overflow-x:auto"></div>
+      </div>
+      <div class="g2">
+        <div class="card">
+          <div class="ct"><div class="pip" style="background:var(--blue)"></div>月次推移チャート（売上・原価・販管費）</div>
+          <div style="height:250px"><canvas id="ch-pl-monthly"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="ct"><div class="pip" style="background:var(--green)"></div>営業利益推移</div>
+          <div style="height:250px"><canvas id="ch-pl-profit"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- シミュレーションから予算に反映モーダル -->
+    <div class="ov" id="ov-pl-budget">
+      <div class="panel wide">
+        <div class="ph">
+          <h2>シミュレーションから予算に反映</h2>
+          <button class="xbtn" onclick="closeOv('ov-pl-budget')">×</button>
+        </div>
+        <div class="pb-body">
+          <p style="font-size:11px;color:var(--t2);margin-bottom:14px">
+            月次PL入力テーブルの内容を年間予算に反映します。各科目の年間合計が表示されています。
+          </p>
+          <div id="pl-budget-content"></div>
+        </div>
+        <div class="pf">
+          <button class="btn btn-g" onclick="closeOv('ov-pl-budget')">キャンセル</button>
+          <button class="btn btn-p" onclick="applyPlBudget()">予算に反映する</button>
+        </div>
+      </div>
+    </div>
+
     <!-- USERS (admin only) -->
     <div class="pg" id="pg-users">
       <div class="card" style="margin-bottom:12px">
@@ -1590,6 +1636,7 @@ async function loadFromDB() {
       if (!S.orderMaster)  S.orderMaster  = [];
       if (!S.estimates)    S.estimates    = {};
       if (!S.prodBudgets)  S.prodBudgets  = {};
+      if (!S.plItems)      S.plItems      = { revenue:[], cost:[], sga:[] };
     }
     // DBから読んだデータをlocalStorageにも同期（リロード時の一時表示用）
     localStorage.setItem(`neo_v5_${_currentFiscalYear}`, JSON.stringify(S));
@@ -2238,7 +2285,7 @@ function dc(id){if(_ch[id]){_ch[id].destroy();delete _ch[id];}}
 // ══════════════════════════════════════════════════
 // NAVIGATION
 // ══════════════════════════════════════════════════
-const TITLES={ov:'サマリー',prog:'プログラム別',hm:'ホームルーム',gk:'評議会',oe:'応援カイギ',ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',tour:'ツアー',cityfes:'シティフェス',md:'マッチデイ',sd:'スペシャルデイズ',cf3:'イベント3',cf4:'イベント4',rev:'収入管理',users:'ユーザー管理',history:'ログイン履歴'};
+const TITLES={ov:'サマリー',prog:'プログラム別',hm:'ホームルーム',gk:'評議会',oe:'応援カイギ',ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',tour:'ツアー',cityfes:'シティフェス',md:'マッチデイ',sd:'スペシャルデイズ',cf3:'イベント3',cf4:'イベント4',rev:'収入管理',pl:'月次PL入力',users:'ユーザー管理',history:'ログイン履歴'};
 let _curPg='ov';
 function go(id,btn){
   if(id==='users' && !isAdmin()){alert('管理者のみアクセスできます');return;}
@@ -3756,6 +3803,7 @@ function renderPg(id){
   else if(id==='cityfes') renderCityFes();
   else if(['md','sd','cf3','cf4'].includes(id)) { _cityFesTab=id; renderCityFes(); }
   else if(id==='rev')  renderRev();
+  else if(id==='pl')   renderPL();
   else if(id==='mkt')       renderMkt();
   else if(id==='prod')      renderProd();
   else if(id==='changelog')    renderChangelog();
@@ -5315,6 +5363,401 @@ function selectOrderSuggest(itemId, inputId, catSelId) {
 }
 
 // renderPg ordermaster: 統合版に追加済み
+
+// ══════════════════════════════════════════════════
+// 月次PL入力テーブル機能
+// ══════════════════════════════════════════════════
+
+// plItems初期化
+if (!S.plItems) S.plItems = { revenue:[], cost:[], sga:[] };
+
+const PL_MONTHS_COUNT = 12; // 4月〜3月
+
+function getPlMonthLabels() {
+  const labels = [];
+  for (let m = 4; m <= 12; m++) labels.push(m + '月');
+  for (let m = 1; m <= 3; m++) labels.push(m + '月');
+  return labels;
+}
+
+function initPlValues() {
+  return new Array(PL_MONTHS_COUNT).fill(0);
+}
+
+function ensurePlValues(item) {
+  if (!item.values || item.values.length !== PL_MONTHS_COUNT) item.values = initPlValues();
+  if (!item.children) item.children = [];
+  if (!item.id) item.id = uid();
+  item.children.forEach(c => {
+    if (!c.values || c.values.length !== PL_MONTHS_COUNT) c.values = initPlValues();
+    if (!c.id) c.id = uid();
+  });
+}
+
+// 親の値を子の合計で上書き（子がある場合のみ）
+function recalcPlParent(item) {
+  if (!item.children || item.children.length === 0) return;
+  for (let m = 0; m < PL_MONTHS_COUNT; m++) {
+    item.values[m] = item.children.reduce((s, c) => s + n(c.values[m]), 0);
+  }
+}
+
+// セクション合計（親の値だけを合計。親は子がいれば子の合計になっている）
+function plSectionTotal(section) {
+  const items = S.plItems[section] || [];
+  const totals = initPlValues();
+  items.forEach(item => {
+    ensurePlValues(item);
+    recalcPlParent(item);
+    for (let m = 0; m < PL_MONTHS_COUNT; m++) {
+      totals[m] += n(item.values[m]);
+    }
+  });
+  return totals;
+}
+
+function plRowSum(values) {
+  return (values || []).reduce((s, v) => s + n(v), 0);
+}
+
+function renderPL() {
+  const el = document.getElementById('pl-table');
+  if (!el) return;
+
+  // 全アイテムのvalues/childrenを正規化
+  ['revenue','cost','sga'].forEach(sec => {
+    (S.plItems[sec] || []).forEach(item => {
+      ensurePlValues(item);
+      recalcPlParent(item);
+    });
+  });
+
+  const monthLabels = getPlMonthLabels();
+  const revTotals = plSectionTotal('revenue');
+  const costTotals = plSectionTotal('cost');
+  const sgaTotals = plSectionTotal('sga');
+
+  // 粗利 = 売上 - 原価
+  const grossProfit = initPlValues();
+  // 営業利益 = 粗利 - 販管費
+  const opProfit = initPlValues();
+  for (let m = 0; m < PL_MONTHS_COUNT; m++) {
+    grossProfit[m] = revTotals[m] - costTotals[m];
+    opProfit[m] = grossProfit[m] - sgaTotals[m];
+  }
+
+  let html = `<table class="tbl" style="min-width:900px;font-size:11px">
+    <thead><tr>
+      <th style="width:180px;text-align:left">科目</th>
+      ${monthLabels.map(l => `<th style="text-align:right;min-width:65px">${l}</th>`).join('')}
+      <th style="text-align:right;min-width:75px">年間合計</th>
+    </tr></thead><tbody>`;
+
+  // 売上合計行
+  html += plTotalRow('売上合計', revTotals, 'var(--green)', 'revenue');
+
+  // 売上明細
+  html += plSectionRows('revenue');
+
+  // 原価合計行
+  html += plTotalRow('原価合計', costTotals, 'var(--acc)', 'cost');
+
+  // 原価明細
+  html += plSectionRows('cost');
+
+  // 粗利行
+  html += plCalcRow('売上総利益（粗利）', grossProfit, 'var(--blue)');
+
+  // 販管費合計行
+  html += plTotalRow('販管費合計', sgaTotals, 'var(--yellow)', 'sga');
+
+  // 販管費明細
+  html += plSectionRows('sga');
+
+  // 営業利益行
+  html += plCalcRow('営業利益', opProfit, 'var(--purple)');
+
+  html += '</tbody></table>';
+  el.innerHTML = html;
+
+  // チャート描画
+  renderPLCharts(monthLabels, revTotals, costTotals, sgaTotals, grossProfit, opProfit);
+}
+
+function plTotalRow(label, totals, color, section) {
+  const yearTotal = plRowSum(totals);
+  return `<tr style="background:rgba(0,0,0,.04);font-weight:700">
+    <td style="color:${color};font-weight:700">${label}
+      <button class="btn btn-xs admin-only" onclick="addPlItem('${section}')" style="margin-left:6px;font-size:9px;padding:1px 6px">＋</button>
+    </td>
+    ${totals.map(v => `<td style="text-align:right;font-family:var(--mono);color:${color}">${fmtN(v)}</td>`).join('')}
+    <td style="text-align:right;font-family:var(--mono);font-weight:700;color:${color}">${fmtN(yearTotal)}</td>
+  </tr>`;
+}
+
+function plCalcRow(label, values, color) {
+  const yearTotal = plRowSum(values);
+  return `<tr style="background:rgba(0,0,0,.06);font-weight:700;border-top:2px solid var(--b2)">
+    <td style="color:${color};font-weight:700">${label}</td>
+    ${values.map(v => `<td style="text-align:right;font-family:var(--mono);color:${v >= 0 ? color : 'var(--red)'}">${fmtN(v)}</td>`).join('')}
+    <td style="text-align:right;font-family:var(--mono);font-weight:700;color:${yearTotal >= 0 ? color : 'var(--red)'}">${fmtN(yearTotal)}</td>
+  </tr>`;
+}
+
+function plSectionRows(section) {
+  const items = S.plItems[section] || [];
+  let html = '';
+  items.forEach((item, idx) => {
+    const hasChildren = item.children && item.children.length > 0;
+    const yearTotal = plRowSum(item.values);
+    // 親行
+    html += `<tr>
+      <td style="padding-left:16px;white-space:nowrap">
+        ${item.name || '（未入力）'}
+        <button class="btn btn-xs admin-only" onclick="addPlChild('${section}',${idx})" title="内訳を追加" style="font-size:8px;padding:0 4px;margin-left:4px">＋内訳</button>
+        <button class="del-btn admin-only" onclick="removePlItem('${section}',${idx})" title="削除" style="font-size:10px;margin-left:2px">×</button>
+      </td>
+      ${item.values.map((v, m) => `<td style="text-align:right;font-family:var(--mono)">
+        ${hasChildren
+          ? `<span style="color:var(--t2)">${fmtN(v)}</span>`
+          : `<input type="number" value="${v||''}" placeholder="0"
+              onchange="updatePlVal('${section}',${idx},null,${m},this.value)"
+              style="width:60px;text-align:right;padding:2px 4px;background:var(--s2);border:1px solid var(--b2);border-radius:4px;font-size:10px;font-family:var(--mono);color:var(--t1);outline:none">`
+        }
+      </td>`).join('')}
+      <td style="text-align:right;font-family:var(--mono);font-weight:600">${fmtN(yearTotal)}</td>
+    </tr>`;
+
+    // 子行
+    if (hasChildren) {
+      item.children.forEach((child, ci) => {
+        const cYearTotal = plRowSum(child.values);
+        html += `<tr style="background:rgba(0,0,0,.02)">
+          <td style="padding-left:36px;font-size:10px;color:var(--t2);white-space:nowrap">
+            ${child.name || '（未入力）'}
+            <button class="del-btn admin-only" onclick="removePlChild('${section}',${idx},${ci})" title="削除" style="font-size:9px;margin-left:2px">×</button>
+          </td>
+          ${child.values.map((v, m) => `<td style="text-align:right">
+            <input type="number" value="${v||''}" placeholder="0"
+              onchange="updatePlVal('${section}',${idx},${ci},${m},this.value)"
+              style="width:60px;text-align:right;padding:2px 4px;background:var(--s2);border:1px solid var(--b1);border-radius:4px;font-size:10px;font-family:var(--mono);color:var(--t2);outline:none">
+          </td>`).join('')}
+          <td style="text-align:right;font-family:var(--mono);font-size:10px;color:var(--t2)">${fmtN(cYearTotal)}</td>
+        </tr>`;
+      });
+    }
+  });
+  return html;
+}
+
+function addPlItem(section) {
+  if (!isAdmin()) { alert('管理者のみ変更できます'); return; }
+  const name = prompt('科目名を入力してください:');
+  if (!name) return;
+  if (!S.plItems[section]) S.plItems[section] = [];
+  S.plItems[section].push({ id: uid(), name, values: initPlValues(), children: [] });
+  save(); renderPL();
+}
+
+function addPlChild(section, parentIdx) {
+  if (!isAdmin()) { alert('管理者のみ変更できます'); return; }
+  const name = prompt('内訳科目名を入力してください:');
+  if (!name) return;
+  const parent = S.plItems[section][parentIdx];
+  if (!parent.children) parent.children = [];
+  parent.children.push({ id: uid(), name, values: initPlValues() });
+  recalcPlParent(parent);
+  save(); renderPL();
+}
+
+function removePlItem(section, idx) {
+  if (!isAdmin()) { alert('管理者のみ変更できます'); return; }
+  if (!confirm(`「${S.plItems[section][idx].name}」を削除しますか？`)) return;
+  S.plItems[section].splice(idx, 1);
+  save(); renderPL();
+}
+
+function removePlChild(section, parentIdx, childIdx) {
+  if (!isAdmin()) { alert('管理者のみ変更できます'); return; }
+  const parent = S.plItems[section][parentIdx];
+  if (!confirm(`「${parent.children[childIdx].name}」を削除しますか？`)) return;
+  parent.children.splice(childIdx, 1);
+  // 子が0になったら親の値はそのまま（手入力可能に戻る）
+  if (parent.children.length > 0) recalcPlParent(parent);
+  save(); renderPL();
+}
+
+function updatePlVal(section, parentIdx, childIdx, monthIdx, val) {
+  const v = parseFloat(val) || 0;
+  const parent = S.plItems[section][parentIdx];
+  if (childIdx !== null && childIdx !== undefined) {
+    // 子の値を更新
+    parent.children[childIdx].values[monthIdx] = v;
+    // 親を再計算
+    recalcPlParent(parent);
+  } else {
+    // 親の直接入力（子がない場合）
+    parent.values[monthIdx] = v;
+  }
+  save(); renderPL();
+}
+
+// PLチャート描画
+function renderPLCharts(labels, rev, cost, sga, gross, op) {
+  // 月次推移チャート
+  const ctx1 = document.getElementById('ch-pl-monthly');
+  if (ctx1) {
+    dc('ch-pl-monthly');
+    _ch['ch-pl-monthly'] = new Chart(ctx1, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label:'売上', data:[...rev], backgroundColor:'rgba(16,185,129,.3)', borderColor:'rgba(16,185,129,.7)', borderWidth:1, borderRadius:3 },
+          { label:'原価', data:[...cost], backgroundColor:'rgba(232,71,10,.2)', borderColor:'rgba(232,71,10,.6)', borderWidth:1, borderRadius:3 },
+          { label:'販管費', data:[...sga], backgroundColor:'rgba(217,119,6,.2)', borderColor:'rgba(217,119,6,.6)', borderWidth:1, borderRadius:3 },
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins: { legend:{ display:true, position:'top', labels:{ boxWidth:8, padding:10, font:{size:9} } },
+          tooltip:{ callbacks:{ label: ctx=>`${ctx.dataset.label}: ${Math.round(ctx.raw).toLocaleString()}千円` } } },
+        scales: {
+          x: { grid:{ color:'rgba(0,0,0,.05)' } },
+          y: { grid:{ color:'rgba(0,0,0,.05)' }, ticks:{ callback:v=>v.toLocaleString() }, title:{ display:true, text:'千円', font:{size:9} } },
+        }
+      }
+    });
+  }
+
+  // 営業利益推移チャート
+  const ctx2 = document.getElementById('ch-pl-profit');
+  if (ctx2) {
+    dc('ch-pl-profit');
+    _ch['ch-pl-profit'] = new Chart(ctx2, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label:'粗利', data:[...gross], backgroundColor: gross.map(v => v >= 0 ? 'rgba(37,99,235,.25)' : 'rgba(220,38,38,.25)'),
+            borderColor: gross.map(v => v >= 0 ? 'rgba(37,99,235,.6)' : 'rgba(220,38,38,.6)'), borderWidth:1, borderRadius:3 },
+          { label:'営業利益', data:[...op], type:'line', borderColor:'#7c3aed', borderWidth:2, pointRadius:3,
+            pointBackgroundColor: op.map(v => v >= 0 ? '#7c3aed' : '#dc2626'), fill:false, tension:0.3 },
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins: { legend:{ display:true, position:'top', labels:{ boxWidth:8, padding:10, font:{size:9} } },
+          tooltip:{ callbacks:{ label: ctx=>`${ctx.dataset.label}: ${Math.round(ctx.raw).toLocaleString()}千円` } } },
+        scales: {
+          x: { grid:{ color:'rgba(0,0,0,.05)' } },
+          y: { grid:{ color:'rgba(0,0,0,.05)' }, ticks:{ callback:v=>v.toLocaleString() }, title:{ display:true, text:'千円', font:{size:9} } },
+        }
+      }
+    });
+  }
+}
+
+// シミュレーションから予算に反映モーダル
+function openPlBudgetModal() {
+  if (!isAdmin()) { alert('管理者のみ利用できます'); return; }
+
+  // 全アイテムの再計算
+  ['revenue','cost','sga'].forEach(sec => {
+    (S.plItems[sec] || []).forEach(item => {
+      ensurePlValues(item);
+      recalcPlParent(item);
+    });
+  });
+
+  const revTotals = plSectionTotal('revenue');
+  const costTotals = plSectionTotal('cost');
+  const sgaTotals = plSectionTotal('sga');
+
+  const revYear = plRowSum(revTotals);
+  const costYear = plRowSum(costTotals);
+  const sgaYear = plRowSum(sgaTotals);
+  const grossYear = revYear - costYear;
+  const opYear = grossYear - sgaYear;
+
+  let html = `<table class="tbl" style="font-size:11px">
+    <thead><tr><th style="text-align:left">区分</th><th style="text-align:left">科目</th><th style="text-align:right">年間合計（千円）</th></tr></thead>
+    <tbody>`;
+
+  // 売上
+  html += `<tr style="background:rgba(0,0,0,.04);font-weight:700"><td style="color:var(--green)">売上</td><td style="color:var(--green)">売上合計</td><td style="text-align:right;font-family:var(--mono);color:var(--green)">${fmtN(revYear)}</td></tr>`;
+  (S.plItems.revenue || []).forEach(item => {
+    ensurePlValues(item);
+    html += `<tr><td></td><td style="padding-left:16px">${item.name}</td><td style="text-align:right;font-family:var(--mono)">${fmtN(plRowSum(item.values))}</td></tr>`;
+    if (item.children && item.children.length > 0) {
+      item.children.forEach(c => {
+        html += `<tr><td></td><td style="padding-left:36px;font-size:10px;color:var(--t2)">${c.name}</td><td style="text-align:right;font-family:var(--mono);color:var(--t2);font-size:10px">${fmtN(plRowSum(c.values))}</td></tr>`;
+      });
+    }
+  });
+
+  // 原価
+  html += `<tr style="background:rgba(0,0,0,.04);font-weight:700"><td style="color:var(--acc)">原価</td><td style="color:var(--acc)">原価合計</td><td style="text-align:right;font-family:var(--mono);color:var(--acc)">${fmtN(costYear)}</td></tr>`;
+  (S.plItems.cost || []).forEach(item => {
+    ensurePlValues(item);
+    html += `<tr><td></td><td style="padding-left:16px">${item.name}</td><td style="text-align:right;font-family:var(--mono)">${fmtN(plRowSum(item.values))}</td></tr>`;
+    if (item.children && item.children.length > 0) {
+      item.children.forEach(c => {
+        html += `<tr><td></td><td style="padding-left:36px;font-size:10px;color:var(--t2)">${c.name}</td><td style="text-align:right;font-family:var(--mono);color:var(--t2);font-size:10px">${fmtN(plRowSum(c.values))}</td></tr>`;
+      });
+    }
+  });
+
+  // 粗利
+  html += `<tr style="background:rgba(0,0,0,.06);font-weight:700;border-top:2px solid var(--b2)"><td style="color:var(--blue)">利益</td><td style="color:var(--blue)">売上総利益（粗利）</td><td style="text-align:right;font-family:var(--mono);color:${grossYear>=0?'var(--blue)':'var(--red)'}">${fmtN(grossYear)}</td></tr>`;
+
+  // 販管費
+  html += `<tr style="background:rgba(0,0,0,.04);font-weight:700"><td style="color:var(--yellow)">販管費</td><td style="color:var(--yellow)">販管費合計</td><td style="text-align:right;font-family:var(--mono);color:var(--yellow)">${fmtN(sgaYear)}</td></tr>`;
+  (S.plItems.sga || []).forEach(item => {
+    ensurePlValues(item);
+    html += `<tr><td></td><td style="padding-left:16px">${item.name}</td><td style="text-align:right;font-family:var(--mono)">${fmtN(plRowSum(item.values))}</td></tr>`;
+    if (item.children && item.children.length > 0) {
+      item.children.forEach(c => {
+        html += `<tr><td></td><td style="padding-left:36px;font-size:10px;color:var(--t2)">${c.name}</td><td style="text-align:right;font-family:var(--mono);color:var(--t2);font-size:10px">${fmtN(plRowSum(c.values))}</td></tr>`;
+      });
+    }
+  });
+
+  // 営業利益
+  html += `<tr style="background:rgba(0,0,0,.06);font-weight:700;border-top:2px solid var(--b2)"><td style="color:var(--purple)">利益</td><td style="color:var(--purple)">営業利益</td><td style="text-align:right;font-family:var(--mono);color:${opYear>=0?'var(--purple)':'var(--red)'}">${fmtN(opYear)}</td></tr>`;
+
+  html += '</tbody></table>';
+
+  document.getElementById('pl-budget-content').innerHTML = html;
+  openOv('ov-pl-budget');
+}
+
+function applyPlBudget() {
+  if (!isAdmin()) { alert('管理者のみ利用できます'); return; }
+
+  // 売上合計を収入に反映
+  const revYear = plRowSum(plSectionTotal('revenue'));
+  // 既存のrevenues合計を比較して、PL売上と差分があれば調整項目を追加/更新
+  const existingRevTotal = S.revenues.reduce((t, r) => t + n(r.amount), 0);
+
+  // PL科目ごとにrevenueを同期
+  (S.plItems.revenue || []).forEach(item => {
+    ensurePlValues(item);
+    recalcPlParent(item);
+    const yearTotal = plRowSum(item.values) * 1000; // 千円→円に変換
+    const existing = S.revenues.find(r => r.name === item.name);
+    if (existing) {
+      existing.amount = yearTotal;
+    } else {
+      S.revenues.push({ id: uid(), name: item.name, amount: yearTotal, prog: '', type: 'その他' });
+    }
+  });
+
+  save();
+  alert('月次PL入力テーブルの内容を予算に反映しました。');
+  closeOv('ov-pl-budget');
+  renderPL();
+}
 
 // ══════════════════════════════════════════════════
 // キャッシュフロー（CF）機能
