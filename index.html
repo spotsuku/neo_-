@@ -2246,41 +2246,6 @@ function renderOvMonthly() {
   </table>${unschedNote}`;
 }
 
-function renderOv(){
-  const kpiEl=document.getElementById('ov-kpis');  const totB=(()=>{let total=0;['ko','aw','ye','md','tour','sd','cf3','cf4'].forEach(k=>{total+=getEventBudget(k);});['hm','gk','oe'].forEach(k=>{total+=getSeriesBudget(k);});const prodB=S.prodBudgets||{};PROD_CATS_LIST.forEach(cat=>{total+=n(prodB[cat]);});return total;})();
-  const totA=S.programs.reduce((t,p)=>t+progActual(p.id),0);
-  const totE=S.programs.reduce((t,p)=>t+progEstimate(p.id),0);
-  const totR=S.revenues.reduce((t,r)=>t+n(r.amount),0);
-  const diff=totB-totA;const arari=totR-totA;
-  // 前年データ（キャッシュ済みなら使用）
-  const _ovPrevData = (_prevYearFY === _currentFiscalYear - 1) ? _prevYearData : null;
-  const prevTotA = _ovPrevData ? (() => { const sv=S; S=_ovPrevData; const v=S.programs.reduce((t,p)=>t+progActual(p.id),0); S=sv; return v; })() : null;
-  const prevTotR = _ovPrevData ? (_ovPrevData.revenues||[]).reduce((t,r)=>t+n(r.amount),0) : null;
-  const arariYosoku = totR - totB;
-
-  // 粗利目標
-  const ovTarget = n(S.grossProfitTarget);
-  const totRB = (S.revenues||[]).reduce((t,r)=>t+n(r.budget),0);
-  document.getElementById('ov-kpis').innerHTML = buildKpiSections({
-    totR, totRB, totB, totE, totA,
-    target: ovTarget,
-    prevActual: prevTotA,
-    pageKey: 'ov',
-  });
-  document.getElementById('ov-rev').innerHTML=S.revenues.map(r=>`<div class="rev-row"><div class="rev-name">${r.name}</div><div class="rev-val">${fmt(r.amount)}</div></div>`).join('')+`<div class="rev-row" style="border-top:1px solid var(--acc);margin-top:8px;padding-top:8px"><strong>収入合計</strong><span style="font-family:var(--mono);font-size:13px;color:var(--green);font-weight:700">${fmt(totR)}</span></div><div class="net-box"><div style="font-size:10px;color:var(--t2)">実質余剰額</div><div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green)">+${fmt(diff+totR)}</div></div>`;
-  const CAT8_COLORS={'① 会場・施設費':'#0369a1','② 飲食・ケータリング費':'#b45309','③ 出演・キャスティング費':'#7c3aed','④ 制作・演出費':'#0f766e','⑤ 運営・人件費':'#1d4ed8','⑥ 備品・設営費':'#9a3412','⑦ マーケ・広報費':'#be185d','⑩ その他':'#4b5563','⑧ デザイン費':'#9d174d'};
-  const totals8=calcCat8Totals();const maxActual8=Math.max(...ACCOUNTING_CATS.map(cat=>totals8[cat]?.actual||0),1);
-  document.getElementById('ov-cats').innerHTML=ACCOUNTING_CATS.map(cat=>{const t=totals8[cat]||{budget:0,estimate:0,actual:0};const col=CAT8_COLORS[cat]||'#374151';const hasBudget=t.budget>0;const barMax=hasBudget?t.budget:maxActual8;const barPct=barMax>0?Math.min(Math.round(t.actual/barMax*100),100):0;const consPct=hasBudget?Math.round(t.actual/t.budget*100):null;const isOver=hasBudget&&t.actual>t.budget;const barColor=isOver?'#ef4444':col;return`<div class="pb" style="margin-bottom:10px"><div class="pb-top" style="margin-bottom:4px"><span class="n" style="font-size:12px;font-weight:600">${cat}</span><div style="display:flex;gap:12px;align-items:center;font-size:10px;font-family:var(--mono)">${hasBudget?`<span style="color:var(--t3)">予算 ${fmtN(t.budget)}円</span>`:''} ${t.estimate?`<span style="color:var(--blue)">見積 ${fmtN(t.estimate)}円</span>`:''}<span style="color:${isOver?'#ef4444':col};font-weight:700">実績 ${fmtN(t.actual)}円</span>${consPct!==null?`<span style="font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px;background:${isOver?'rgba(239,68,68,.1)':'rgba(37,99,235,.08)'};color:${isOver?'#ef4444':'var(--blue)'}"> ${consPct}%</span>`:''}</div></div><div class="pb-track" style="height:7px;background:var(--b1);border-radius:4px;overflow:hidden;position:relative">${hasBudget?`<div style="position:absolute;top:0;left:0;height:100%;width:100%;background:rgba(0,0,0,.04);border-radius:4px"></div>`:''}<div class="pb-fill" style="height:100%;width:${Math.max(barPct,t.actual>0?1:0)}%;background:${barColor};border-radius:4px;transition:width .4s ease"></div></div>${hasBudget?`<div style="display:flex;justify-content:flex-end;margin-top:2px;font-size:9px;color:var(--t3)"><span>予算上限 ${fmtN(t.budget)}円</span></div>`:''}</div>`;}).join('');
-  renderOvMonthly();
-  dc('ch-cat');_ch['ch-cat']=new Chart(document.getElementById('ch-cat'),{type:'bar',data:{labels:ACCOUNTING_CATS.map(c=>c.replace(/^. /,'')),datasets:[{label:'実績',data:ACCOUNTING_CATS.map(cat=>totals8[cat]?.actual||0),backgroundColor:ACCOUNTING_CATS.map(cat=>(CAT8_COLORS[cat]||'#374151')+'bb'),borderColor:ACCOUNTING_CATS.map(cat=>CAT8_COLORS[cat]||'#374151'),borderWidth:1,borderRadius:4},{label:'見積',data:ACCOUNTING_CATS.map(cat=>totals8[cat]?.estimate||0),backgroundColor:'transparent',borderColor:ACCOUNTING_CATS.map(cat=>(CAT8_COLORS[cat]||'#374151')+'55'),borderWidth:1.5,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top',labels:{boxWidth:8,padding:10,font:{size:10}}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ¥${Math.round(ctx.raw).toLocaleString()}`}}},scales:{x:{grid:g0,ticks:{font:{size:9},maxRotation:30}},y:{grid:g0,ticks:{callback:v=>v>=10000?(v/10000)+'万':v}}}}});
-  dc('ch-donut');_ch['ch-donut']=new Chart(document.getElementById('ch-donut'),{type:'doughnut',data:{labels:S.programs.map(p=>p.name),datasets:[{data:S.programs.map(p=>getProgRealBudget(p)),backgroundColor:PAL.map(c=>c+'cc'),borderColor:PAL,borderWidth:1.5,hoverOffset:5}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{boxWidth:8,padding:8,font:{size:10}}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ¥${Math.round(ctx.raw).toLocaleString()}`}}}}});
-  if(typeof renderCF==='function')renderCF();
-}
-
-// ── PROGRAMS ──
-// 前年データキャッシュ
-let _prevYearData = null;
-let _prevYearFY = null;
 
 async function loadPrevYearData() {
   const prevFY = _currentFiscalYear - 1;
@@ -2437,6 +2402,30 @@ function autoSetOrderMonths(prog) {
 }
 
 // 全プログラムの発注月を一括自動設定
+async function renderOv(){
+  const totB=S.programs.filter(p=>p.id!=='marketing').reduce((t,p)=>t+getProgRealBudget(p),0);
+  const totA=S.programs.reduce((t,p)=>t+progActual(p.id),0);
+  const totE=S.programs.reduce((t,p)=>t+progEstimate(p.id),0);
+  const totR=(S.revenues||[]).reduce((t,r)=>t+n(r.amount),0);
+  const totRB=(S.revenues||[]).reduce((t,r)=>t+n(r.budget),0);
+  const prevData = (_prevYearFY===_currentFiscalYear-1)?_prevYearData:null;
+  const prevTotA = prevData ? S.programs.reduce((t,p)=>{const sv=S;S=prevData;const v=progActual(p.id);S=sv;return t+v;},0) : null;
+  const ovTarget = n(S.grossProfitTarget);
+  const kpiEl=document.getElementById('ov-kpis');
+  if(kpiEl) kpiEl.innerHTML = buildKpiSections({totR,totRB,totB,totE,totA,target:ovTarget,prevActual:prevTotA,pageKey:'ov'});
+  setOvMonthlyType(_ovMonthlyType||'all');
+  // 収入内訳
+  const revEl=document.getElementById('ov-rev');
+  if(revEl){
+    const revItems=(S.revenues||[]).filter(r=>n(r.amount)>0);
+    const totRev=revItems.reduce((t,r)=>t+n(r.amount),0);
+    revEl.innerHTML=revItems.map(r=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--b1);font-size:12px"><span>${r.name||'—'}</span><span style="font-family:var(--mono);color:var(--acc);font-weight:700">¥${fmtN(n(r.amount))}</span></div>`).join('')
+      +`<div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;font-size:13px"><span>収入合計</span><span style="font-family:var(--mono);color:var(--acc)">¥${fmtN(totRev)}</span></div>`
+      +(totRev>0&&totA>0?`<div style="margin-top:8px;padding:10px;background:var(--s2);border-radius:8px;font-size:11px"><div style="color:var(--t2);margin-bottom:4px">実質 余剰額</div><div style="font-family:var(--mono);font-size:16px;font-weight:800;color:${totRev-totA>=0?'var(--green)':'var(--red)'}">${totRev-totA>=0?'+':''}¥${fmtN(totRev-totA)}</div></div>`:'');
+  }
+}
+
+
 function autoSetAllOrderMonths() {
   S.programs.forEach(p => {
     if(p.date) autoSetOrderMonths(p);
@@ -2662,6 +2651,7 @@ async function renderProg(){
 // ══════════════════════════════════════════════════
 // プログラム別 月次経費テーブル
 // ══════════════════════════════════════════════════
+
 function renderProgMonthly() {
   const el = document.getElementById('prog-monthly-table');
   if(!el) return;
@@ -2669,7 +2659,6 @@ function renderProgMonthly() {
   const type   = document.getElementById('prog-monthly-type')?.value || 'actual';
   const filter = document.getElementById('prog-monthly-prog')?.value || '';
 
-  // プログラムセレクト初期化
   const sel = document.getElementById('prog-monthly-prog');
   if(sel && sel.options.length <= 1) {
     S.programs.filter(p=>p.id!=='marketing').forEach(p=>{
@@ -2679,7 +2668,6 @@ function renderProgMonthly() {
     });
   }
 
-  // 月リスト: 年度の4月〜翌3月（形式: "2025/4"）
   const months = [];
   for(let m=4;m<=12;m++) months.push(`${_currentFiscalYear}/${m}`);
   for(let m=1;m<=3;m++)  months.push(`${_currentFiscalYear+1}/${m}`);
@@ -2687,23 +2675,18 @@ function renderProgMonthly() {
 
   const progs = S.programs.filter(p=>p.id!=='marketing' && (!filter || p.id===filter));
 
-  // プログラム別・月別の集計
   const progMonthData = {};
-  progs.forEach(p => {
-    progMonthData[p.id] = {};
-    months.forEach(m => progMonthData[p.id][m] = 0);
-  });
+  progs.forEach(p => { progMonthData[p.id] = {}; months.forEach(m => progMonthData[p.id][m] = 0); });
 
   const addVal = (progId, monthKey, val) => {
-    if(!monthKey || !months.includes(monthKey)) return;
+    if(!monthKey || !val) return;
+    const key = months.includes(monthKey) ? monthKey : '__other__';
     if(!progMonthData[progId]) return;
-    progMonthData[progId][monthKey] = (progMonthData[progId][monthKey]||0) + val;
+    progMonthData[progId][key] = (progMonthData[progId][key]||0) + val;
   };
 
   if(type === 'actual' || type === 'estimate' || type === 'order') {
-    // 見積テーブル（estimates）を使用
     Object.entries(S.estimates||{}).forEach(([key, rows]) => {
-      // cityfesタブ（md/sd/cf3/cf4）はcityfesプログラムとして集計
       const isCFTab = CITYFES_TABS.includes(key);
       const progId = isCFTab ? 'cityfes' : key;
       const prog = S.programs.find(p=>p.id===progId);
@@ -2715,18 +2698,16 @@ function renderProgMonthly() {
       });
     });
 
-    // 製作物管理の実績・見積（支払月/発注月ベース）
-    const annualProg2 = S.programs.find(p=>p.id==='annual');
-    if(annualProg2 && (!filter || filter==='annual')) {
-      const pb = getProdBudgets();
+    // 製作物管理
+    const annualProg = S.programs.find(p=>p.id==='annual');
+    if(annualProg && (!filter || filter==='annual')) {
       (S.prodItems||[]).forEach(it => {
         const monthKey = (type==='order') ? it.orderMonth : it.payMonth;
-        const val = (type==='actual') ? n(it.actual) : n(it.estimate);
-        addVal('annual', monthKey, val);
+        addVal('annual', monthKey, type==='actual' ? n(it.actual) : n(it.estimate));
       });
     }
 
-    // セッション（シリーズ）: 費目ごとの発注月/支払月で集計
+    // シリーズ（費目ごとの月で集計）
     ['hm','gk','oe'].forEach(key => {
       const prog = S.programs.find(p=>p.id===key);
       if(!prog || (filter && prog.id!==filter)) return;
@@ -2736,18 +2717,12 @@ function renderProgMonthly() {
           if(type==='order') {
             monthKey = it.orderMonth || '';
             if(!monthKey && sess.date) {
-              const d = new Date(sess.date);
-              let m = d.getMonth(), y = d.getFullYear();
-              if(m===0){m=12;y--;}
-              monthKey = `${y}/${m}`;
+              const d=new Date(sess.date); let m=d.getMonth(),y=d.getFullYear();
+              if(m===0){m=12;y--;} monthKey=`${y}/${m}`;
             }
             addVal(key, monthKey, n(it.estimate));
           } else {
-            monthKey = it.payMonth || '';
-            if(!monthKey && sess.date) {
-              const d = new Date(sess.date);
-              monthKey = `${d.getFullYear()}/${d.getMonth()+1}`;
-            }
+            monthKey = it.payMonth || (sess.date ? `${new Date(sess.date).getFullYear()}/${new Date(sess.date).getMonth()+1}` : '');
             addVal(key, monthKey, type==='actual' ? n(it.actual) : n(it.estimate));
           }
         });
@@ -2755,107 +2730,87 @@ function renderProgMonthly() {
     });
 
   } else {
-    // 予算（budget）: S.events[key].itemsのorderMonthを使用
-    // 単発イベント
+    // 予算
     ['ko','aw','ye','tour'].forEach(key => {
       const prog = S.programs.find(p=>p.id===key);
       if(!prog || (filter && prog.id!==filter)) return;
-      (S.events[key]?.items||[]).forEach(it => {
-        addVal(prog.id, it.orderMonth, n(it.budget));
-      });
+      (S.events[key]?.items||[]).forEach(it => addVal(prog.id, it.orderMonth, n(it.budget)));
     });
-    // シティフェス（md/sd/cf3/cf4 → cityfesプログラムに集計）
     if(!filter || filter==='cityfes') {
       CITYFES_TABS.forEach(key => {
-        (S.events[key]?.items||[]).forEach(it => {
-          addVal('cityfes', it.orderMonth, n(it.budget));
-        });
+        (S.events[key]?.items||[]).forEach(it => addVal('cityfes', it.orderMonth, n(it.budget)));
       });
     }
-    // シリーズの予算（費目ごとに発注月で集計）
     ['hm','gk','oe'].forEach(key => {
       const prog = S.programs.find(p=>p.id===key);
       if(!prog || (filter && prog.id!==filter)) return;
       (S.sessions[key]||[]).forEach(sess => {
         (sess.items||[]).forEach(it => {
           let mk = it.orderMonth || '';
-          if(!mk && sess.date) {
-            const d = new Date(sess.date);
-            let m = d.getMonth(), y = d.getFullYear();
-            if(m===0){m=12;y--;} mk = `${y}/${m}`;
-          }
-          addVal(budget, mk, n(it.budget));
+          if(!mk && sess.date) { const d=new Date(sess.date); let m=d.getMonth(),y=d.getFullYear(); if(m===0){m=12;y--;} mk=`${y}/${m}`; }
+          addVal(key, mk, n(it.budget));
         });
       });
     });
-// 製作物管理
-  const pb = getProdBudgets();
-  PROD_CATS_LIST.forEach(cat => {
-    addVal(budget, pb[cat+'_orderMonth'], n(pb[cat]));
-  });
-
-  // ── 見積・実績（estimates経由） ──
-  Object.entries(S.estimates||{}).forEach(([key, rows]) => {
-    const isCFTab = CITYFES_TABS.includes(key);
-    rows.forEach(r => {
-      addVal(estimate, r.payMonth,   n(r.estimate));
-      addVal(estimate, r.orderMonth, 0); // orderMonthは見積専用
-      addVal(actual,   r.payMonth,   n(r.actual));
-    });
-  });
-  // シリーズ実績・見積（費目ごとの月で集計）
-  ['hm','gk','oe'].forEach(key => {
-    (S.sessions[key]||[]).forEach(sess => {
-      (sess.items||[]).forEach(it => {
-        const omk = it.orderMonth || (sess.date ? (()=>{const d=new Date(sess.date);let m=d.getMonth(),y=d.getFullYear();if(m===0){m=12;y--;}return `${y}/${m}`;})() : '');
-        const pmk = it.payMonth || (sess.date ? `${new Date(sess.date).getFullYear()}/${new Date(sess.date).getMonth()+1}` : '');
-        addVal(estimate, omk, n(it.estimate));
-        addVal(actual,   pmk, n(it.actual));
-      });
-    });
-  });
-  // 製作物管理 実績・見積
-  (S.prodItems||[]).forEach(it => {
-    addVal(estimate, it.payMonth,   n(it.estimate));
-    addVal(actual,   it.payMonth,   n(it.actual));
-  });
-  // MF取込実績がある場合はそちらを優先（実績のみ）
-  const hasMF = (S.monthlyTotal||[]).some(v=>v>0);
-  if(hasMF) {
-    S.months.forEach((mk, i) => {
-      if(S.monthlyTotal[i] > 0) {
-        // MFデータをfullYearMKに変換
-        const parts = mk.split('/');
-        const yr = parseInt(parts[0]) + 2000;
-        const fullMK = `${yr}/${parts[1]}`;
-        if(months.includes(fullMK)) actual[fullMK] = S.monthlyTotal[i];
-      }
-    });
+    const pb = getProdBudgets();
+    const annualProg = S.programs.find(p=>p.id==='annual');
+    if(annualProg && (!filter || filter==='annual')) {
+      PROD_CATS_LIST.forEach(cat => addVal('annual', pb[cat+'_orderMonth'], n(pb[cat])));
+    }
   }
 
-  // 収支サマリーと同じ方法で総予算を計算（発注月未設定分を含む）
-  const totalBudgetFull = S.programs
-    .filter(p=>p.id!=='marketing')
-    .reduce((t,p)=>t+getProgRealBudget(p), 0);
-  const totalBudgetScheduled = months.reduce((t,m)=>t+(budget[m]||0), 0);
-  const unscheduled = totalBudgetFull - totalBudgetScheduled;
+  const monthTotals = {};
+  months.forEach(m => { monthTotals[m] = progs.reduce((t,p)=>t+(progMonthData[p.id]?.[m]||0),0); });
+  const otherTotal = progs.reduce((t,p)=>t+(progMonthData[p.id]?.['__other__']||0),0);
+  const grandTotal = progs.reduce((t,p)=>t+months.reduce((s,m)=>s+(progMonthData[p.id]?.[m]||0),0)+(progMonthData[p.id]?.['__other__']||0),0);
+  const maxVal = Math.max(...Object.values(monthTotals),1);
+  const hasOther = otherTotal > 0;
 
-  return { months, budget, estimate, actual, totalBudgetFull, unscheduled };
+  let tbl = `<table class="tbl" style="min-width:900px;font-size:11px">
+    <thead><tr style="background:var(--s2)">
+      <th style="min-width:100px">プログラム</th>
+      ${monthLabels.map(l=>`<th style="text-align:right;min-width:65px">${l}</th>`).join('')}
+      ${hasOther?'<th style="text-align:right;min-width:65px;color:var(--t3)">年度外</th>':''}
+      <th style="text-align:right;min-width:80px">合計</th>
+    </tr></thead><tbody>`;
+
+  progs.forEach(p => {
+    const rowTotal = months.reduce((t,m)=>t+(progMonthData[p.id]?.[m]||0),0)+(progMonthData[p.id]?.['__other__']||0);
+    if(rowTotal===0 && !filter) return;
+    const other = progMonthData[p.id]?.['__other__']||0;
+    tbl += `<tr>
+      <td style="font-weight:600">${p.name}</td>
+      ${months.map(m=>{const v=progMonthData[p.id]?.[m]||0;return`<td style="text-align:right;font-family:var(--mono);color:${v>0?'var(--t1)':'var(--t3)'}">${v>0?fmtN(v):'—'}</td>`;}).join('')}
+      ${hasOther?`<td style="text-align:right;font-family:var(--mono);color:var(--t3)">${other>0?fmtN(other):'—'}</td>`:''}
+      <td style="text-align:right;font-family:var(--mono);font-weight:700;color:var(--blue)">${rowTotal>0?fmtN(rowTotal):'—'}</td>
+    </tr>`;
+  });
+
+  tbl += `<tr style="border-top:2px solid var(--b2);background:var(--s2);font-weight:700">
+    <td>合計</td>
+    ${months.map(m=>{const v=monthTotals[m]||0;return`<td style="text-align:right;font-family:var(--mono);color:${v>0?'var(--acc)':'var(--t3)'}">${v>0?fmtN(v):'—'}</td>`;}).join('')}
+    ${hasOther?`<td style="text-align:right;font-family:var(--mono);color:var(--t3)">${otherTotal>0?fmtN(otherTotal):'—'}</td>`:''}
+    <td style="text-align:right;font-family:var(--mono);color:var(--acc)">${grandTotal>0?fmtN(grandTotal):'—'}</td>
+  </tr>
+  <tr style="background:var(--s2)">
+    <td style="font-size:9px;color:var(--t3)">割合</td>
+    ${months.map(m=>{const v=monthTotals[m]||0;const pct=maxVal>0?Math.round(v/maxVal*100):0;return`<td style="padding:4px"><div style="height:4px;background:var(--b1);border-radius:2px"><div style="height:100%;width:${pct}%;background:var(--acc);border-radius:2px"></div></div></td>`;}).join('')}
+    ${hasOther?'<td></td>':''}
+    <td></td>
+  </tr></tbody></table>`;
+
+  // 未設定分の注記
+  const totalBudgetFull = S.programs.filter(p=>p.id!=='marketing').reduce((t,p)=>t+getProgRealBudget(p),0);
+  const scheduled = months.reduce((t,m)=>t+(monthTotals[m]||0),0);
+  const unscheduled = totalBudgetFull - scheduled - otherTotal;
+  if((type==='budget'||type==='all') && unscheduled > 1000) {
+    tbl += `<div style="margin-top:6px;font-size:10px;color:var(--t3);padding:4px 8px;background:rgba(245,158,11,.08);border-radius:5px">
+      ⚠️ 発注月未設定: <strong style="color:var(--yellow)">${fmtN(unscheduled)}円</strong>（月次未反映分）／ 総予算: <strong>${fmtN(totalBudgetFull)}円</strong>
+    </div>`;
+  }
+
+  el.innerHTML = tbl;
 }
-
-
-
-
-
-
-
-
-
-
-
-// ══════════════════════════════════════════════════
-// プログラム別 月次経費テーブル
-// ══════════════════════════════════════════════════
 
 function isDateInFY(dateStr, fy) {
   if(!dateStr) return true;
