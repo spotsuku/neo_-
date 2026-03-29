@@ -2172,7 +2172,7 @@ async function renderProg(){
       <td style="padding:3px 4px;text-align:center">
         <input type="date" value="${p.date||''}"
           style="font-size:10px;padding:3px 5px;border:1.5px solid var(--b2);border-radius:5px;background:var(--s1);color:var(--t2);outline:none;width:100px"
-          onchange="S.programs[${pi}].date=this.value;autoSetOrderMonths(S.programs[${pi}]);debouncedSave();renderProg()"
+          onchange="S.programs[${pi}].date=this.value;if(S.events[S.programs[${pi}].id])S.events[S.programs[${pi}].id].date=this.value;autoSetOrderMonths(S.programs[${pi}]);debouncedSave();renderProg()"
           title="開催日を設定すると発注月が自動設定されます">
       </td>
       <td style="text-align:right"><input type="number" value="${realBudget||''}" placeholder="0"
@@ -2448,6 +2448,19 @@ function renderProgMonthly() {
 // ══════════════════════════════════════════════════
 // スケジュール一覧ページ
 // ══════════════════════════════════════════════════
+// 日付が指定年度内か判定（年度=4月始まり）
+function isDateInFY(dateStr, fy) {
+  if(!dateStr) return true;
+  try {
+    const d = new Date(dateStr);
+    if(isNaN(d)) return true;
+    const y = d.getFullYear(), m = d.getMonth()+1; // m: 1-12
+    // FY年の4月〜FY+1年の3月
+    if(m >= 4) return y === fy;
+    else       return y === fy + 1;
+  } catch(e) { return true; }
+}
+
 function renderSchedule() {
   const filterPhase = document.getElementById('sch-filter-phase')?.value || '';
   const filterProg  = document.getElementById('sch-filter-prog')?.value  || '';
@@ -2469,40 +2482,51 @@ function renderSchedule() {
   // 全イベント・セッションを収集
   const items = [];
 
-  // シリーズ
+  // シリーズ（セッションの日付が現年度内のものだけ表示）
   [{key:'hm',name:'ホームルーム',icon:'🏫'},{key:'gk',name:'評議会',icon:'🏛'},{key:'oe',name:'応援カイギ',icon:'📣'}]
   .forEach(({key,name,icon}) => {
     const progRev = getRevByProgId(key);
-    (S.sessions[key]||[]).forEach(sess => {
+    const sessInFY = (S.sessions[key]||[]).filter(s => !s.date || isDateInFY(s.date, _currentFiscalYear));
+    sessInFY.forEach(sess => {
       items.push({
         id: sess.id, progId: key, progName: name, icon,
         title: sess.title||'(未設定)', date: sess.date||'',
         budget: sessSum(sess,'budget'), est: sessSum(sess,'estimate'), actual: sessSum(sess,'actual'),
-        rev: progRev / Math.max((S.sessions[key]||[]).length, 1), // 収入を回次数で均等割り
+        rev: progRev / Math.max(sessInFY.length, 1),
         type: 'series', onClick: `openSess('${key}','${sess.id}')`,
       });
     });
   });
 
-  // 単発イベント
+  // 単発イベント（S.programsのdateが年度内かチェック）
   [{key:'ko',name:'キックオフ',icon:'🚀'},{key:'aw',name:'アワード',icon:'🏆'},
    {key:'ye',name:'イヤーエンド',icon:'🎉'},{key:'tour',name:'ツアー',icon:'✈️'}
   ].forEach(({key,name,icon}) => {
+    // 開催日を取得（S.programsのdateを優先、なければS.events[key].date）
+    const prog = S.programs.find(p=>p.id===key);
+    const date = prog?.date || S.events[key]?.date || '';
+    // 年度フィルタ: 開催日が現年度（4月〜翌3月）内、または日付未設定
+    const inFY = !date || isDateInFY(date, _currentFiscalYear);
+    if(!inFY) return;
     items.push({
       id: key, progId: key, progName: name, icon,
-      title: name, date: S.events[key]?.date||'',
+      title: name, date,
       budget: getEventBudget(key), est: progEstimate(key), actual: progActual(key),
       rev: getRevByProgId(key),
       type: 'event', onClick: `go('${key}',null)`,
     });
   });
 
-  // シティフェス
+  // シティフェス（年度フィルタあり）
   CITYFES_TABS.forEach(key => {
+    const prog = S.programs.find(p=>p.id==='cityfes');
+    const date = S.events[key]?.date || prog?.date || '';
+    const inFY = !date || isDateInFY(date, _currentFiscalYear);
+    if(!inFY) return;
     const estRows = S.estimates?.[key]||[];
     items.push({
       id: key, progId: 'cityfes', progName: 'シティフェス', icon: '🎪',
-      title: getCityFesLabel(key), date: S.events[key]?.date||'',
+      title: getCityFesLabel(key), date,
       budget: getEventBudget(key),
       est:    estRows.length ? estRows.reduce((t,r)=>t+n(r.estimate),0) : evtSum(key,'estimate'),
       actual: evtSum(key,'actual'),
@@ -2738,7 +2762,17 @@ function updateSessItem(inp){const i=parseInt(inp.dataset.i),f=inp.dataset.f;_sC
 function updateSessTotals(){const b=_sCtx.items.reduce((t,i)=>t+n(i.budget),0);const e=_sCtx.items.reduce((t,i)=>t+n(i.estimate),0);const a=_sCtx.items.reduce((t,i)=>t+n(i.actual),0);document.getElementById('s-budget-total').value=b?fmtN(b):'';document.getElementById('s-est-total').value=e?fmtN(e):'';document.getElementById('s-act-total').value=a?fmtN(a):'';}
 function addSessItem(){const used=new Set(_sCtx.items.map(it=>it.name));const next=ACCOUNTING_CATS.find(c=>!used.has(c))||'';_sCtx.items.push({id:uid(),name:next,budget:0,estimate:0,actual:0});renderSessItems();}
 function removeSessItem(i){_sCtx.items.splice(i,1);renderSessItems();}
-function saveSess(){const{key,id}=_sCtx;const obj={id:id||uid(),title:document.getElementById('s-title').value,date:document.getElementById('s-date').value,memo:document.getElementById('s-memo').value,items:_sCtx.items};if(id){const idx=S.sessions[key].findIndex(x=>x.id===id);S.sessions[key][idx]=obj;}else S.sessions[key].push(obj);saveMemberData();closeOv('ov-sess');renderPg(key);}
+function saveSess(){const{key,id}=_sCtx;const obj={id:id||uid(),title:document.getElementById('s-title').value,date:document.getElementById('s-date').value,memo:document.getElementById('s-memo').value,items:_sCtx.items};
+  // 日付が設定されている場合、各費目の発注月を自動設定（開催日の1ヶ月前）
+  if(obj.date){
+    const sd=new Date(obj.date);if(!isNaN(sd)){
+      let sm=sd.getMonth(),sy=sd.getFullYear();
+      if(sm===0){sm=12;sy--;}
+      const orderKey=`${sy}/${sm}`;
+      (obj.items||[]).forEach(it=>{if(!it.orderMonth)it.orderMonth=orderKey;});
+    }
+  }
+  if(id){const idx=S.sessions[key].findIndex(x=>x.id===id);S.sessions[key][idx]=obj;}else S.sessions[key].push(obj);saveMemberData();closeOv('ov-sess');renderPg(key);}
 function deleteSess(){const{key,id}=_sCtx;S.sessions[key]=S.sessions[key].filter(x=>x.id!==id);save();closeOv('ov-sess');renderPg(key);}
 
 // ── イベントパネル ──
