@@ -2427,6 +2427,56 @@ async function renderOv(){
   }
 }
 
+  // 費目別消化状況
+  const catsEl = document.getElementById('ov-cats');
+  if(catsEl) {
+    const rows = ACCOUNTING_CATS.map(cat => {
+      const b = S.programs.reduce((t,p)=>{const it=(S.events[p.id]?.items||[]).find(i=>i.name===cat);return t+(it?n(it.budget):0);},0);
+      const e = S.programs.reduce((t,p)=>{const it=(S.events[p.id]?.items||[]).find(i=>i.name===cat);return t+(it?n(it.estimate):0);},0);
+      const a = S.programs.reduce((t,p)=>{const it=(S.events[p.id]?.items||[]).find(i=>i.name===cat);return t+(it?n(it.actual):0);},0);
+      if(!b&&!e&&!a) return '';
+      const pct = b>0?Math.min(100,Math.round(a/b*100)):0;
+      const col = pct>100?'var(--red)':pct>80?'var(--yellow)':'var(--blue)';
+      return `<div style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px">
+          <span style="font-weight:600">${cat}</span>
+          <span style="font-family:var(--mono);color:${col}">${fmtN(a)} / ${fmtN(b)}円</span>
+        </div>
+        <div style="height:5px;background:var(--b1);border-radius:3px">
+          <div style="height:100%;width:${pct}%;background:${col};border-radius:3px"></div>
+        </div>
+      </div>`;
+    }).join('');
+    catsEl.innerHTML = rows;
+  }
+
+  // 費目別チャート
+  dc('ch-cat');
+  const catCanvas = document.getElementById('ch-cat');
+  if(catCanvas) {
+    const cats = ACCOUNTING_CATS;
+    const budData = cats.map(cat=>S.programs.reduce((t,p)=>{const it=(S.events[p.id]?.items||[]).find(i=>i.name===cat);return t+(it?n(it.budget):0);},0));
+    const actData = cats.map(cat=>S.programs.reduce((t,p)=>{const it=(S.events[p.id]?.items||[]).find(i=>i.name===cat);return t+(it?n(it.actual):0);},0));
+    _ch['ch-cat']=new Chart(catCanvas,{type:'bar',data:{labels:cats,datasets:[
+      {label:'予算',data:budData,backgroundColor:'rgba(37,99,235,.3)',borderRadius:3},
+      {label:'実績',data:actData,backgroundColor:'rgba(249,115,22,.6)',borderRadius:3},
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:8,font:{size:9}}}},scales:{x:{grid:{display:false},ticks:{font:{size:8},maxRotation:45}},y:{grid:{color:'rgba(0,0,0,.05)'},ticks:{callback:v=>v>=1000000?(v/1000000).toFixed(1)+'M':v.toLocaleString()}}}}});
+  }
+
+  // ドーナツチャート（プログラム別予算比率）
+  dc('ch-donut');
+  const donutCanvas = document.getElementById('ch-donut');
+  if(donutCanvas) {
+    const progs = S.programs.filter(p=>p.id!=='marketing');
+    const labels = progs.map(p=>p.name);
+    const data = progs.map(p=>getProgRealBudget(p));
+    const colors = ['rgba(37,99,235,.7)','rgba(16,185,129,.7)','rgba(249,115,22,.7)','rgba(139,92,246,.7)','rgba(245,158,11,.7)','rgba(20,184,166,.7)','rgba(232,64,96,.7)','rgba(96,165,250,.7)','rgba(74,222,128,.7)','rgba(251,146,60,.7)'];
+    _ch['ch-donut']=new Chart(donutCanvas,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:8,font:{size:9},padding:6}}}}});
+  }
+
+  // CFチャート
+  renderCF();
+
 
 function autoSetAllOrderMonths() {
   S.programs.forEach(p => {
