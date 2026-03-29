@@ -448,9 +448,19 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
     </div>
 
     <div class="pg" id="pg-ko">
+      <!-- 開催日設定 -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;padding:10px 14px;background:var(--s2);border-radius:8px;flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:700;color:var(--t2)">📅 開催日</span>
+        <input type="date" id="ko-date-input"
+          style="padding:5px 10px;border:1.5px solid var(--b2);border-radius:6px;font-size:12px;background:var(--s1);color:var(--t1);outline:none"
+          onchange="setEvtDate('ko',this.value)"
+          title="開催日を設定すると費目の発注月が自動設定されます（開催日の1ヶ月前）">
+        <span style="font-size:10px;color:var(--t3)">設定すると費目の発注月を自動設定します</span>
+      </div>
       <div class="g7" id="ko-kpis" style="margin-bottom:14px"></div>
       <div class="g2" style="margin-bottom:14px">
-        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('ko')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="ko-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('ko')">✏️ 予算を編集</button>
+              <button class="btn btn-xs admin-only" style="background:rgba(239,68,68,.08);border:1.5px solid rgba(239,68,68,.3);color:var(--red)" onclick="clearEvtActuals('ko')" title="会計科目別集計の実績を全て0にリセット">実績クリア</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="ko-tbody"></tbody></table></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--acc)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-ko"></canvas></div></div>
       </div>
       <div class="card">
@@ -468,9 +478,19 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       </div>
     </div>
     <div class="pg" id="pg-aw">
+      <!-- 開催日設定 -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;padding:10px 14px;background:var(--s2);border-radius:8px;flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:700;color:var(--t2)">📅 開催日</span>
+        <input type="date" id="aw-date-input"
+          style="padding:5px 10px;border:1.5px solid var(--b2);border-radius:6px;font-size:12px;background:var(--s1);color:var(--t1);outline:none"
+          onchange="setEvtDate('aw',this.value)"
+          title="開催日を設定すると費目の発注月が自動設定されます（開催日の1ヶ月前）">
+        <span style="font-size:10px;color:var(--t3)">設定すると費目の発注月を自動設定します</span>
+      </div>
       <div class="g7" id="aw-kpis" style="margin-bottom:14px"></div>
       <div class="g2" style="margin-bottom:14px">
-        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('aw')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="aw-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('aw')">✏️ 予算を編集</button>
+              <button class="btn btn-xs admin-only" style="background:rgba(239,68,68,.08);border:1.5px solid rgba(239,68,68,.3);color:var(--red)" onclick="clearEvtActuals('aw')" title="会計科目別集計の実績を全て0にリセット">実績クリア</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="aw-tbody"></tbody></table></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--yellow)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-aw"></canvas></div></div>
       </div>
       <div class="card">
@@ -488,9 +508,19 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       </div>
     </div>
     <div class="pg" id="pg-ye">
+      <!-- 開催日設定 -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;padding:10px 14px;background:var(--s2);border-radius:8px;flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:700;color:var(--t2)">📅 開催日</span>
+        <input type="date" id="ye-date-input"
+          style="padding:5px 10px;border:1.5px solid var(--b2);border-radius:6px;font-size:12px;background:var(--s1);color:var(--t1);outline:none"
+          onchange="setEvtDate('ye',this.value)"
+          title="開催日を設定すると費目の発注月が自動設定されます（開催日の1ヶ月前）">
+        <span style="font-size:10px;color:var(--t3)">設定すると費目の発注月を自動設定します</span>
+      </div>
       <div class="g7" id="ye-kpis" style="margin-bottom:14px"></div>
       <div class="g2" style="margin-bottom:14px">
-        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('ye')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="ye-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('ye')">✏️ 予算を編集</button>
+              <button class="btn btn-xs admin-only" style="background:rgba(239,68,68,.08);border:1.5px solid rgba(239,68,68,.3);color:var(--red)" onclick="clearEvtActuals('ye')" title="会計科目別集計の実績を全て0にリセット">実績クリア</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="ye-tbody"></tbody></table></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--purple)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-ye"></canvas></div></div>
       </div>
       <div class="card">
@@ -508,9 +538,19 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       </div>
     </div>
     <div class="pg" id="pg-tour">
+      <!-- 開催日設定 -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;padding:10px 14px;background:var(--s2);border-radius:8px;flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:700;color:var(--t2)">📅 開催日</span>
+        <input type="date" id="tour-date-input"
+          style="padding:5px 10px;border:1.5px solid var(--b2);border-radius:6px;font-size:12px;background:var(--s1);color:var(--t1);outline:none"
+          onchange="setEvtDate('tour',this.value)"
+          title="開催日を設定すると費目の発注月が自動設定されます（開催日の1ヶ月前）">
+        <span style="font-size:10px;color:var(--t3)">設定すると費目の発注月を自動設定します</span>
+      </div>
       <div class="g7" id="tour-kpis" style="margin-bottom:14px"></div>
       <div class="g2" style="margin-bottom:14px">
-        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('tour')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="tour-tbody"></tbody></table></div>
+        <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('tour')">✏️ 予算を編集</button>
+              <button class="btn btn-xs admin-only" style="background:rgba(239,68,68,.08);border:1.5px solid rgba(239,68,68,.3);color:var(--red)" onclick="clearEvtActuals('tour')" title="会計科目別集計の実績を全て0にリセット">実績クリア</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="tour-tbody"></tbody></table></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--acc)"></div>実数内訳</div><div class="ch-t"><canvas id="ch-tour"></canvas></div></div>
       </div>
       <div class="card">
@@ -2020,6 +2060,31 @@ function calcProgActualFromData(sData, progId) {
 }
 
 // 開催日から1ヶ月前を発注月として費目に自動設定
+function clearEvtActuals(key) {
+  if(!confirm('会計科目別集計の実績をすべて0にリセットしますか？\n\n※ 見積テーブルのデータは保持されます。')) return;
+  pushUndo('科目実績クリア');
+  (S.events[key]?.items||[]).forEach(it => { it.actual = 0; });
+  immediateSave();
+  renderEvt(key);
+}
+
+function setEvtDate(key, dateVal) {
+  if(!S.events[key]) return;
+  S.events[key].date = dateVal;
+  // S.programsにも同期
+  const prog = S.programs.find(p=>p.id===key);
+  if(prog) {
+    prog.date = dateVal;
+    autoSetOrderMonths(prog);
+  }
+  debouncedSave();
+  // 入力欄の更新
+  const inp = document.getElementById(`${key}-date-input`);
+  if(inp) inp.value = dateVal;
+  // スケジュール一覧も開いていれば更新
+  if(_curPg==='schedule') renderSchedule();
+}
+
 function setProgDate(pi, dateVal) {
   const prog = S.programs[pi];
   if(!prog) return;
@@ -2694,6 +2759,9 @@ function renderSeries(key){
 function renderEvt(key){
   const ev=S.events[key];if(!ev)return;
   const totB=evtSum(key,'budget'),totE=evtSum(key,'estimate'),totA=evtSum(key,'actual');
+  // 開催日inputを初期化
+  const dateInp = document.getElementById(`${key}-date-input`);
+  if(dateInp && ev.date) dateInp.value = ev.date;
   const progBudget=getEventBudget(key);
   const EVT_PROG_KEYS={ko:['キックオフ'],aw:['アワード','AWARD'],ye:['イヤーエンド','YEAR END','YearEnd'],md:['マッチデイ','マッチ'],tour:['ツアー','TOUR'],sd:['スペシャルデイズ','スペシャル'],cf3:['イベント3'],cf4:['イベント4']};
   const evtKeywords=EVT_PROG_KEYS[key]||[];const evtRev=getRevByProgId(key);const arari=evtRev-totA;
