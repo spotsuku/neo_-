@@ -199,6 +199,32 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
   display: block !important;
   grid-template-columns: unset !important;
 }
+
+/* 横スクロール時の左列固定 */
+.tbl th:first-child,
+.tbl td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--s1);
+}
+.tbl thead th:first-child {
+  background: var(--s2);
+  z-index: 3;
+}
+.tbl tr:hover td:first-child {
+  background: inherit;
+}
+/* スクロール時に影でセパレーター */
+.tbl th:first-child::after,
+.tbl td:first-child::after {
+  content: '';
+  position: absolute;
+  top: 0; right: -4px;
+  width: 4px; height: 100%;
+  background: linear-gradient(to right, rgba(0,0,0,.06), transparent);
+  pointer-events: none;
+}
 </style>
 </head>
 <body>
@@ -2610,7 +2636,7 @@ async function renderProg(){
   document.getElementById('prog-tbody').innerHTML = rows.join('');
   document.getElementById('prog-tfoot').innerHTML = `
     <tr style="border-top:2px solid var(--b2);font-weight:700;background:var(--s2)">
-      <td>合計</td>
+      <td style="position:sticky;left:0;background:var(--s2);z-index:1">合計</td>
       <td></td>
       <td style="text-align:right;font-family:var(--mono)">${fmtN(totalBudget)}</td>
       <td style="text-align:right;font-family:var(--mono);color:var(--blue)">${fmtN(totalEst)}</td>
@@ -2819,7 +2845,7 @@ function renderProgMonthly() {
 
   let tbl = `<table class="tbl" style="min-width:900px;font-size:11px">
     <thead><tr style="background:var(--s2)">
-      <th style="min-width:100px">プログラム</th>
+      <th style="min-width:100px;position:sticky;left:0;z-index:3;background:var(--s2)">プログラム</th>
       ${monthLabels.map(l=>`<th style="text-align:right;min-width:65px">${l}</th>`).join('')}
       ${hasOther?'<th style="text-align:right;min-width:65px;color:var(--t3)">年度外</th>':''}
       <th style="text-align:right;min-width:80px">合計</th>
@@ -2830,7 +2856,7 @@ function renderProgMonthly() {
     if(rowTotal===0 && !filter) return;
     const other = progMonthData[p.id]?.['__other__']||0;
     tbl += `<tr>
-      <td style="font-weight:600">${p.name}</td>
+      <td style="font-weight:600;position:sticky;left:0;background:var(--s1);z-index:1">${p.name}</td>
       ${months.map(m=>{const v=progMonthData[p.id]?.[m]||0;return`<td style="text-align:right;font-family:var(--mono);color:${v>0?'var(--t1)':'var(--t3)'}">${v>0?fmtN(v):'—'}</td>`;}).join('')}
       ${hasOther?`<td style="text-align:right;font-family:var(--mono);color:var(--t3)">${other>0?fmtN(other):'—'}</td>`:''}
       <td style="text-align:right;font-family:var(--mono);font-weight:700;color:var(--blue)">${rowTotal>0?fmtN(rowTotal):'—'}</td>
@@ -2838,13 +2864,13 @@ function renderProgMonthly() {
   });
 
   tbl += `<tr style="border-top:2px solid var(--b2);background:var(--s2);font-weight:700">
-    <td>合計</td>
+    <td style="position:sticky;left:0;background:var(--s2);z-index:1">合計</td>
     ${months.map(m=>{const v=monthTotals[m]||0;return`<td style="text-align:right;font-family:var(--mono);color:${v>0?'var(--acc)':'var(--t3)'}">${v>0?fmtN(v):'—'}</td>`;}).join('')}
     ${hasOther?`<td style="text-align:right;font-family:var(--mono);color:var(--t3)">${otherTotal>0?fmtN(otherTotal):'—'}</td>`:''}
     <td style="text-align:right;font-family:var(--mono);color:var(--acc)">${grandTotal>0?fmtN(grandTotal):'—'}</td>
   </tr>
   <tr style="background:var(--s2)">
-    <td style="font-size:9px;color:var(--t3)">割合</td>
+    <td style="font-size:9px;color:var(--t3);position:sticky;left:0;background:var(--s2);z-index:1">割合</td>
     ${months.map(m=>{const v=monthTotals[m]||0;const pct=maxVal>0?Math.round(v/maxVal*100):0;return`<td style="padding:4px"><div style="height:4px;background:var(--b1);border-radius:2px"><div style="height:100%;width:${pct}%;background:var(--acc);border-radius:2px"></div></div></td>`;}).join('')}
     ${hasOther?'<td></td>':''}
     <td></td>
