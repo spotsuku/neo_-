@@ -2502,7 +2502,7 @@ function renderSchedule() {
         title: sess.title||'(未設定)', date: sess.date||'',
         budget: sessSum(sess,'budget'), est: sessSum(sess,'estimate'), actual: sessSum(sess,'actual'),
         rev: progRev / Math.max(sessList.length, 1),
-        type: 'series', onClick: `openSess('${key}','${sess.id}')`,
+        type: 'series', onClick: `openSess('${key}','${sess.id}',true)`,
       });
     });
   });
@@ -2744,7 +2744,7 @@ document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('.ov
 
 // ── セッションパネル ──
 let _sCtx={};
-function openSess(key,id){_sCtx={key,id};const map={hm:'ホームルーム',gk:'評議会',oe:'応援カイギ'};const s=id?S.sessions[key].find(x=>x.id===id):null;document.getElementById('sess-title').textContent=(s?'編集：':'追加：')+map[key];document.getElementById('s-title').value=s?s.title:'';document.getElementById('s-date').value=s?s.date:'';document.getElementById('s-memo').value=s?s.memo:'';document.getElementById('sess-del-btn').style.display=s?'':'none';// デフォルト費目: 保存済みで有効な予算があればそれを使い、なければ初期値にフォールバック
+function openSess(key,id,fromSchedule=false){_sCtx={key,id,fromSchedule};const map={hm:'ホームルーム',gk:'評議会',oe:'応援カイギ'};const s=id?S.sessions[key].find(x=>x.id===id):null;document.getElementById('sess-title').textContent=(s?'編集：':'追加：')+map[key];document.getElementById('s-title').value=s?s.title:'';document.getElementById('s-date').value=s?s.date:'';document.getElementById('s-memo').value=s?s.memo:'';document.getElementById('sess-del-btn').style.display=s?'':'none';// デフォルト費目: 保存済みで有効な予算があればそれを使い、なければ初期値にフォールバック
 const _savedDef = S.defaults?.[key];
 const _hasValidDef = _savedDef && _savedDef.some(d=>n(d.budget)>0);
 const _defSrc = _hasValidDef ? _savedDef : (SERIES_DEFAULTS_INIT[key]||[]);
@@ -2766,7 +2766,16 @@ function saveSess(){const{key,id}=_sCtx;const obj={id:id||uid(),title:document.g
       (obj.items||[]).forEach(it=>{if(!it.orderMonth)it.orderMonth=orderKey;});
     }
   }
-  if(id){const idx=S.sessions[key].findIndex(x=>x.id===id);S.sessions[key][idx]=obj;}else S.sessions[key].push(obj);saveMemberData();closeOv('ov-sess');renderPg(key);}
+  if(id){const idx=S.sessions[key].findIndex(x=>x.id===id);S.sessions[key][idx]=obj;}else S.sessions[key].push(obj);
+  saveMemberData();
+  closeOv('ov-sess');
+  // スケジュール一覧から開いた場合はそちらに戻る
+  if(_sCtx.fromSchedule || _curPg==='schedule') {
+    renderSchedule();
+  } else {
+    renderPg(key);
+  }
+}
 function deleteSess(){const{key,id}=_sCtx;S.sessions[key]=S.sessions[key].filter(x=>x.id!==id);save();closeOv('ov-sess');renderPg(key);}
 
 // ── イベントパネル ──
