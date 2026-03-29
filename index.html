@@ -569,6 +569,12 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
     </div>
     <!-- CITYFES -->
     <div class="pg" id="pg-cityfes">
+      <!-- 開催期間表示 -->
+      <div id="cityfes-period-bar" style="display:flex;align-items:center;gap:16px;margin-bottom:12px;padding:10px 14px;background:var(--s2);border-radius:8px;flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:700;color:var(--t2)">🎪 シティフェス 開催期間</span>
+        <span id="cityfes-period-label" style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--blue)">—</span>
+        <span style="font-size:10px;color:var(--t3)">各タブで日程を設定してください</span>
+      </div>
       <div class="g7" id="cityfes-kpis" style="margin-bottom:14px"></div>
       <div class="card" style="margin-bottom:14px">
         <div style="display:flex;gap:0;border-bottom:2px solid var(--b1);margin-bottom:16px;overflow-x:auto">
@@ -581,6 +587,15 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         </div>
         
         <div id="cityfes-panel-md">
+          <!-- 個別日程設定 -->
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:8px 12px;background:var(--s2);border-radius:8px">
+            <span style="font-size:11px;font-weight:700;color:var(--t2)">📅 開催日</span>
+            <input type="date" id="md-date-input"
+              style="padding:5px 10px;border:1.5px solid var(--b2);border-radius:6px;font-size:12px;background:var(--s1);color:var(--t1);outline:none"
+              onchange="setCityFesTabDate('md',this.value)"
+              title="個別イベントの開催日">
+            <span style="font-size:10px;color:var(--t3)">設定すると費目の発注月を自動設定します（1ヶ月前）</span>
+          </div>
           <div class="g5" id="md-kpis" style="margin-bottom:14px"></div>
           <div class="g2" style="margin-bottom:14px">
             <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('md')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="md-tbody"></tbody></table></div>
@@ -591,6 +606,14 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         </div>
         
         <div id="cityfes-panel-sd" style="display:none">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:8px 12px;background:var(--s2);border-radius:8px">
+            <span style="font-size:11px;font-weight:700;color:var(--t2)">📅 開催日</span>
+            <input type="date" id="sd-date-input"
+              style="padding:5px 10px;border:1.5px solid var(--b2);border-radius:6px;font-size:12px;background:var(--s1);color:var(--t1);outline:none"
+              onchange="setCityFesTabDate('sd',this.value)"
+              title="個別イベントの開催日">
+            <span style="font-size:10px;color:var(--t3)">設定すると費目の発注月を自動設定します（1ヶ月前）</span>
+          </div>
           <div class="g5" id="sd-kpis" style="margin-bottom:14px"></div>
           <div class="g2" style="margin-bottom:14px">
             <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('sd')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="sd-tbody"></tbody></table></div>
@@ -601,6 +624,14 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         </div>
         
         <div id="cityfes-panel-cf3" style="display:none">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:8px 12px;background:var(--s2);border-radius:8px">
+            <span style="font-size:11px;font-weight:700;color:var(--t2)">📅 開催日</span>
+            <input type="date" id="cf3-date-input"
+              style="padding:5px 10px;border:1.5px solid var(--b2);border-radius:6px;font-size:12px;background:var(--s1);color:var(--t1);outline:none"
+              onchange="setCityFesTabDate('cf3',this.value)"
+              title="個別イベントの開催日">
+            <span style="font-size:10px;color:var(--t3)">設定すると費目の発注月を自動設定します（1ヶ月前）</span>
+          </div>
           <div class="g5" id="cf3-kpis" style="margin-bottom:14px"></div>
           <div class="g2" style="margin-bottom:14px">
             <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('cf3')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="cf3-tbody"></tbody></table></div>
@@ -611,6 +642,14 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         </div>
         
         <div id="cityfes-panel-cf4" style="display:none">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:8px 12px;background:var(--s2);border-radius:8px">
+            <span style="font-size:11px;font-weight:700;color:var(--t2)">📅 開催日</span>
+            <input type="date" id="cf4-date-input"
+              style="padding:5px 10px;border:1.5px solid var(--b2);border-radius:6px;font-size:12px;background:var(--s1);color:var(--t1);outline:none"
+              onchange="setCityFesTabDate('cf4',this.value)"
+              title="個別イベントの開催日">
+            <span style="font-size:10px;color:var(--t3)">設定すると費目の発注月を自動設定します（1ヶ月前）</span>
+          </div>
           <div class="g5" id="cf4-kpis" style="margin-bottom:14px"></div>
           <div class="g2" style="margin-bottom:14px">
             <div class="card"><div class="ct"><div class="pip"></div>会計科目別集計<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openEvt('cf4')">✏️ 予算を編集</button></div><table class="tbl"><thead><tr><th>会計科目</th><th style="text-align:right">予算</th><th style="text-align:right">見積</th><th style="text-align:right">実数</th><th style="text-align:right">差異</th></tr></thead><tbody id="cf4-tbody"></tbody></table></div>
@@ -2060,6 +2099,54 @@ function calcProgActualFromData(sData, progId) {
 }
 
 // 開催日から1ヶ月前を発注月として費目に自動設定
+function setCityFesTabDate(key, dateVal) {
+  if(!S.events[key]) S.events[key] = {label: key, items: []};
+  S.events[key].date = dateVal;
+
+  // 費目の発注月を自動設定（開催日の1ヶ月前）
+  if(dateVal) {
+    const d = new Date(dateVal);
+    if(!isNaN(d)) {
+      let m = d.getMonth(), y = d.getFullYear();
+      if(m === 0) { m = 12; y--; }
+      const orderKey = `${y}/${m}`;
+      (S.events[key].items||[]).forEach(it => { it.orderMonth = orderKey; });
+    }
+  }
+
+  debouncedSave();
+  updateCityFesPeriod();
+}
+
+// シティフェス全体の開催期間を計算・表示
+function updateCityFesPeriod() {
+  const dates = CITYFES_TABS
+    .map(k => S.events[k]?.date)
+    .filter(d => d && d.length > 0)
+    .sort();
+
+  const el = document.getElementById('cityfes-period-label');
+  if(!el) return;
+
+  if(dates.length === 0) {
+    el.textContent = '—';
+    return;
+  }
+
+  const fmt = (s) => {
+    const d = new Date(s);
+    return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+  };
+
+  if(dates.length === 1) {
+    el.textContent = fmt(dates[0]);
+  } else {
+    const first = fmt(dates[0]);
+    const last  = fmt(dates[dates.length-1]);
+    el.textContent = first === last ? first : `${first} 〜 ${last}`;
+  }
+}
+
 function clearEvtActuals(key) {
   if(!confirm('会計科目別集計の実績をすべて0にリセットしますか？\n\n※ 見積テーブルのデータは保持されます。')) return;
   pushUndo('科目実績クリア');
@@ -2728,7 +2815,15 @@ function renderCityFes(){const totB=CITYFES_TABS.reduce((t,k)=>t+evtSum(k,'budge
     totA: totA,
     pageKey: 'cityfes',
   });
-  kpiEl.style.gridTemplateColumns = '';CITYFES_TABS.forEach(k=>{const btn=document.getElementById(`cityfes-tab-${k}`);if(btn){const icons={md:'⚽',sd:'✨',cf3:'🎪',cf4:'🎪'};btn.textContent=`${icons[k]||'🎪'} ${getCityFesLabel(k)}`;}});renderEvt(_cityFesTab);}
+  kpiEl.style.gridTemplateColumns = '';  // 各タブの日程inputを初期化
+  CITYFES_TABS.forEach(k => {
+    const inp = document.getElementById(`${k}-date-input`);
+    if(inp && S.events[k]?.date) inp.value = S.events[k].date;
+  });
+  // 開催期間を更新
+  updateCityFesPeriod();
+
+  CITYFES_TABS.forEach(k=>{const btn=document.getElementById(`cityfes-tab-${k}`);if(btn){const icons={md:'⚽',sd:'✨',cf3:'🎪',cf4:'🎪'};btn.textContent=`${icons[k]||'🎪'} ${getCityFesLabel(k)}`;}});renderEvt(_cityFesTab);}
 function renameCityFesTab(){const key=_cityFesTab;const current=getCityFesLabel(key);const newName=prompt(`「${current}」の名前を変更:`,current);if(!newName||newName===current)return;if(!S.cityFesLabels)S.cityFesLabels={};S.cityFesLabels[key]=newName;if(S.events[key])S.events[key].label=newName;save();renderCityFes();}
 
 // ── シリーズ描画 ──
