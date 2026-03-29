@@ -2249,7 +2249,7 @@ function renderOvMonthly() {
 }
 
 
-async async function loadPrevYearData() {
+async function loadPrevYearData() {
   const prevFY = _currentFiscalYear - 1;
   if (_prevYearFY === prevFY && _prevYearData) return _prevYearData;
   try {
@@ -2403,7 +2403,6 @@ function autoSetOrderMonths(prog) {
   console.log(`[autoSetOrderMonths] ${prog.name}: 発注月 → ${orderKey}`);
 }
 
-// 全プログラムの発注月を一括自動設定
 async function renderOv(){
   const totB=S.programs.filter(p=>p.id!=='marketing').reduce((t,p)=>t+getProgRealBudget(p),0);
   const totA=S.programs.reduce((t,p)=>t+progActual(p.id),0);
