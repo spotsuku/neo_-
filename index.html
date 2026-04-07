@@ -250,6 +250,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
   <button class="nb" onclick="go('ordermaster',this)"><span class="ic">📋</span>発注マスタ</button>
   <button class="nb" onclick="go('prod',this)"><span class="ic">📦</span>製作物管理</button>
   <button class="nb" onclick="go('rev',this)"><span class="ic">💰</span>収入管理</button>
+  <button class="nb" onclick="go('cashbook',this)"><span class="ic">💵</span>現金出納帳</button>
   <div class="sb-sec">データ</div>
   <button class="nb admin-only" onclick="openOv('ov-xl-import')"><span class="ic">📥</span>Excelインポート</button>
   <button class="nb admin-only" onclick="openVersionHistory()"><span class="ic">🕒</span>バージョン履歴</button>
@@ -755,6 +756,51 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       <div class="g2">
         <div class="card"><div class="ct"><div class="pip" style="background:var(--green)"></div>収入内訳<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openRev()">✏️ 編集</button></div><div id="rev-detail"></div></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>収支サマリー</div><div id="net-summary"></div></div>
+      </div>
+    </div>
+
+    <!-- 現金出納帳 -->
+    <div class="pg" id="pg-cashbook">
+      <div class="card" style="margin-bottom:12px">
+        <div class="ct">
+          <div class="pip" style="background:var(--green)"></div>現金残高
+          <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+            <label style="font-size:10px;color:var(--t3)">期首残高（円）</label>
+            <input type="text" id="cb-init-balance" class="inline-inp num" style="width:120px;font-size:12px" placeholder="0" onchange="updateCashbookBalance(this)">
+          </div>
+        </div>
+        <div id="cb-balance-summary" style="display:flex;gap:24px;padding:12px 0;font-size:13px"></div>
+      </div>
+      <div class="card">
+        <div class="ct">
+          <div class="pip" style="background:var(--blue)"></div>出納明細
+          <div style="margin-left:auto;display:flex;gap:6px">
+            <button class="btn btn-xs btn-g" onclick="addCashbookEntry()">＋ 入出金を追加</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl" id="cb-table">
+            <thead><tr>
+              <th style="width:28px"></th>
+              <th style="width:100px">日付</th>
+              <th>摘要</th>
+              <th style="width:100px">相手先</th>
+              <th style="text-align:right;width:110px">入金（円）</th>
+              <th style="text-align:right;width:110px">出金（円）</th>
+              <th style="text-align:right;width:120px">残高（円）</th>
+              <th style="width:80px">備考</th>
+              <th style="width:28px"></th>
+            </tr></thead>
+            <tbody id="cb-tbody"></tbody>
+          </table>
+        </div>
+        <div id="cb-empty" style="text-align:center;padding:24px;color:var(--t3);font-size:11px">「＋ 入出金を追加」で明細を入力できます</div>
+        <div id="cb-total" style="display:none;padding:10px 0 0;border-top:1px solid var(--b1);margin-top:8px;font-size:11px;color:var(--t2)">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <button class="btn btn-xs btn-g" onclick="addCashbookEntry()" style="font-size:10px">＋ 入出金を追加</button>
+            <div style="text-align:right" id="cb-total-nums"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1691,7 +1737,7 @@ async function loadFromDB(){
       const EVT_LABELS={ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',md:'マッチデイ',tour:'ツアー',sd:'スペシャルデイズ',cf3:'イベント3',cf4:'イベント4'};
       Object.keys(EVT_LABELS).forEach(k=>{if(!S.events[k])S.events[k]={label:EVT_LABELS[k],items:[]};});
       if(!S.categories)S.categories=DEF.categories;if(!S.months)S.months=DEF.months;if(!S.monthlyTotal)S.monthlyTotal=DEF.monthlyTotal;
-      if(!S.ledger)S.ledger=[];if(!S.mktItems)S.mktItems=[];if(!S.prodItems)S.prodItems=[];if(!S.changelog)S.changelog=[];if(!S.defaults)S.defaults={};if(!S.orderMaster)S.orderMaster=[];if(!S.estimates)S.estimates={};if(!S.prodBudgets)S.prodBudgets={};
+      if(!S.ledger)S.ledger=[];if(!S.mktItems)S.mktItems=[];if(!S.prodItems)S.prodItems=[];if(!S.changelog)S.changelog=[];if(!S.defaults)S.defaults={};if(!S.orderMaster)S.orderMaster=[];if(!S.estimates)S.estimates={};if(!S.prodBudgets)S.prodBudgets={};if(!S.cashbook)S.cashbook={balance:0,entries:[]};
     }
     // prodItemsのactual→actPrice/actQtyマイグレーション
     if(S.prodItems) {
@@ -2084,7 +2130,7 @@ function dc(id){if(_ch[id]){_ch[id].destroy();delete _ch[id];}}
 const PAL=['#f0522a','#4f8ef7','#2dd4a0','#f0c040','#9b7fe8','#06b6d4','#ec4899','#84cc16','#ffb347','#14b8a6'];
 
 // ── ナビゲーション ──
-const TITLES={ov:'サマリー',prog:'プログラム別',hm:'ホームルーム',gk:'評議会',oe:'応援カイギ',ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',tour:'ツアー',cityfes:'シティフェス',md:'マッチデイ',sd:'スペシャルデイズ',cf3:'イベント3',cf4:'イベント4',rev:'収入管理',users:'ユーザー管理',history:'ログイン履歴',ordermaster:'発注マスタ',prod:'製作物管理',changelog:'変更履歴'};
+const TITLES={ov:'サマリー',prog:'プログラム別',hm:'ホームルーム',gk:'評議会',oe:'応援カイギ',ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',tour:'ツアー',cityfes:'シティフェス',md:'マッチデイ',sd:'スペシャルデイズ',cf3:'イベント3',cf4:'イベント4',rev:'収入管理',cashbook:'現金出納帳',users:'ユーザー管理',history:'ログイン履歴',ordermaster:'発注マスタ',prod:'製作物管理',changelog:'変更履歴'};
 let _curPg='ov';
 function go(id,btn){if(id==='users'&&!isAdmin()){alert('管理者のみアクセスできます');return;}document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));const pg=document.getElementById('pg-'+id);if(pg)pg.classList.add('on');if(btn)btn.classList.add('on');document.getElementById('pgTitle').textContent=TITLES[id]||id;_curPg=id;if(id==='users'){renderUsers();return;}if(id==='history'){renderHistory();return;}renderPg(id);}
 
@@ -3527,6 +3573,56 @@ function deleteProdById(id){const it=(S.prodItems||[]).find(x=>x.id===id);logCha
 // ── migrateMktToProd ──
 function migrateMktToProd(){if(!S.mktItems||S.mktItems.length===0)return;if(!S.prodItems)S.prodItems=[];const alreadyMigrated=S.prodItems.some(i=>i._fromMkt);if(alreadyMigrated)return;S.mktItems.forEach(m=>{S.prodItems.push({id:m.id||uid(),cat:'マーケ',name:m.name||'',content:m.content||'',price:0,qty:1,unit:'式',stockInit:0,stockUsed:0,stockAlert:0,budget:n(m.budget),estimate:n(m.estimate),actual:n(m.actual),status:m.status||'',memo:m.memo||'',_fromMkt:true});});S.mktItems=[];save();}
 
+// ── 現金出納帳 ──
+function getCashbook(){if(!S.cashbook)S.cashbook={balance:0,entries:[]};return S.cashbook;}
+function updateCashbookBalance(inp){const cb=getCashbook();cb.balance=parseFloat(inp.value.replace(/,/g,''))||0;save();renderCashbook();}
+function addCashbookEntry(){const cb=getCashbook();cb.entries.push({id:uid(),date:new Date().toISOString().slice(0,10),summary:'',partner:'',income:0,expense:0,memo:''});save();renderCashbook();}
+function removeCashbookEntry(i){const cb=getCashbook();cb.entries.splice(i,1);save();renderCashbook();}
+function updateCashbookField(i,field,val){const cb=getCashbook();if(field==='date'||field==='summary'||field==='partner'||field==='memo'){cb.entries[i][field]=val;}else{cb.entries[i][field]=parseFloat(val.replace(/,/g,''))||0;}debouncedSave();}
+function sortCashbookByDate(){const cb=getCashbook();cb.entries.sort((a,b)=>(a.date||'').localeCompare(b.date||''));save();renderCashbook();}
+function renderCashbook(){
+  const cb=getCashbook();
+  const balInp=document.getElementById('cb-init-balance');
+  if(balInp)balInp.value=cb.balance?fmtN(cb.balance):'';
+  const tbody=document.getElementById('cb-tbody');
+  const empty=document.getElementById('cb-empty');
+  const totalDiv=document.getElementById('cb-total');
+  if(!cb.entries.length){tbody.innerHTML='';empty.style.display='';totalDiv.style.display='none';document.getElementById('cb-balance-summary').innerHTML='<div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--green)">現在残高: '+fmt(cb.balance)+'</div>';return;}
+  empty.style.display='none';totalDiv.style.display='';
+  let running=cb.balance;let totIn=0,totOut=0;
+  const INP='padding:5px 7px;border:1.5px solid transparent;border-radius:5px;font-size:11px;font-family:var(--mono);background:transparent;color:var(--t1);outline:none;width:100%;box-sizing:border-box';
+  const INP_N=INP+';text-align:right';
+  let html='';
+  cb.entries.forEach((e,i)=>{
+    totIn+=n(e.income);totOut+=n(e.expense);
+    running+=n(e.income)-n(e.expense);
+    const balColor=running>=0?'var(--green)':'var(--red)';
+    html+=`<tr style="border-bottom:1px solid var(--b1)">
+      <td style="text-align:center;color:var(--t3);font-size:10px;padding:3px">${i+1}</td>
+      <td><input type="date" style="${INP}" value="${e.date||''}" onchange="updateCashbookField(${i},'date',this.value)"></td>
+      <td><input style="${INP}" value="${(e.summary||'').replace(/"/g,'&quot;')}" placeholder="摘要を入力" onchange="updateCashbookField(${i},'summary',this.value)"></td>
+      <td><input style="${INP}" value="${(e.partner||'').replace(/"/g,'&quot;')}" placeholder="相手先" onchange="updateCashbookField(${i},'partner',this.value)"></td>
+      <td><input style="${INP_N}" type="number" value="${e.income||''}" placeholder="0" onchange="updateCashbookField(${i},'income',this.value)" onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='transparent';renderCashbook()"></td>
+      <td><input style="${INP_N}" type="number" value="${e.expense||''}" placeholder="0" onchange="updateCashbookField(${i},'expense',this.value)" onfocus="this.style.borderColor='var(--red)'" onblur="this.style.borderColor='transparent';renderCashbook()"></td>
+      <td style="text-align:right;font-family:var(--mono);font-size:11px;font-weight:700;color:${balColor};padding:4px 8px">${fmtN(running)}</td>
+      <td><input style="${INP};font-size:10px" value="${(e.memo||'').replace(/"/g,'&quot;')}" placeholder="備考" onchange="updateCashbookField(${i},'memo',this.value)"></td>
+      <td style="text-align:center"><button class="btn-del" onclick="removeCashbookEntry(${i})" title="削除" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:12px">✕</button></td>
+    </tr>`;
+  });
+  tbody.innerHTML=html;
+  const finalBal=cb.balance+totIn-totOut;
+  const balColor=finalBal>=0?'var(--green)':'var(--red)';
+  document.getElementById('cb-balance-summary').innerHTML=
+    `<div><span style="color:var(--t3);font-size:10px">期首残高</span><div style="font-family:var(--mono);font-size:15px;font-weight:700">${fmt(cb.balance)}</div></div>`+
+    `<div><span style="color:var(--t3);font-size:10px">入金合計</span><div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--green)">+${fmt(totIn)}</div></div>`+
+    `<div><span style="color:var(--t3);font-size:10px">出金合計</span><div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--red)">-${fmt(totOut)}</div></div>`+
+    `<div style="border-left:2px solid var(--b2);padding-left:16px"><span style="color:var(--t3);font-size:10px">現在残高</span><div style="font-family:var(--mono);font-size:18px;font-weight:700;color:${balColor}">${fmt(finalBal)}</div></div>`;
+  document.getElementById('cb-total-nums').innerHTML=
+    `<span style="margin-right:12px">入金計: <b style="color:var(--green)">${fmt(totIn)}</b></span>`+
+    `<span>出金計: <b style="color:var(--red)">${fmt(totOut)}</b></span>`+
+    `<span style="margin-left:12px">残高: <b style="color:${balColor}">${fmt(finalBal)}</b></span>`;
+}
+
 // ── renderPg ──
 async function renderPg(id){
   // 前年データを事前ロード（失敗しても継続）
@@ -3546,6 +3642,7 @@ async function renderPg(id){
   else if(id==='prod')renderProd();
   else if(id==='changelog')renderChangelog();
   else if(id==='ordermaster')renderOrderMaster();
+  else if(id==='cashbook')renderCashbook();
 }
 
 // ── インラインスタイル注入 ──
