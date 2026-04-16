@@ -1659,6 +1659,7 @@ const FEE_TEMPLATE=[{name:'会場費',budget:0,estimate:0,actual:0},{name:'講�
 let _currentFiscalYear=parseInt(localStorage.getItem('neo_fiscal_year')||'2025');
 let _prevYearData = null;
 let _prevYearFY   = null;
+let _lastSaveTime = 0;
 function getFiscalYearLabel(fy){return`${fy}年度（${fy}/4〜${fy+1}/3）`;}
 function getFiscalYearDbId(fy){return fy-2024;}
 
@@ -1675,7 +1676,16 @@ async function loadFromDB(){
     const{data,error}=await _sb.from('dashboard_data').select('data').eq('id',dbId).maybeSingle();
     if(error&&error.code!=='PGRST116')throw error;
     if(data?.data&&Object.keys(data.data).length>0){
-      S=data.data;
+      const dbData=data.data;
+      // localStorageのestimatesが件数多い場合は保護
+      const localRaw=localStorage.getItem(SK);
+      const localData=localRaw?JSON.parse(localRaw):null;
+      S=dbData;
+      if(localData?.estimates){
+        const dbTotal=Object.values(dbData.estimates||{}).reduce((t,a)=>t+a.length,0);
+        const localTotal=Object.values(localData.estimates||{}).reduce((t,a)=>t+a.length,0);
+        if(localTotal>dbTotal){S.estimates=localData.estimates;console.log('[DB] estimates: local優先',localTotal,'>',dbTotal);}
+      }
       if(!S.programs)S.programs=DEF.programs;if(!S.revenues)S.revenues=DEF.revenues;if(!S.sessions)S.sessions=DEF.sessions;
       if(!S.events)S.events={};
       const EVT_LABELS={ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',md:'マッチデイ',tour:'ツアー',sd:'スペシャルデイズ',cf3:'イベント3',cf4:'イベント4'};
@@ -1932,6 +1942,26 @@ async function save(){
       const dbId = getFiscalYearDbId(_currentFiscalYear);
       const saveData = {...S, updated_by_email: _currentUser.email};
 
+      // 保存前にSupabaseの現在のデータを確認（他ユーザーの変更を保護）
+      const {data: currentDb} = await _sb.from('dashboard_data')
+        .select('updated_at, data').eq('id', dbId).maybeSingle();
+      
+      // DBのデータが現在のSより新しい場合（他ユーザーが更新済み）はマージ
+      if (currentDb?.data && currentDb.data.updated_by_email !== _currentUser.email) {
+        const dbTime = new Date(currentDb.updated_at).getTime();
+        const myTime = _lastSaveTime || 0;
+        if (dbTime > myTime + 5000) { // 5秒以上の差がある場合
+          // 重要データ（revenues, estimates）をDBから保持してマージ
+          const merged = {...currentDb.data, ...saveData};
+          // revenuesは件数が多い方を採用
+          if ((currentDb.data.revenues||[]).length > (saveData.revenues||[]).length) {
+            merged.revenues = currentDb.data.revenues;
+          }
+          Object.assign(saveData, merged);
+        }
+      }
+      _lastSaveTime = Date.now();
+
       const{data:upData,error:upErr} = await _sb.from('dashboard_data')
         .update({data:saveData, updated_by:_currentUser.id, updated_at:new Date().toISOString()})
         .eq('id',dbId).select();
@@ -1943,6 +1973,8 @@ async function save(){
         if(inErr) throw inErr;
       }
 
+      // 見積データをlocalStorageに確実にバックアップ
+      localStorage.setItem(SK, JSON.stringify(S));
       setSaveStatus('saved','保存済み '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}));
       setTimeout(()=>{ _isSyncing = false; }, 2000);
 
@@ -3272,7 +3304,7 @@ function saveEvt(){const key=_eCtx.key;const before=JSON.stringify(S.events[key]
 let _revItems=[];
 function openRev(){_revItems=JSON.parse(JSON.stringify(S.revenues));renderRevItems();openOv('ov-rev-edit');}
 function renderRevItems(){const progs=[''].concat(S.programs.map(p=>p.name));const types=['参加費','協賛・協力金','補助金','その他'];document.getElementById('rev-items').innerHTML=_revItems.map((r,i)=>`<div class="item-row" style="grid-template-columns:20px 1fr 110px 90px 100px 100px 26px;margin-bottom:6px"><div class="item-num">${i+1}</div><input type="text" value="${r.name||''}" placeholder="収入名（計画）" data-i="${i}" data-f="name" oninput="updateRevItem(this)" style="padding:5px 7px;background:var(--s2);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--mono);outline:none;width:100%"><select data-i="${i}" data-f="prog" onchange="updateRevItem(this)" style="padding:5px 7px;background:var(--s2);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:10px;outline:none;width:100%">${progs.map(p=>`<option value="${p}"${r.prog===p?' selected':''}>${p||'—プログラム—'}</option>`).join('')}</select><select data-i="${i}" data-f="type" onchange="updateRevItem(this)" style="padding:5px 7px;background:var(--s2);border:1px solid var(--b2);border-radius:5px;color:var(--t1);font-size:10px;outline:none;width:100%">${types.map(t=>`<option${r.type===t?' selected':''}>${t}</option>`).join('')}</select><input type="number" value="${r.budget||''}" placeholder="収入予算" data-i="${i}" data-f="budget" oninput="updateRevItem(this)" style="padding:5px 7px;background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.3);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--mono);outline:none;text-align:right;width:100%"><input type="number" value="${r.amount||''}" placeholder="実収入" data-i="${i}" data-f="amount" oninput="updateRevItem(this)" style="padding:5px 7px;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.3);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--mono);outline:none;text-align:right;width:100%"><button class="del-btn" onclick="removeRevItem(${i})">×</button></div>`).join('');}
-function updateRevItem(inp){const i=parseInt(inp.dataset.i),f=inp.dataset.f;_revItems[i][f]=(f==='name'||f==='prog'||f==='type')?inp.value:parseFloat(inp.value)||0;}
+function updateRevItem(inp){if(!isAdmin())return;const i=parseInt(inp.dataset.i),f=inp.dataset.f;_revItems[i][f]=(f==='name'||f==='prog'||f==='type')?inp.value:parseFloat(inp.value)||0;}
 function addRevItem(){_revItems.push({id:uid(),name:'',budget:0,amount:0,prog:'',type:'参加費'});renderRevItems();}
 function removeRevItem(i){_revItems.splice(i,1);renderRevItems();}
 function saveRev(){if(!isAdmin()){alert('収入管理は管理者のみ変更できます');return;}S.revenues=_revItems.filter(r=>r.name);save();closeOv('ov-rev-edit');renderRev();}
