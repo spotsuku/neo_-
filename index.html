@@ -1593,7 +1593,7 @@ function getFiscalYearDbId(fy) {
   return fy - 2024;
 }
 
-const SK = `neo_v5_${_currentFiscalYear}`; // ローカルストレージキー（年度別）
+// ローカルストレージキーは `neo_v5_${_currentFiscalYear}` を都度参照（年度切り替え対応）
 let S = loadS();
 
 function loadS(){
@@ -1659,7 +1659,7 @@ async function loadFromDB() {
 // Supabaseへ保存（adminのみ有効）
 async function save() {
   // 常にローカルにも保存
-  localStorage.setItem(SK, JSON.stringify(S));
+  localStorage.setItem(`neo_v5_${_currentFiscalYear}`, JSON.stringify(S));
   if (!isAdmin()) {
     sdot().className = 'sdot';
     slbl().textContent = '保存済み (ローカル)';
@@ -1716,7 +1716,7 @@ async function save() {
 
 // memberが見積・実数のみ保存する関数
 async function saveMemberData() {
-  localStorage.setItem(SK, JSON.stringify(S));
+  localStorage.setItem(`neo_v5_${_currentFiscalYear}`, JSON.stringify(S));
   if (isAdmin()) { save(); return; }
   try {
     // 実績・見積のみ更新（予算には触れない）
@@ -3216,7 +3216,7 @@ function renderRevItems(){
       <button class="del-btn" onclick="removeRevItem(${i})">×</button>
     </div>`).join('');
 }
-function updateRevItem(inp){const i=parseInt(inp.dataset.i),f=inp.dataset.f;_revItems[i][f]=f==='name'?inp.value:parseFloat(inp.value)||0;}
+function updateRevItem(inp){const i=parseInt(inp.dataset.i),f=inp.dataset.f;_revItems[i][f]=f==='amount'?parseFloat(inp.value)||0:inp.value;}
 function addRevItem(){_revItems.push({id:uid(),name:'',amount:0,prog:'',type:'参加費'});renderRevItems();}
 function removeRevItem(i){_revItems.splice(i,1);renderRevItems();}
 function saveRev(){if(!isAdmin()){alert('収入管理は管理者のみ変更できます');return;}S.revenues=_revItems.filter(r=>r.name);save();closeOv('ov-rev-edit');renderRev();}
