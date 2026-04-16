@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════
-// auth.js — 認証コア（ログイン/ログアウト/サインアップ/セッション管理/権限）
+// auth.js — 認証コア（Googleログイン/ログアウト/セッション管理/権限）
 // ══════════════════════════════════════════════════
 
 // Supabase設定：起動時に /api/config から取得（Vercel環境変数を安全に参照）
@@ -56,70 +56,49 @@ function applyRoleUI() {
       : '<span style="font-size:8px;background:rgba(79,142,247,.15);color:#4f8ef7;padding:1px 6px;border-radius:4px;font-weight:700">メンバー</span>';
 }
 
-// ── ログインタブ切替 ──
-function switchLoginTab(tab) {
-  document.getElementById('form-login').style.display  = tab==='login'  ? '' : 'none';
-  document.getElementById('form-signup').style.display = tab==='signup' ? '' : 'none';
-  document.getElementById('tab-login').className  = 'tab' + (tab==='login'  ? ' on' : '');
-  document.getElementById('tab-signup').className = 'tab' + (tab==='signup' ? ' on' : '');
-  document.getElementById('login-error').style.display = 'none';
-}
-
 function showLoginError(msg) {
   const el = document.getElementById('login-error');
   el.textContent = msg;
   el.style.display = '';
 }
 
-// ── ログイン ──
+// ── Googleログイン ──
 let _loginInProgress = false;
-async function doLogin() {
-  // 重複呼び出しを防止（ボタン連打対策）
+async function doGoogleLogin() {
   if (_loginInProgress) return;
-  const email = document.getElementById('login-email').value.trim();
-  const pass  = document.getElementById('login-pass').value;
-  if (!email || !pass) { showLoginError('メールアドレスとパスワードを入力してください'); return; }
   _loginInProgress = true;
-  const btn = document.getElementById('login-submit-btn');
-  btn.textContent = 'ログイン中...'; btn.disabled = true;
-  const {data, error} = await _sb.auth.signInWithPassword({email, password: pass});
-  btn.textContent = 'ログイン'; btn.disabled = false;
-  _loginInProgress = false;
-  if (error) {
-    // 422エラーの詳細な日本語メッセージ
-    let msg = 'ログインに失敗しました。';
-    const em = error.message || '';
-    if (error.status === 429) {
-      msg = 'リクエスト回数の制限に達しました。1分ほど待ってから再試行してください。';
-    } else if (em.includes('Invalid login credentials')) {
-      msg = 'メールアドレスまたはパスワードが正しくありません。';
-    } else if (em.includes('Email not confirmed')) {
-      msg = 'メールアドレスが未確認です。管理者にお問い合わせください。\n（管理者向け: Supabase SQL Editorで UPDATE auth.users SET email_confirmed_at=now() WHERE email=\'' + email + '\'; を実行してください）';
-    } else if (error.status === 422 || em.includes('422')) {
-      // 422は通常メール未確認またはセッション破損
-      // セッションデータが残っている場合はクリアを試行
-      try {
-        const storageKey = 'sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token';
-        localStorage.removeItem(storageKey);
-      } catch(_) {}
-      // メール未確認の可能性を判定（422 + credentials系エラー）
-      if (em.includes('confirm') || em.includes('verify') || em.includes('not confirmed')) {
-        msg = 'メールアドレスが未確認のため認証できません。管理者にメール確認を依頼してください。';
-      } else {
-        // セッション破損の可能性 → 自動復旧を試みる
-        msg = 'セッションに問題がありました。キャッシュをクリアしました。もう一度ログインしてください。';
-        try { await _sb.auth.signOut(); } catch(_) {}
-      }
-    } else {
-      msg += ' ' + em;
+
+  const btn = document.getElementById('login-google-btn');
+  const loading = document.getElementById('login-loading');
+  if (btn) btn.style.display = 'none';
+  if (loading) loading.style.display = '';
+
+  try {
+    const { error } = await _sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + window.location.pathname,
+        queryParams: {
+          hd: 'sportsnation.jp',
+        },
+      },
+    });
+    if (error) {
+      showLoginError('Googleログインに失敗しました: ' + error.message);
+      if (btn) btn.style.display = '';
+      if (loading) loading.style.display = 'none';
     }
-    showLoginError(msg);
-    return;
+  } catch (e) {
+    showLoginError('予期しないエラー: ' + e.message);
+    if (btn) btn.style.display = '';
+    if (loading) loading.style.display = 'none';
+  } finally {
+    _loginInProgress = false;
   }
-  // ログイン成功 → 手動でトークンリフレッシュタイマーを起動
-  startTokenRefresh();
-  await onLogin(data.user);
 }
+
+// 後方互換
+function doLogin() { doGoogleLogin(); }
 
 // ── トークン自動リフレッシュ（手動管理） ──
 let _refreshTimer = null;
@@ -136,34 +115,6 @@ function startTokenRefresh() {
       }
     } catch(_) {}
   }, 10 * 60 * 1000);
-}
-
-// ── サインアップ（登録申請） ──
-async function doSignup() {
-  const name  = document.getElementById('signup-name').value.trim();
-  const email = document.getElementById('signup-email').value.trim();
-  if (!name || !email) { showLoginError('表示名とメールアドレスを入力してください'); return; }
-  const btn = document.getElementById('signup-submit-btn');
-  btn.textContent = '処理中...'; btn.disabled = true;
-
-  // auth.signUpは呼ばず、pending_signupsにのみ保存
-  // （管理者の承認時に初めてauth.signUpを呼ぶ）
-  const {error: pendErr} = await _sb.from('pending_signups').insert({
-    email: email, display_name: name, requested_at: new Date().toISOString()
-  });
-
-  btn.textContent = '登録申請'; btn.disabled = false;
-  if (pendErr) {
-    // 重複メールの場合（既に申請済み）も成功扱い
-    if (pendErr.code === '23505') {
-      console.log('[doSignup] 既に申請済みのメールアドレス');
-    } else {
-      console.error('pending_signups書き込みエラー:', pendErr);
-      showLoginError('登録に失敗しました。もう一度お試しください。');
-      return;
-    }
-  }
-  showLoginError('✅ 登録申請を受け付けました。管理者の承認後にログインできます。');
 }
 
 // ── ログアウト ──
@@ -184,7 +135,7 @@ async function onLogin(user) {
   if (profErr) console.warn('[onLogin] get_my_profile error:', profErr.message);
   // プロフィールが存在しない場合のみ新規作成
   if (!prof) {
-    const displayName = user.user_metadata?.display_name || user.email;
+    const displayName = user.user_metadata?.full_name || user.user_metadata?.display_name || user.email;
     await _sb.from('profiles').insert({
       id: user.id,
       email: user.email,
