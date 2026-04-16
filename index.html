@@ -1025,7 +1025,11 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
         ExcelインポートやデータのリストアなどによってローカルPCに最大20件保存されます。<br>
         <strong style="color:var(--acc)">⚠️ このブラウザのこのデバイスのみで利用可能です。</strong>
       </p>
-      <div id="version-list" style="max-height:500px;overflow-y:auto"></div>
+      <div id="version-list" style="max-height:250px;overflow-y:auto"></div>
+      <div style="margin-top:16px;padding-top:12px;border-top:2px solid var(--b2)">
+        <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:8px">☁️ クラウドバックアップ<span style="font-weight:400;font-size:10px;color:var(--t3);margin-left:8px">— 全デバイスで利用可能（1時間ごと自動保存）</span></div>
+        <div id="cloud-backup-list" style="max-height:250px;overflow-y:auto"></div>
+      </div>
     </div>
     <div class="pf">
       <button class="btn btn-g" onclick="closeOv('ov-version-history')">閉じる</button>
@@ -1712,11 +1716,14 @@ function getFiscalYearDbId(fy){return fy-2024;}
 // ── データ定義 ──
 const DEF={programs:[{id:'annual',name:'年間共通',budget:0},{id:'ko',name:'キックオフ',budget:0},{id:'hm',name:'ホームルーム',budget:0},{id:'aw',name:'アワード',budget:0},{id:'cityfes',name:'シティフェス',budget:0},{id:'ye',name:'イヤーエンド',budget:0},{id:'gk',name:'評議会',budget:0},{id:'oe',name:'応援カイギ',budget:0},{id:'tour',name:'ツアー',budget:0},{id:'other',name:'その他',budget:0},{id:'marketing',name:'マーケ関連',budget:0}],revenues:[],events:{ko:{label:'キックオフ',items:[]},aw:{label:'アワード',items:[]},ye:{label:'イヤーエンド',items:[]},md:{label:'マッチデイ',items:[]},tour:{label:'ツアー',items:[]},sd:{label:'スペシャルデイズ',items:[]},cf3:{label:'イベント3',items:[]},cf4:{label:'イベント4',items:[]}},sessions:{hm:[],gk:[],oe:[]},categories:[{name:'① イベント費',budget:5478000,actual:2312226},{name:'② 制作・印刷費',budget:8200000,actual:2598763},{name:'③ 外部委託費',budget:3000000,actual:2025848},{name:'④ 広報費',budget:1300000,actual:0},{name:'⑩ その他',budget:5057700,actual:5052518}],months:['25/4','25/5','25/6','25/7','25/8','25/9','25/10','25/11','25/12','26/1','26/2','26/3'],monthlyTotal:[0,570540,2066928,474167,560867,2618041,490094,40000,150621,4633778,1398000,4854068]};
 
-const SK=`neo_v5_${_currentFiscalYear}`;
+let SK=`neo_v5_${_currentFiscalYear}`;
 let S=loadS();
 function loadS(){try{const r=localStorage.getItem(`neo_v5_${_currentFiscalYear}`);if(r){const d=JSON.parse(r);if(d&&Object.keys(d).length>3)return d;}}catch(e){}return JSON.parse(JSON.stringify(DEF));}
+let _isLoadingFromDB = false;
 
 async function loadFromDB(){
+  _isLoadingFromDB = true;
+  clearTimeout(_saveTimer); // 保存タイマーをクリア
   try{
     const dbId=getFiscalYearDbId(_currentFiscalYear);
     const{data,error}=await _sb.from('dashboard_data').select('data').eq('id',dbId).maybeSingle();
@@ -1785,6 +1792,7 @@ async function loadFromDB(){
     localStorage.setItem(`neo_v5_${_currentFiscalYear}`,JSON.stringify(S));
     setSaveStatus('saved','DB同期済み');
   }catch(e){console.warn('[loadFromDB]',e.message);setSaveStatus('connecting','ローカルデータ使用中');}
+  finally{ _isLoadingFromDB = false; }
 }
 
 // ══════════════════════════════════════════════════
@@ -1967,7 +1975,25 @@ function buildKpiSections({totR=0, totRB=0, totB=0, totE=0, totA=0, target=0, pr
 let _lastSnapshotTs = 0;
 
 async function save(){
-  localStorage.setItem(SK,JSON.stringify(S));
+  // データ保護: 重要フィールドが消えている場合は保存をブロック
+  const _prevLocal = localStorage.getItem(`neo_v5_${_currentFiscalYear}`);
+  if (_prevLocal) {
+    try {
+      const prev = JSON.parse(_prevLocal);
+      const hasBudget = (prev.programs||[]).some(p => p.budget > 0);
+      const hasRevenue = (prev.revenues||[]).length > 0;
+      const hasEstimates = Object.values(prev.estimates||{}).some(arr => arr.length > 0);
+      const curHasBudget = (S.programs||[]).some(p => p.budget > 0);
+      const curHasRevenue = (S.revenues||[]).length > 0;
+      const curHasEstimates = Object.values(S.estimates||{}).some(arr => arr.length > 0);
+      // 以前あったデータが消えている場合は警告
+      if ((hasBudget && !curHasBudget) || (hasRevenue && !curHasRevenue) || (hasEstimates && !curHasEstimates)) {
+        console.warn('[save] データ欠損検出! 保存前にスナップショットを作成');
+        saveSnapshot('データ欠損検出（自動保護）');
+      }
+    } catch(e) {}
+  }
+  localStorage.setItem(`neo_v5_${_currentFiscalYear}`,JSON.stringify(S));
   if(!_currentUser){setSaveStatus('error','未ログイン');return;}
 
   // 5分ごとに自動スナップショット
@@ -1991,7 +2017,7 @@ async function save(){
       // 保存前にSupabaseの現在のデータを確認（他ユーザーの変更を保護）
       const {data: currentDb} = await _sb.from('dashboard_data')
         .select('updated_at, data').eq('id', dbId).maybeSingle();
-      
+
       // DBのデータが現在のSより新しい場合（他ユーザーが更新済み）はマージ
       if (currentDb?.data && currentDb.data.updated_by_email !== _currentUser.email) {
         const dbTime = new Date(currentDb.updated_at).getTime();
@@ -2007,6 +2033,23 @@ async function save(){
         }
       }
       _lastSaveTime = Date.now();
+
+      // Supabaseバックアップ: 保存前の状態を記録（1時間に1回）
+      const _backupKey = '_lastBackupTs';
+      const _lastBk = parseInt(localStorage.getItem(_backupKey)||'0');
+      if (Date.now() - _lastBk > 60*60*1000) {
+        try {
+          if (currentDb?.data) {
+            await _sb.from('dashboard_backups').insert({
+              fiscal_year_id: dbId,
+              data: currentDb.data,
+              created_by: _currentUser.id,
+              created_at: new Date().toISOString(),
+              label: '自動バックアップ'
+            }).then(()=>localStorage.setItem(_backupKey, String(Date.now())));
+          }
+        } catch(bkErr) { console.warn('[backup]', bkErr.message); }
+      }
 
       const{data:upData,error:upErr} = await _sb.from('dashboard_data')
         .update({data:saveData, updated_by:_currentUser.id, updated_at:new Date().toISOString()})
@@ -2051,11 +2094,13 @@ let _saveTimer = null;
 let _pendingChanges = 0;  // 保留中の変更カウンター
 
 function debouncedSave(){
+  if (_isLoadingFromDB) return; // DB読み込み中は保存しない
   markUnsaved();
   _pendingChanges++;
   clearTimeout(_saveTimer);
   // 最後の変更から1.5秒後に1回だけ保存
   _saveTimer = setTimeout(async() => {
+    if (_isLoadingFromDB) return; // DB読み込み中は保存しない
     const count = _pendingChanges;
     _pendingChanges = 0;
     await save();
@@ -2076,9 +2121,9 @@ async function switchFiscalYear(fy){fy=parseInt(fy);if(fy===_currentFiscalYear)r
   localStorage.setItem(`neo_v5_${_currentFiscalYear}`,JSON.stringify(S));
   await save();
   _prevYearData = null; _prevYearFY = null; // 前年キャッシュをクリア
-  _currentFiscalYear=fy;localStorage.setItem('neo_fiscal_year',fy);S=loadS();await loadFromDB();updateFYSelectorUI();renderPg(_curPg||'ov');go('ov',document.querySelector('.nb'));}
+  _currentFiscalYear=fy;SK=`neo_v5_${fy}`;localStorage.setItem('neo_fiscal_year',fy);S=loadS();await loadFromDB();updateFYSelectorUI();renderPg(_curPg||'ov');go('ov',document.querySelector('.nb'));}
 
-async function createNewFiscalYear(){if(!isAdmin()){alert('年度作成は管理者のみ可能です');return;}const fy=parseInt(document.getElementById('new-fy-input').value);if(!fy||fy<2024||fy>2040){alert('正しい年度を入力してください');return;}if(!confirm(`${getFiscalYearLabel(fy)}を新規作成します。\n空のデータで開始しますか？`))return;_currentFiscalYear=fy;localStorage.setItem('neo_fiscal_year',fy);S=JSON.parse(JSON.stringify(DEF));S.fiscalYear=fy;await save();updateFYSelectorUI();closeOv('ov-fiscal-year');renderPg('ov');go('ov',document.querySelector('.nb'));alert(`✅ ${getFiscalYearLabel(fy)}を作成しました`);}
+async function createNewFiscalYear(){if(!isAdmin()){alert('年度作成は管理者のみ可能です');return;}const fy=parseInt(document.getElementById('new-fy-input').value);if(!fy||fy<2024||fy>2040){alert('正しい年度を入力してください');return;}if(!confirm(`${getFiscalYearLabel(fy)}を新規作成します。\n空のデータで開始しますか？`))return;saveSnapshot('年度作成前（自動保護）');_currentFiscalYear=fy;SK=`neo_v5_${fy}`;localStorage.setItem('neo_fiscal_year',fy);S=JSON.parse(JSON.stringify(DEF));S.fiscalYear=fy;await save();updateFYSelectorUI();closeOv('ov-fiscal-year');renderPg('ov');go('ov',document.querySelector('.nb'));alert(`✅ ${getFiscalYearLabel(fy)}を作成しました`);}
 
 async function changeFYQuick(delta,fy){let newFY;if(delta!==0){newFY=_currentFiscalYear+delta;}else{newFY=parseInt(fy);}if(newFY<2024||newFY>2040)return;if(newFY===_currentFiscalYear)return;const label=getFiscalYearLabel(newFY);if(!confirm(`${label}に切り替えます。\n現在のデータは自動保存されます。`)){const sel=document.getElementById('fy-quick-sel');if(sel)sel.value=_currentFiscalYear;return;}
   // 現年度のデータを確実に保存してから切り替え
@@ -2086,7 +2131,7 @@ async function changeFYQuick(delta,fy){let newFY;if(delta!==0){newFY=_currentFis
   await save();
   _prevYearData = null; _prevYearFY = null; // 前年キャッシュをクリア
   stopRealtimeSync();
-  _currentFiscalYear=newFY;localStorage.setItem('neo_fiscal_year',newFY);S=loadS();await loadFromDB();updateFYSelectorUI();renderPg('ov');go('ov',document.querySelector('.nb'));}
+  _currentFiscalYear=newFY;SK=`neo_v5_${newFY}`;localStorage.setItem('neo_fiscal_year',newFY);S=loadS();await loadFromDB();updateFYSelectorUI();renderPg('ov');go('ov',document.querySelector('.nb'));}
 
 function updateFYSelectorUI(){const sel=document.getElementById('fy-quick-sel');if(!sel)return;const years=[];for(let y=2025;y<=_currentFiscalYear+1;y++)years.push(y);sel.innerHTML=years.map(y=>`<option value="${y}"${y===_currentFiscalYear?' selected':''}>${y}年度（${String(y).slice(2)}/4〜${String(y+1).slice(2)}/3）</option>`).join('');const prevBtn=document.getElementById('fy-prev-btn');const nextBtn=document.getElementById('fy-next-btn');if(prevBtn)prevBtn.style.opacity=_currentFiscalYear<=2025?'.3':'1';if(nextBtn)nextBtn.style.opacity='1';}
 
@@ -4289,7 +4334,11 @@ function executeXlImport() {
         ExcelインポートやデータのリストアなどによってローカルPCに最大20件保存されます。<br>
         <strong style="color:var(--acc)">⚠️ このブラウザのこのデバイスのみで利用可能です。</strong>
       </p>
-      <div id="version-list" style="max-height:500px;overflow-y:auto"></div>
+      <div id="version-list" style="max-height:250px;overflow-y:auto"></div>
+      <div style="margin-top:16px;padding-top:12px;border-top:2px solid var(--b2)">
+        <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:8px">☁️ クラウドバックアップ<span style="font-weight:400;font-size:10px;color:var(--t3);margin-left:8px">— 全デバイスで利用可能（1時間ごと自動保存）</span></div>
+        <div id="cloud-backup-list" style="max-height:250px;overflow-y:auto"></div>
+      </div>
     </div>
     <div class="pf">
       <button class="btn btn-g" onclick="closeOv('ov-version-history')">閉じる</button>
@@ -4848,9 +4897,58 @@ function estDrop(e, key, targetIdx) {
 // バージョン履歴
 // ══════════════════════════════════════════════════
 
-function openVersionHistory() {
+async function openVersionHistory() {
   renderVersionList();
+  await renderCloudBackups();
   openOv('ov-version-history');
+}
+
+// Supabaseバックアップ一覧を表示
+async function renderCloudBackups() {
+  const el = document.getElementById('cloud-backup-list');
+  if (!el || !_sb) return;
+  el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--t3);font-size:11px">読み込み中...</div>';
+  try {
+    const dbId = getFiscalYearDbId(_currentFiscalYear);
+    const {data, error} = await _sb.from('dashboard_backups')
+      .select('id,created_at,label,created_by')
+      .eq('fiscal_year_id', dbId)
+      .order('created_at', {ascending: false})
+      .limit(20);
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--t3);font-size:11px">クラウドバックアップはまだありません</div>';
+      return;
+    }
+    el.innerHTML = data.map((bk, i) => {
+      const ts = new Date(bk.created_at);
+      const dateStr = ts.toLocaleDateString('ja-JP', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;margin-bottom:4px;background:var(--s2);border:1.5px solid var(--b1)">
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:11px">${bk.label||'バックアップ'}</div>
+          <div style="font-size:10px;color:var(--t3);margin-top:1px">${dateStr}</div>
+        </div>
+        <button class="btn btn-xs btn-p" onclick="restoreCloudBackup(${bk.id})" style="font-size:10px">⏪ 復元</button>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--t3);font-size:11px">バックアップテーブル未作成（管理者がマイグレーションを実行してください）</div>';
+  }
+}
+
+async function restoreCloudBackup(backupId) {
+  if (!confirm('このバックアップからデータを復元します。\n現在のデータは失われます。\n\nよろしいですか？')) return;
+  try {
+    saveSnapshot('クラウド復元前（自動保護）');
+    const {data, error} = await _sb.from('dashboard_backups').select('data').eq('id', backupId).maybeSingle();
+    if (error) throw error;
+    if (!data?.data) { alert('バックアップデータが見つかりません'); return; }
+    S = data.data;
+    await save();
+    renderPg(_curPg || 'ov');
+    closeOv('ov-version-history');
+    alert('✅ クラウドバックアップから復元しました');
+  } catch(e) { alert('復元エラー: ' + e.message); }
 }
 
 function renderVersionList() {
@@ -5087,9 +5185,26 @@ function applySyncData() {
     }
   }
 
-  S = _pendingSyncData;
+  // 同期前にスナップショットを保存（データ保護）
+  saveSnapshot('同期前（自動保存）');
+
+  // 安全なマージ: 受信データが空のフィールドで既存データを消さない
+  const incoming = _pendingSyncData;
+  const critical = ['programs','revenues','estimates','events','sessions','prodItems','orderMaster','ledger'];
+  critical.forEach(key => {
+    const inc = incoming[key];
+    const cur = S[key];
+    // 受信データが空/未定義だが、現在データに値がある場合は現在値を保持
+    if (cur && (!inc || (Array.isArray(inc) && inc.length === 0) || (typeof inc === 'object' && !Array.isArray(inc) && Object.keys(inc).length === 0))) {
+      if (Array.isArray(cur) ? cur.length > 0 : Object.keys(cur).length > 0) {
+        incoming[key] = cur;
+      }
+    }
+  });
+
+  S = incoming;
   _pendingSyncData = null;
-  localStorage.setItem(SK, JSON.stringify(S));
+  localStorage.setItem(`neo_v5_${_currentFiscalYear}`, JSON.stringify(S));
   setSaveStatus('saved', '同期済み ' + new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'}));
   renderPg(_curPg || 'ov');
 }
