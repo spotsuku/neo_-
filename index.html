@@ -250,6 +250,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
   <button class="nb" onclick="go('ordermaster',this)"><span class="ic">📋</span>発注マスタ</button>
   <button class="nb" onclick="go('prod',this)"><span class="ic">📦</span>製作物管理</button>
   <button class="nb" onclick="go('rev',this)"><span class="ic">💰</span>収入管理</button>
+  <button class="nb admin-only" onclick="go('mfpay',this)"><span class="ic">💸</span>MF連携</button>
   <div class="sb-sec">データ</div>
   <button class="nb admin-only" onclick="openOv('ov-xl-import')"><span class="ic">📥</span>Excelインポート</button>
   <button class="nb admin-only" onclick="openVersionHistory()"><span class="ic">🕒</span>バージョン履歴</button>
@@ -755,6 +756,51 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
       <div class="g2">
         <div class="card"><div class="ct"><div class="pip" style="background:var(--green)"></div>収入内訳<button class="btn btn-xs btn-g admin-only" style="margin-left:auto" onclick="openRev()">✏️ 編集</button></div><div id="rev-detail"></div></div>
         <div class="card"><div class="ct"><div class="pip" style="background:var(--blue)"></div>収支サマリー</div><div id="net-summary"></div></div>
+      </div>
+    </div>
+
+    <!-- MF連携（マネーフォワード債務支払い） -->
+    <div class="pg" id="pg-mfpay">
+      <div class="card" style="margin-bottom:12px">
+        <div class="ct"><div class="pip" style="background:#f0522a"></div>マネーフォワード 債務支払い 連携
+          <span id="mf-status-badge" style="margin-left:auto;font-size:10px;padding:3px 8px;border-radius:6px;background:var(--s3);color:var(--t3)">確認中…</span>
+        </div>
+        <div style="font-size:11px;color:var(--t2);line-height:1.6;margin-top:8px">
+          MFクラウド債務支払いとOAuth2連携し、買掛・支払予定データを取得して<strong>S.ledger（実績）</strong>に反映します。
+          項目マッピング: <code>取引先→vendor</code> / <code>件名→fee</code> / <code>金額→actual</code> / <code>支払期日→payMonth</code> / <code>勘定科目→cat（自動判定）</code>。
+          未対応項目（ステータス・備考等）は <code>S.mfPayables</code> に raw 保持されます。
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center">
+          <button class="btn btn-p" id="mf-link-btn" onclick="mfStartLink()">🔗 MFと連携する</button>
+          <button class="btn btn-g" id="mf-unlink-btn" onclick="mfUnlink()" style="display:none">連携を解除</button>
+          <span style="flex:1"></span>
+          <input type="date" id="mf-from"  class="fi" style="width:140px;font-size:11px" title="取得開始日">
+          <input type="date" id="mf-to"    class="fi" style="width:140px;font-size:11px" title="取得終了日">
+          <button class="btn btn-p" id="mf-fetch-btn" onclick="mfFetchPayables()" disabled>📥 データ取得</button>
+          <button class="btn btn-g" id="mf-import-btn" onclick="mfImportToLedger()" disabled>✅ 実績へ反映</button>
+        </div>
+        <div id="mf-message" style="margin-top:10px;font-size:11px"></div>
+      </div>
+      <div class="card">
+        <div class="ct"><div class="pip" style="background:var(--blue)"></div>取得済み債務一覧
+          <span id="mf-count" style="margin-left:auto;font-size:11px;color:var(--t2)"></span>
+        </div>
+        <div style="overflow:auto;max-height:520px">
+          <table class="tbl" id="mf-payables-tbl">
+            <thead><tr>
+              <th style="width:36px"></th>
+              <th>取引先</th>
+              <th>件名・摘要</th>
+              <th style="text-align:right;width:110px">金額</th>
+              <th style="width:96px">支払期日</th>
+              <th style="width:140px">勘定科目（自動判定）</th>
+              <th style="width:80px">ステータス</th>
+              <th style="width:90px">MF元ID</th>
+            </tr></thead>
+            <tbody id="mf-payables-tbody"></tbody>
+          </table>
+        </div>
+        <div id="mf-empty" style="text-align:center;padding:32px;color:var(--t3);font-size:11px">「📥 データ取得」で MF から債務データを取り込んでください</div>
       </div>
     </div>
 
@@ -1691,7 +1737,7 @@ async function loadFromDB(){
       const EVT_LABELS={ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',md:'マッチデイ',tour:'ツアー',sd:'スペシャルデイズ',cf3:'イベント3',cf4:'イベント4'};
       Object.keys(EVT_LABELS).forEach(k=>{if(!S.events[k])S.events[k]={label:EVT_LABELS[k],items:[]};});
       if(!S.categories)S.categories=DEF.categories;if(!S.months)S.months=DEF.months;if(!S.monthlyTotal)S.monthlyTotal=DEF.monthlyTotal;
-      if(!S.ledger)S.ledger=[];if(!S.mktItems)S.mktItems=[];if(!S.prodItems)S.prodItems=[];if(!S.changelog)S.changelog=[];if(!S.defaults)S.defaults={};if(!S.orderMaster)S.orderMaster=[];if(!S.estimates)S.estimates={};if(!S.prodBudgets)S.prodBudgets={};
+      if(!S.ledger)S.ledger=[];if(!S.mktItems)S.mktItems=[];if(!S.prodItems)S.prodItems=[];if(!S.changelog)S.changelog=[];if(!S.defaults)S.defaults={};if(!S.orderMaster)S.orderMaster=[];if(!S.estimates)S.estimates={};if(!S.prodBudgets)S.prodBudgets={};if(!S.mfPayables)S.mfPayables=[];
     }
     // prodItemsのactual→actPrice/actQtyマイグレーション
     if(S.prodItems) {
@@ -2084,7 +2130,7 @@ function dc(id){if(_ch[id]){_ch[id].destroy();delete _ch[id];}}
 const PAL=['#f0522a','#4f8ef7','#2dd4a0','#f0c040','#9b7fe8','#06b6d4','#ec4899','#84cc16','#ffb347','#14b8a6'];
 
 // ── ナビゲーション ──
-const TITLES={ov:'サマリー',prog:'プログラム別',hm:'ホームルーム',gk:'評議会',oe:'応援カイギ',ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',tour:'ツアー',cityfes:'シティフェス',md:'マッチデイ',sd:'スペシャルデイズ',cf3:'イベント3',cf4:'イベント4',rev:'収入管理',users:'ユーザー管理',history:'ログイン履歴',ordermaster:'発注マスタ',prod:'製作物管理',changelog:'変更履歴'};
+const TITLES={ov:'サマリー',prog:'プログラム別',hm:'ホームルーム',gk:'評議会',oe:'応援カイギ',ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',tour:'ツアー',cityfes:'シティフェス',md:'マッチデイ',sd:'スペシャルデイズ',cf3:'イベント3',cf4:'イベント4',rev:'収入管理',mfpay:'MF連携（債務支払い）',users:'ユーザー管理',history:'ログイン履歴',ordermaster:'発注マスタ',prod:'製作物管理',changelog:'変更履歴'};
 let _curPg='ov';
 function go(id,btn){if(id==='users'&&!isAdmin()){alert('管理者のみアクセスできます');return;}document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));const pg=document.getElementById('pg-'+id);if(pg)pg.classList.add('on');if(btn)btn.classList.add('on');document.getElementById('pgTitle').textContent=TITLES[id]||id;_curPg=id;if(id==='users'){renderUsers();return;}if(id==='history'){renderHistory();return;}renderPg(id);}
 
@@ -3543,6 +3589,7 @@ async function renderPg(id){
   else if(id==='cityfes')renderCityFes();
   else if(['md','sd','cf3','cf4'].includes(id)){_cityFesTab=id;renderCityFes();}
   else if(id==='rev')renderRev();
+  else if(id==='mfpay')renderMfPay();
   else if(id==='prod')renderProd();
   else if(id==='changelog')renderChangelog();
   else if(id==='ordermaster')renderOrderMaster();
@@ -4401,6 +4448,305 @@ function showMfError(msg) {
   if (el) { el.textContent = msg; el.style.display = msg ? '' : 'none'; }
 }
 
+
+// ══════════════════════════════════════════════════
+// マネーフォワード債務支払い OAuth2 連携
+// /api/mf/{auth,callback,payables,status} と連携
+// ══════════════════════════════════════════════════
+
+let _mfFetched = []; // /api/mf/payables のレスポンス（正規化済み）
+
+// ── ユーティリティ ──
+async function _mfApi(path, opts = {}) {
+  const session = await _sb?.auth?.getSession?.();
+  const token = session?.data?.session?.access_token;
+  if (!token) throw new Error('Supabaseセッション未取得');
+  const r = await fetch(path, {
+    ...opts,
+    headers: { Authorization: `Bearer ${token}`, ...(opts.headers || {}) },
+  });
+  const text = await r.text();
+  let json = null;
+  try { json = text ? JSON.parse(text) : null; } catch (_) {}
+  if (!r.ok) {
+    const msg = json?.error || text || `HTTP ${r.status}`;
+    const err = new Error(msg);
+    err.status = r.status;
+    err.body = json;
+    throw err;
+  }
+  return json;
+}
+
+function _mfMsg(msg, kind = 'info') {
+  const el = document.getElementById('mf-message');
+  if (!el) return;
+  if (!msg) { el.innerHTML = ''; return; }
+  const c = kind === 'error' ? '#e84060' : kind === 'ok' ? 'var(--green)' : 'var(--t2)';
+  el.innerHTML = `<span style="color:${c}">${msg}</span>`;
+}
+
+// ── 連携状態の取得とバッジ更新 ──
+async function renderMfPay() {
+  // URL クエリで callback 結果を表示
+  const u = new URL(location.href);
+  const mf = u.searchParams.get('mf');
+  if (mf === 'ok') _mfMsg('✅ MFと連携しました', 'ok');
+  else if (mf === 'error') _mfMsg(`❌ 連携失敗: ${u.searchParams.get('reason') || 'unknown'}`, 'error');
+  if (mf) { u.searchParams.delete('mf'); u.searchParams.delete('reason'); history.replaceState({}, '', u.toString()); }
+
+  // デフォルトの取得期間 = 当年度
+  const fy = _currentFiscalYear || new Date().getFullYear();
+  const fromEl = document.getElementById('mf-from');
+  const toEl   = document.getElementById('mf-to');
+  if (fromEl && !fromEl.value) fromEl.value = `${fy}-04-01`;
+  if (toEl   && !toEl.value)   toEl.value   = `${fy + 1}-03-31`;
+
+  const badge = document.getElementById('mf-status-badge');
+  const linkBtn   = document.getElementById('mf-link-btn');
+  const unlinkBtn = document.getElementById('mf-unlink-btn');
+  const fetchBtn  = document.getElementById('mf-fetch-btn');
+
+  try {
+    const st = await _mfApi('/api/mf/status');
+    if (!st.env_ok) {
+      if (badge) { badge.textContent = '⚠️ サーバー未設定'; badge.style.background = 'rgba(232,64,96,.12)'; badge.style.color = '#e84060'; }
+      _mfMsg(`Vercel ENV 不足: ${(st.missing || []).join(', ')}（管理者へ連絡してください）`, 'error');
+      if (linkBtn)  linkBtn.disabled  = true;
+      if (fetchBtn) fetchBtn.disabled = true;
+      return;
+    }
+    if (st.linked) {
+      if (badge)     { badge.textContent = '🟢 連携済み'; badge.style.background = 'rgba(16,185,129,.12)'; badge.style.color = 'var(--green)'; }
+      if (linkBtn)   linkBtn.style.display   = 'none';
+      if (unlinkBtn) unlinkBtn.style.display = '';
+      if (fetchBtn)  fetchBtn.disabled = false;
+    } else {
+      if (badge)     { badge.textContent = '⚪ 未連携'; badge.style.background = 'var(--s3)'; badge.style.color = 'var(--t3)'; }
+      if (linkBtn)   linkBtn.style.display   = '';
+      if (unlinkBtn) unlinkBtn.style.display = 'none';
+      if (fetchBtn)  fetchBtn.disabled = true;
+    }
+  } catch (e) {
+    if (badge) { badge.textContent = '❌ 確認失敗'; badge.style.color = '#e84060'; }
+    _mfMsg(`連携状態の確認に失敗: ${e.message}`, 'error');
+  }
+
+  // 既存の取込済みデータを表示
+  _mfFetched = (S.mfPayables || []).slice();
+  renderMfPayablesTable();
+}
+
+// ── 連携開始（OAuth2 リダイレクト） ──
+async function mfStartLink() {
+  _mfMsg('連携URLを取得中…');
+  try {
+    const r = await _mfApi('/api/mf/auth');
+    if (r?.url) location.href = r.url;
+    else _mfMsg('連携URLが返されませんでした', 'error');
+  } catch (e) {
+    _mfMsg(`連携開始に失敗: ${e.message}`, 'error');
+  }
+}
+
+// ── 連携解除（Supabase RPC） ──
+async function mfUnlink() {
+  if (!confirm('MFとの連携を解除します。よろしいですか？')) return;
+  try {
+    const { error } = await _sb.rpc('mf_unlink');
+    if (error) throw error;
+    _mfMsg('連携を解除しました', 'ok');
+    renderMfPay();
+  } catch (e) {
+    _mfMsg(`解除に失敗: ${e.message}`, 'error');
+  }
+}
+
+// ── データ取得（/api/mf/payables） ──
+async function mfFetchPayables() {
+  const from = document.getElementById('mf-from')?.value;
+  const to   = document.getElementById('mf-to')?.value;
+  const q = new URLSearchParams();
+  if (from) q.set('from', from);
+  if (to)   q.set('to',   to);
+  q.set('per_page', '500');
+
+  _mfMsg('MFから取得中…');
+  try {
+    const r = await _mfApi(`/api/mf/payables?${q}`);
+    const list = mfNormalizePayables(r?.data);
+    _mfFetched = list;
+    S.mfPayables = list;
+    save();
+    _mfMsg(`✅ ${list.length}件を取得しました（まだ実績には反映していません）`, 'ok');
+    document.getElementById('mf-import-btn').disabled = list.length === 0;
+    renderMfPayablesTable();
+  } catch (e) {
+    _mfMsg(`取得失敗: ${e.message}`, 'error');
+  }
+}
+
+// ── 取得レスポンスを正規化（MF API のキー揺れに対応） ──
+function mfNormalizePayables(raw) {
+  if (!raw) return [];
+  // 配列 / { items: [...] } / { data: [...] } / { payables: [...] } の揺れを吸収
+  const arr = Array.isArray(raw) ? raw
+    : Array.isArray(raw.items)    ? raw.items
+    : Array.isArray(raw.data)     ? raw.data
+    : Array.isArray(raw.payables) ? raw.payables
+    : [];
+  return arr.map(o => {
+    const pick = (...keys) => { for (const k of keys) { if (o[k] !== undefined && o[k] !== null && o[k] !== '') return o[k]; } return ''; };
+    const amount = parseFloat(String(pick('amount','total_amount','total','price','金額')||'0').replace(/,/g,'')) || 0;
+    return {
+      mfId:      String(pick('id','payable_id','number','transaction_id','取引ID') || ''),
+      vendor:    String(pick('partner_name','partner','vendor','supplier_name','取引先') || ''),
+      title:     String(pick('title','subject','description','memo','件名','摘要') || ''),
+      amount,
+      dueDate:   String(pick('payment_due_on','payment_due_date','due_date','支払期日') || '').slice(0,10),
+      paidOn:    String(pick('paid_on','payment_date','支払日') || '').slice(0,10),
+      status:    String(pick('status','payment_status','ステータス') || ''),
+      account:   String(pick('account_title','account','expense_account','勘定科目') || ''),
+      memo:      String(pick('note','memo','description','備考') || ''),
+      raw:       o, // 全フィールド保持
+    };
+  }).filter(p => p.amount > 0 || p.title || p.vendor);
+}
+
+// ── 取得済みテーブル描画 ──
+function renderMfPayablesTable() {
+  const tbody = document.getElementById('mf-payables-tbody');
+  const empty = document.getElementById('mf-empty');
+  const cnt   = document.getElementById('mf-count');
+  if (!tbody) return;
+
+  if (!_mfFetched.length) {
+    tbody.innerHTML = '';
+    if (empty) empty.style.display = '';
+    if (cnt)   cnt.textContent = '';
+    document.getElementById('mf-import-btn').disabled = true;
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  if (cnt)   cnt.textContent = `${_mfFetched.length} 件`;
+
+  tbody.innerHTML = _mfFetched.map((p, i) => {
+    const cat = detectCat(p.title || p.account || p.vendor || '') || '⑩ その他';
+    return `<tr>
+      <td><input type="checkbox" class="mf-pay-cb" data-i="${i}" checked></td>
+      <td style="font-size:11px">${escapeHtml(p.vendor)}</td>
+      <td style="font-size:11px">${escapeHtml(p.title)}</td>
+      <td style="text-align:right;font-family:var(--mono);font-size:11px">${fmt(p.amount)}</td>
+      <td style="font-size:10px;color:var(--t2)">${escapeHtml(p.dueDate)}</td>
+      <td style="font-size:10px"><span style="background:var(--s2);padding:2px 6px;border-radius:4px">${escapeHtml(cat)}</span></td>
+      <td style="font-size:10px;color:var(--t2)">${escapeHtml(p.status)}</td>
+      <td style="font-size:9px;color:var(--t3);font-family:var(--mono)">${escapeHtml(p.mfId)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('mf-import-btn').disabled = false;
+}
+
+// ── 取得データを S.ledger と S.monthlyTotal へ反映 ──
+function mfImportToLedger() {
+  if (!isAdmin()) { alert('実績への反映は管理者のみ実行できます'); return; }
+  if (!_mfFetched.length) return;
+
+  const checks = Array.from(document.querySelectorAll('.mf-pay-cb'));
+  const targets = checks.filter(cb => cb.checked).map(cb => _mfFetched[parseInt(cb.dataset.i)]);
+  if (!targets.length) { alert('反映対象を1件以上選択してください'); return; }
+  if (!confirm(`${targets.length}件を実績（S.ledger）に反映します。\n同じ MF元ID が既にある場合は上書きします。`)) return;
+
+  if (!Array.isArray(S.ledger))      S.ledger = [];
+  if (!Array.isArray(S.monthlyTotal)) S.monthlyTotal = new Array((S.months || []).length).fill(0);
+
+  const months = S.months || [];
+  let added = 0, updated = 0, skippedOutOfFy = 0;
+
+  // 既存 ledger を _mfId でインデックス化（再取込時の冪等性確保）
+  const byMfId = new Map();
+  S.ledger.forEach(l => { if (l._mfId) byMfId.set(String(l._mfId), l); });
+
+  targets.forEach(p => {
+    const fee = p.title || p.vendor || '(無題)';
+    const cat = detectCat(fee) || detectCat(p.account || '') || '⑩ その他';
+    const dueMK = mfDueDateToMonthKey(p.dueDate, months);
+    const row = byMfId.get(p.mfId) || null;
+
+    // 更新時のために変更前の値を退避（Object.assign 前にキャプチャ）
+    const prevAmount = row && typeof row.actual === 'number' ? row.actual : 0;
+    const prevPayMK  = row && row.payMonth ? row.payMonth : '';
+
+    const next = {
+      id:        row?.id || uid(),
+      fee,
+      vendor:    p.vendor || '',
+      cat,
+      _catManual: row?._catManual || false, // 既存で手動指定済みなら維持
+      content:   p.memo || row?.content || '',
+      price:     p.amount,
+      unit:      row?.unit || '式',
+      estimate:  row?.estimate || 0,
+      actual:    p.amount,
+      payMonth:  dueMK || row?.payMonth || '',
+      prog:      row?.prog || '',
+      _mfId:     p.mfId,
+      _mfStatus: p.status || '',
+      _mfDueDate:p.dueDate || '',
+      _mfPaidOn: p.paidOn || '',
+      _mfAccount:p.account || '',
+      _mfSyncedAt: new Date().toISOString(),
+    };
+
+    if (row) {
+      Object.assign(row, next);
+      updated++;
+    } else {
+      S.ledger.push(next);
+      added++;
+    }
+
+    // S.monthlyTotal 加算
+    // - 新規: 該当月に金額を加算
+    // - 更新: 旧月から旧金額を引き、新月に新金額を足す（月変更にも対応）
+    const newIdx = dueMK ? months.indexOf(dueMK) : -1;
+    const oldIdx = prevPayMK ? months.indexOf(prevPayMK) : -1;
+    if (oldIdx >= 0 && (oldIdx !== newIdx || !row)) {
+      S.monthlyTotal[oldIdx] = Math.max(0, (S.monthlyTotal[oldIdx] || 0) - prevAmount);
+    }
+    if (newIdx >= 0) {
+      if (oldIdx === newIdx && row) {
+        // 同じ月のまま金額だけ変わったケース
+        S.monthlyTotal[newIdx] = Math.max(0, (S.monthlyTotal[newIdx] || 0) - prevAmount + p.amount);
+      } else {
+        S.monthlyTotal[newIdx] = (S.monthlyTotal[newIdx] || 0) + p.amount;
+      }
+    } else {
+      skippedOutOfFy++;
+    }
+  });
+
+  save();
+  renderPg('ov');
+  alert(`✅ 実績に反映しました\n追加: ${added}件 / 更新: ${updated}件\n年度外で月次集計に加算しなかった: ${skippedOutOfFy}件`);
+  _mfMsg(`✅ ${added + updated}件を実績へ反映`, 'ok');
+}
+
+// MFの支払期日（YYYY-MM-DD）を S.months 形式（'YY/M'）に変換
+function mfDueDateToMonthKey(dueDate, months) {
+  if (!dueDate) return '';
+  const m = String(dueDate).match(/^(\d{4})-(\d{1,2})/);
+  if (!m) return '';
+  const yr = parseInt(m[1]);
+  const mo = parseInt(m[2]);
+  const key = `${String(yr).slice(2)}/${mo}`;
+  return (months || []).includes(key) ? key : '';
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 
 // ══════════════════════════════════════════════════
