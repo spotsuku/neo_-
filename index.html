@@ -4587,21 +4587,23 @@ async function mfFetchPayables() {
 }
 
 // ── 取得レスポンスを正規化（MF API のキー揺れに対応） ──
+// クラウド債務支払「受領請求書」API: data[]、または received_invoices[]、items[] 等のキー揺れに対応
 function mfNormalizePayables(raw) {
   if (!raw) return [];
-  // 配列 / { items: [...] } / { data: [...] } / { payables: [...] } の揺れを吸収
   const arr = Array.isArray(raw) ? raw
-    : Array.isArray(raw.items)    ? raw.items
-    : Array.isArray(raw.data)     ? raw.data
-    : Array.isArray(raw.payables) ? raw.payables
+    : Array.isArray(raw.received_invoices) ? raw.received_invoices
+    : Array.isArray(raw.items)              ? raw.items
+    : Array.isArray(raw.data)               ? raw.data
+    : Array.isArray(raw.payables)           ? raw.payables
     : [];
   return arr.map(o => {
     const pick = (...keys) => { for (const k of keys) { if (o[k] !== undefined && o[k] !== null && o[k] !== '') return o[k]; } return ''; };
-    const amount = parseFloat(String(pick('amount','total_amount','total','price','金額')||'0').replace(/,/g,'')) || 0;
+    // 受領請求書の金額は total_amount / total_price / amount 等
+    const amount = parseFloat(String(pick('total_amount','total_price','amount','total','price','金額')||'0').replace(/,/g,'')) || 0;
     return {
-      mfId:      String(pick('id','payable_id','number','transaction_id','取引ID') || ''),
-      vendor:    String(pick('partner_name','partner','vendor','supplier_name','取引先') || ''),
-      title:     String(pick('title','subject','description','memo','件名','摘要') || ''),
+      mfId:      String(pick('id','received_invoice_id','number','invoice_number','transaction_id','取引ID') || ''),
+      vendor:    String(pick('partner_name','partner','vendor','supplier_name','billing_partner_name','取引先') || ''),
+      title:     String(pick('title','subject','description','memo','memo_text','件名','摘要') || ''),
       amount,
       dueDate:   String(pick('payment_due_on','payment_due_date','due_date','支払期日') || '').slice(0,10),
       paidOn:    String(pick('paid_on','payment_date','支払日') || '').slice(0,10),

@@ -21,7 +21,8 @@ export default async function handler(req, res) {
     const accessToken = await getValidAccessToken(user.id);
     const e           = env();
 
-    const path = process.env.MF_PAYABLES_PATH || '/api/v1/payables';
+    // クラウド債務支払の「受領請求書」一覧 API
+    const path = process.env.MF_PAYABLES_PATH || '/api/external/v1/received_invoices';
 
     const q = new URLSearchParams();
     if (req.query?.from)     q.set('from',     req.query.from);

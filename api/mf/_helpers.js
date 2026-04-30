@@ -19,7 +19,7 @@ export function env() {
     MF_TOKEN_URL:               process.env.MF_TOKEN_URL     || 'https://api.biz.moneyforward.com/token',
     MF_API_BASE:                process.env.MF_API_BASE      || 'https://api.biz.moneyforward.com',
     MF_REDIRECT_URI:            process.env.MF_REDIRECT_URI,
-    MF_SCOPE:                   process.env.MF_SCOPE         || 'mfc/invoice/data.read mfc/invoice/payable.read',
+    MF_SCOPE:                   process.env.MF_SCOPE         || 'mfc/accounts-payable/received_invoice.read mfc/accounts-payable/office_setting.read',
   };
   const missing = Object.entries(required).filter(([, v]) => !v).map(([k]) => k);
   if (missing.length) {
