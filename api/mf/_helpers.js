@@ -86,20 +86,35 @@ export async function verifyUser(req) {
 export async function sbRest(path, init = {}) {
   const e = env();
   const url = `${e.SUPABASE_URL}/rest/v1${path}`;
-  const r = await fetch(url, {
-    ...init,
-    headers: {
-      apikey: e.SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${e.SUPABASE_SERVICE_ROLE_KEY}`,
-      'Content-Type': 'application/json',
-      Prefer: init.prefer || 'return=representation',
-      ...(init.headers || {}),
-    },
-  });
+  const method = (init.method || 'GET').toUpperCase();
+  let r;
+  try {
+    r = await fetch(url, {
+      ...init,
+      headers: {
+        apikey: e.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${e.SUPABASE_SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: init.prefer || 'return=representation',
+        ...(init.headers || {}),
+      },
+    });
+  } catch (netErr) {
+    console.error('[sbRest] network error', method, path, netErr);
+    const err = new Error(`SUPABASE_NET_ERROR: ${netErr.message}`);
+    err.statusCode = 502;
+    err.stage = `sbRest:${method} ${path}`;
+    throw err;
+  }
   if (!r.ok) {
     const txt = await r.text();
+    console.error('[sbRest] HTTP', r.status, method, path, txt);
     const err = new Error(`SUPABASE_REST_${r.status}: ${txt}`);
     err.statusCode = r.status;
+    err.stage = `sbRest:${method} ${path}`;
+    if (r.status === 404 && /relation .* does not exist/i.test(txt)) {
+      err.hint = 'migration 009_mf_oauth.sql を Supabase に未適用の可能性があります';
+    }
     throw err;
   }
   if (r.status === 204) return null;

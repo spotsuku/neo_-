@@ -46,11 +46,14 @@ export default async function handler(req, res) {
     const url = `${e.MF_AUTHORIZE_URL}?${params.toString()}`;
     return res.status(200).json({ url, state });
   } catch (err) {
+    console.error('[/api/mf/auth] error:', err && err.stack || err);
     const status = err.statusCode || 500;
     return res.status(status).json({
       error:   err.message || 'INTERNAL',
       code:    err.code,
       missing: err.missing,
+      stage:   err.stage,
+      hint:    err.hint,
     });
   }
 }
