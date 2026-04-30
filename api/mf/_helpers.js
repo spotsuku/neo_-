@@ -103,7 +103,11 @@ export async function sbRest(path, init = {}) {
     throw err;
   }
   if (r.status === 204) return null;
-  return r.json();
+  // Prefer: return=minimal の場合 201 + 空ボディが返るので JSON.parse('') を避ける
+  const txt = await r.text();
+  if (!txt) return null;
+  try { return JSON.parse(txt); }
+  catch (_) { return txt; }
 }
 
 // ─────────────────────────────────────────────
