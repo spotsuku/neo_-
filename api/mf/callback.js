@@ -40,17 +40,22 @@ export default async function handler(req, res) {
     }
 
     // 2. code → token 交換
+    // クライアント認証方式 CLIENT_SECRET_BASIC: client_id/secret は Authorization: Basic ヘッダで送る
+    // body には grant_type / code / redirect_uri / code_verifier のみ
     const body = new URLSearchParams({
       grant_type:    'authorization_code',
       code,
       redirect_uri:  st.redirect_uri,
-      client_id:     e.MF_CLIENT_ID,
-      client_secret: e.MF_CLIENT_SECRET,
       code_verifier: st.code_verifier,
     });
+    const basic = Buffer.from(`${e.MF_CLIENT_ID}:${e.MF_CLIENT_SECRET}`).toString('base64');
     const tr = await fetch(e.MF_TOKEN_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${basic}`,
+        'Accept': 'application/json',
+      },
       body,
     });
     if (!tr.ok) {

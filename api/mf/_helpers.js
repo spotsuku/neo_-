@@ -155,17 +155,20 @@ export async function getValidAccessToken(userId) {
   // 60秒の余裕を持って期限切れと判定
   if (expMs - Date.now() > 60_000) return tok.access_token;
 
-  // refresh
+  // refresh: CLIENT_SECRET_BASIC で client_id/secret は Authorization: Basic ヘッダ
   const e = env();
   const body = new URLSearchParams({
     grant_type:    'refresh_token',
     refresh_token: tok.refresh_token,
-    client_id:     e.MF_CLIENT_ID,
-    client_secret: e.MF_CLIENT_SECRET,
   });
+  const basic = Buffer.from(`${e.MF_CLIENT_ID}:${e.MF_CLIENT_SECRET}`).toString('base64');
   const r = await fetch(e.MF_TOKEN_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${basic}`,
+      'Accept': 'application/json',
+    },
     body,
   });
   if (!r.ok) {
