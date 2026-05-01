@@ -17,9 +17,9 @@ export function env() {
     MF_CLIENT_SECRET:           process.env.MF_CLIENT_SECRET,
     MF_AUTHORIZE_URL:           process.env.MF_AUTHORIZE_URL || 'https://api.biz.moneyforward.com/authorize',
     MF_TOKEN_URL:               process.env.MF_TOKEN_URL     || 'https://api.biz.moneyforward.com/token',
-    // クラウド経費 / クラウド債務支払の API ホストは expense.moneyforward.com
-    // OAuth のホスト (api.biz.moneyforward.com) とは異なるので注意
-    MF_API_BASE:                process.env.MF_API_BASE      || 'https://expense.moneyforward.com',
+    // クラウド債務支払 API のホスト。OAuth と同じ api.biz.moneyforward.com 配下にある想定
+    // クラウド経費 API は expense.moneyforward.com 配下だが、用途が違うので注意
+    MF_API_BASE:                process.env.MF_API_BASE      || 'https://api.biz.moneyforward.com',
     MF_REDIRECT_URI:            process.env.MF_REDIRECT_URI,
     MF_SCOPE:                   process.env.MF_SCOPE         || 'mfc/accounts-payable/received_invoice.read mfc/accounts-payable/office_setting.read',
   };

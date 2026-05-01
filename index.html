@@ -4582,17 +4582,22 @@ async function mfFetchPayables() {
     document.getElementById('mf-import-btn').disabled = list.length === 0;
     renderMfPayablesTable();
   } catch (e) {
-    // MF_API_ERROR 等の場合、status / detail を画面に展開
+    // MF_API_ERROR 等の場合、status / detail / attempts を画面に展開
     const body = e.body || {};
     const lines = [`取得失敗: ${e.message}`];
-    if (body.status) lines.push(`MFステータス: ${body.status}`);
+    if (body.status)   lines.push(`MFステータス: ${body.status}`);
+    if (body.api_base) lines.push(`api_base: ${body.api_base}`);
     if (body.detail) {
-      const det = String(body.detail).slice(0, 800);
+      const det = String(body.detail).slice(0, 600);
       lines.push(`MF応答本文: ${det}`);
     }
-    if (body.stage)  lines.push(`stage: ${body.stage}`);
-    if (body.hint)   lines.push(`hint: ${body.hint}`);
-    const html = lines.map(l => `<div style="word-break:break-all;font-family:var(--mono);font-size:10px">${escapeHtml(l)}</div>`).join('');
+    if (body.stage)    lines.push(`stage: ${body.stage}`);
+    if (body.hint)     lines.push(`hint: ${body.hint}`);
+    if (Array.isArray(body.attempts) && body.attempts.length) {
+      lines.push('試行結果:');
+      body.attempts.forEach(a => lines.push(`  ${a.status} ${a.path}`));
+    }
+    const html = lines.map(l => `<div style="word-break:break-all;font-family:var(--mono);font-size:10px;white-space:pre">${escapeHtml(l)}</div>`).join('');
     const el = document.getElementById('mf-message');
     if (el) el.innerHTML = `<div style="color:#e84060">${html}</div>`;
     console.error('[mfFetchPayables] error:', e, body);
