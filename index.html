@@ -4600,29 +4600,32 @@ async function mfFetchPayables() {
 }
 
 // ── 取得レスポンスを正規化（MF API のキー揺れに対応） ──
-// クラウド債務支払「受領請求書」API: data[]、または received_invoices[]、items[] 等のキー揺れに対応
+// クラウド経費 API: ex_invoice_transactions（支払明細）レスポンスは
+//   { ex_invoice_transactions: [...] } / { data: [...] } / 直接配列 などの揺れがある
 function mfNormalizePayables(raw) {
   if (!raw) return [];
   const arr = Array.isArray(raw) ? raw
-    : Array.isArray(raw.received_invoices) ? raw.received_invoices
-    : Array.isArray(raw.items)              ? raw.items
-    : Array.isArray(raw.data)               ? raw.data
-    : Array.isArray(raw.payables)           ? raw.payables
+    : Array.isArray(raw.ex_invoice_transactions) ? raw.ex_invoice_transactions
+    : Array.isArray(raw.invoice_transactions)    ? raw.invoice_transactions
+    : Array.isArray(raw.received_invoices)       ? raw.received_invoices
+    : Array.isArray(raw.items)                   ? raw.items
+    : Array.isArray(raw.data)                    ? raw.data
+    : Array.isArray(raw.payables)                ? raw.payables
     : [];
   return arr.map(o => {
     const pick = (...keys) => { for (const k of keys) { if (o[k] !== undefined && o[k] !== null && o[k] !== '') return o[k]; } return ''; };
-    // 受領請求書の金額は total_amount / total_price / amount 等
-    const amount = parseFloat(String(pick('total_amount','total_price','amount','total','price','金額')||'0').replace(/,/g,'')) || 0;
+    // 金額: ex_invoice_transactions では amount / value / total_amount のどれか
+    const amount = parseFloat(String(pick('amount','value','total_amount','total_price','total','price','金額')||'0').replace(/,/g,'')) || 0;
     return {
-      mfId:      String(pick('id','received_invoice_id','number','invoice_number','transaction_id','取引ID') || ''),
-      vendor:    String(pick('partner_name','partner','vendor','supplier_name','billing_partner_name','取引先') || ''),
-      title:     String(pick('title','subject','description','memo','memo_text','件名','摘要') || ''),
+      mfId:      String(pick('id','ex_invoice_transaction_id','invoice_transaction_id','received_invoice_id','number','invoice_number','transaction_id','取引ID') || ''),
+      vendor:    String(pick('partner_name','partner','vendor','supplier_name','billing_partner_name','dest_name','取引先') || ''),
+      title:     String(pick('name','title','subject','description','memo','memo_text','content','件名','摘要') || ''),
       amount,
-      dueDate:   String(pick('payment_due_on','payment_due_date','due_date','支払期日') || '').slice(0,10),
+      dueDate:   String(pick('payment_due_on','payment_due_date','due_date','recognized_at','transaction_date','支払期日') || '').slice(0,10),
       paidOn:    String(pick('paid_on','payment_date','支払日') || '').slice(0,10),
-      status:    String(pick('status','payment_status','ステータス') || ''),
-      account:   String(pick('account_title','account','expense_account','勘定科目') || ''),
-      memo:      String(pick('note','memo','description','備考') || ''),
+      status:    String(pick('status','payment_status','approval_status','ステータス') || ''),
+      account:   String(pick('account_title','account','expense_account','item_name','勘定科目') || ''),
+      memo:      String(pick('note','memo','description','remark','備考') || ''),
       raw:       o, // 全フィールド保持
     };
   }).filter(p => p.amount > 0 || p.title || p.vendor);
