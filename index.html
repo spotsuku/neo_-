@@ -4582,7 +4582,20 @@ async function mfFetchPayables() {
     document.getElementById('mf-import-btn').disabled = list.length === 0;
     renderMfPayablesTable();
   } catch (e) {
-    _mfMsg(`取得失敗: ${e.message}`, 'error');
+    // MF_API_ERROR 等の場合、status / detail を画面に展開
+    const body = e.body || {};
+    const lines = [`取得失敗: ${e.message}`];
+    if (body.status) lines.push(`MFステータス: ${body.status}`);
+    if (body.detail) {
+      const det = String(body.detail).slice(0, 800);
+      lines.push(`MF応答本文: ${det}`);
+    }
+    if (body.stage)  lines.push(`stage: ${body.stage}`);
+    if (body.hint)   lines.push(`hint: ${body.hint}`);
+    const html = lines.map(l => `<div style="word-break:break-all;font-family:var(--mono);font-size:10px">${escapeHtml(l)}</div>`).join('');
+    const el = document.getElementById('mf-message');
+    if (el) el.innerHTML = `<div style="color:#e84060">${html}</div>`;
+    console.error('[mfFetchPayables] error:', e, body);
   }
 }
 
