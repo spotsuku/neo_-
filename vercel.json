@@ -6,6 +6,22 @@
       "use": "@vercel/node"
     },
     {
+      "src": "api/mf/auth.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/mf/callback.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/mf/payables.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/mf/status.js",
+      "use": "@vercel/node"
+    },
+    {
       "src": "index.html",
       "use": "@vercel/static"
     },
@@ -22,6 +38,22 @@
     {
       "src": "/api/config",
       "dest": "/api/config.js"
+    },
+    {
+      "src": "/api/mf/auth",
+      "dest": "/api/mf/auth.js"
+    },
+    {
+      "src": "/api/mf/callback",
+      "dest": "/api/mf/callback.js"
+    },
+    {
+      "src": "/api/mf/payables",
+      "dest": "/api/mf/payables.js"
+    },
+    {
+      "src": "/api/mf/status",
+      "dest": "/api/mf/status.js"
     },
     {
       "src": "/auth.js",
