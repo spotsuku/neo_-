@@ -1968,7 +1968,7 @@ let _lastSnapshotTs = 0;
 
 async function save(){
   localStorage.setItem(SK,JSON.stringify(S));
-  if(!_currentUser){setSaveStatus('error','未ログイン');return;}
+  if(!_currentUser){setSaveStatus('error','未ログイン');return false;}
 
   // 5分ごとに自動スナップショット
   const now = Date.now();
@@ -2023,6 +2023,7 @@ async function save(){
       localStorage.setItem(SK, JSON.stringify(S));
       setSaveStatus('saved','保存済み '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}));
       setTimeout(()=>{ _isSyncing = false; }, 2000);
+      return true;
 
     } catch(e) {
       _isSyncing = false;
@@ -2039,10 +2040,11 @@ async function save(){
       if(!isTimeout || attempt >= MAX_RETRY){
         alert('⚠️ クラウド保存に失敗しました。\n\nエラー: ' + e.message + '\n\nデータはローカルに保存済みです。');
       }
+      return false;
     }
   };
 
-  await trySave();
+  return await trySave();
 }
 
 async function saveMemberData(){localStorage.setItem(SK,JSON.stringify(S));if(isAdmin()){save();return;}try{const dbId=getFiscalYearDbId(_currentFiscalYear);const{error}=await _sb.from('dashboard_data').update({data:S,updated_at:new Date().toISOString()}).eq('id',dbId);if(error)throw error;sdot().className='sdot';slbl().textContent='保存済み '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});}catch(e){sdot().className='sdot uns';slbl().textContent='保存エラー';}}
@@ -3365,21 +3367,52 @@ function addDefaultItem(){const used=new Set((_defItems[_defTab]||[]).map(it=>it
 function removeDefItem(i){_defItems[_defTab].splice(i,1);renderDefaultsItems();}
 function updateDefaultsPreview(){const items=_defItems[_defTab]||[];const totB=items.reduce((t,i)=>t+n(i.budget),0);const lines=items.filter(i=>i.name&&i.budget>0).map(i=>`<span style="color:var(--t2)">${i.name}</span>: <span style="color:var(--acc2)">${fmtN(i.budget)}円</span>`);document.getElementById('defaults-preview').innerHTML=lines.length?lines.join('　／　')+`<div style="margin-top:6px;color:var(--green)">合計予算 ${fmtN(totB)}円 / 回</div>`:'<span style="color:var(--t3)">費目が設定されていません</span>';}
 function resetDefaults(){const label={hm:'ホームルーム',gk:'評議会',oe:'応援カイギ',ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',md:'マッチデイ'}[_defTab];if(!confirm(`${label}のデフォルト設定を初期値にリセットしますか？`))return;const src=SERIES_DEFAULTS_INIT[_defTab]||[];_defItems[_defTab]=JSON.parse(JSON.stringify(src)).map(i=>({...i,id:uid()}));renderDefaultsItems();}
-function saveDefaults(){if(!S.defaults)S.defaults={};['hm','gk','oe','ko','aw','ye','tour','sd','cf3','cf4'].forEach(k=>{if(_defItems[k])S.defaults[k]=_defItems[k];});['ko','aw','ye','tour','sd','cf3','cf4'].forEach(key=>{const defs=S.defaults[key]||[];if(!defs.length)return;if(!S.events[key])S.events[key]={label:key,items:[]};ACCOUNTING_CATS.forEach(cat=>{const def=defs.find(d=>d.name===cat);if(!def)return;const item=S.events[key].items.find(it=>it.name===cat);if(item){item.budget=n(def.budget);}else if(n(def.budget)>0){S.events[key].items.push({id:uid(),name:cat,budget:n(def.budget),estimate:0,actual:0});}});S.events[key].items.sort((a,b)=>{const ai=ACCOUNTING_CATS.indexOf(a.name),bi=ACCOUNTING_CATS.indexOf(b.name);return(ai===-1?999:ai)-(bi===-1?999:bi);});});// シリーズ（hm/gk/oe）: 既存の全回次の費目予算をデフォルト値で更新
-['hm','gk','oe'].forEach(key=>{
-  const defs=S.defaults[key]||[];
-  if(!defs.length)return;
-  (S.sessions[key]||[]).forEach(sess=>{
-    defs.forEach(d=>{
-      if(!d.name||!n(d.budget))return;
-      const item=sess.items?.find(it=>it.name===d.name);
-      if(item){item.budget=n(d.budget);}
-      else{if(!sess.items)sess.items=[];sess.items.push({id:uid(),name:d.name,budget:n(d.budget),estimate:0,actual:0});}
+async function saveDefaults(){
+  if(!S.defaults)S.defaults={};
+  // ダイアログの編集状態（_defItems）はディープコピーで S.defaults に取り込む
+  // ── 参照共有のまま代入すると、再オープン時のクローン処理や別の編集で
+  //    S.defaults が意図せず書き換わり、保存値が「元に戻る」ように見える原因になる
+  ['hm','gk','oe','ko','aw','ye','tour','sd','cf3','cf4'].forEach(k=>{
+    if(_defItems[k])S.defaults[k]=JSON.parse(JSON.stringify(_defItems[k]));
+  });
+  ['ko','aw','ye','tour','sd','cf3','cf4'].forEach(key=>{
+    const defs=S.defaults[key]||[];
+    if(!defs.length)return;
+    if(!S.events[key])S.events[key]={label:key,items:[]};
+    ACCOUNTING_CATS.forEach(cat=>{
+      const def=defs.find(d=>d.name===cat);
+      if(!def)return;
+      const item=S.events[key].items.find(it=>it.name===cat);
+      if(item){item.budget=n(def.budget);}
+      else if(n(def.budget)>0){S.events[key].items.push({id:uid(),name:cat,budget:n(def.budget),estimate:0,actual:0});}
+    });
+    S.events[key].items.sort((a,b)=>{const ai=ACCOUNTING_CATS.indexOf(a.name),bi=ACCOUNTING_CATS.indexOf(b.name);return(ai===-1?999:ai)-(bi===-1?999:bi);});
+  });
+  // シリーズ（hm/gk/oe）: 既存の全回次の費目予算をデフォルト値で更新
+  ['hm','gk','oe'].forEach(key=>{
+    const defs=S.defaults[key]||[];
+    if(!defs.length)return;
+    (S.sessions[key]||[]).forEach(sess=>{
+      defs.forEach(d=>{
+        if(!d.name||!n(d.budget))return;
+        const item=sess.items?.find(it=>it.name===d.name);
+        if(item){item.budget=n(d.budget);}
+        else{if(!sess.items)sess.items=[];sess.items.push({id:uid(),name:d.name,budget:n(d.budget),estimate:0,actual:0});}
+      });
     });
   });
-});
-save();closeOv('ov-defaults');renderPg(_curPg);alert('✅ 保存しました。各イベントの予算に反映されました。');}
-function applyDefaultsToEvent(){const key=_defTab;if(!['ko','aw','ye','md'].includes(key))return;const defaults=_defItems[key]||[];if(!S.events[key])S.events[key]={label:key,items:[]};const existing=S.events[key].items.map(i=>i.name);let added=0;defaults.forEach(d=>{if(!d.name)return;if(existing.includes(d.name)){const it=S.events[key].items.find(i=>i.name===d.name);if(it&&d.budget)it.budget=d.budget;}else{S.events[key].items.push({id:uid(),name:d.name,budget:d.budget||0,estimate:0,actual:0});added++;}});save();closeOv('ov-defaults');go(key,null);alert(`✅ デフォルト費目を適用しました（${added}件追加）`);}
+  // クラウド保存の完了を await し、成功時のみ完了メッセージを表示する
+  // ── await しないと save() の失敗（タイムアウト・RLS 等）に気付けず、
+  //    ページ再読込時に loadFromDB() で古い S.defaults に「戻る」現象が出る
+  const ok = await save();
+  closeOv('ov-defaults');
+  renderPg(_curPg);
+  if(ok){
+    alert('✅ 保存しました。各イベントの予算に反映されました。');
+  }
+  // 失敗時は save() 側で詳細なエラー alert が出るので、ここでは追加表示しない
+}
+async function applyDefaultsToEvent(){const key=_defTab;if(!['ko','aw','ye','md'].includes(key))return;const defaults=_defItems[key]||[];if(!S.events[key])S.events[key]={label:key,items:[]};const existing=S.events[key].items.map(i=>i.name);let added=0;defaults.forEach(d=>{if(!d.name)return;if(existing.includes(d.name)){const it=S.events[key].items.find(i=>i.name===d.name);if(it&&d.budget)it.budget=d.budget;}else{S.events[key].items.push({id:uid(),name:d.name,budget:d.budget||0,estimate:0,actual:0});added++;}});const ok=await save();closeOv('ov-defaults');go(key,null);if(ok)alert(`✅ デフォルト費目を適用しました（${added}件追加）`);}
 
 // ── カテゴリ判定設定 ──
 let _catTabCurrent='① 会場・施設費';
