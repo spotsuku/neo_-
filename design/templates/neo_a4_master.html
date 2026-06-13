@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>NEO ACADEMIA — A4 マスターテンプレート</title>
+<!--
+  NEO Design Bible 準拠の A4縦マスターテンプレート。
+  layout_agent はこのファイルを複製し、各 .page の中身を差し替えてページを量産する。
+  確認用PDFは「ブラウザの印刷 → PDF保存（余白なし / 背景画像オン / A4）」で出力。
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Noto+Serif+JP:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --neo-navy:#102A71; --neo-gold:#D89B1D;
+    --ink:#111827; --sub:#4B5563; --muted:#9CA3AF;
+    --line:#E2E6EF; --paper:#FFFFFF; --wash:#F0F2F7;
+    --disp:'Noto Sans JP',sans-serif; --sans:'Noto Sans JP',sans-serif; --serif:'Noto Serif JP',serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  @page{ size:A4 portrait; margin:0; }
+  html,body{ background:#dfe3ec; font-family:var(--sans); color:var(--ink); -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+
+  /* A4 = 210 x 297mm。本文エリア：上下18mm / 左右16mm */
+  .page{
+    position:relative; width:210mm; height:297mm; background:var(--paper);
+    margin:8mm auto; padding:18mm 16mm; overflow:hidden;
+    box-shadow:0 2px 12px rgba(16,42,113,.12);
+  }
+  @media print{ .page{ margin:0; box-shadow:none; page-break-after:always; } }
+
+  /* ---- タイポグラフィ ---- */
+  .cover-title{ font-size:56px; line-height:1.1; font-weight:900; color:var(--neo-navy); letter-spacing:-.01em; }
+  h1{ font-size:32px; line-height:1.2; font-weight:900; color:var(--neo-navy); }
+  h2{ font-size:22px; line-height:1.3; font-weight:700; color:var(--neo-navy); }
+  h3{ font-size:16px; line-height:1.35; font-weight:700; color:var(--ink); }
+  p { font-size:13px; line-height:1.7; color:var(--ink); }
+  .lead{ font-size:15px; line-height:1.75; color:var(--sub); }
+  .caption{ font-size:10.5px; line-height:1.5; color:var(--muted); }
+
+  /* ---- コンポーネント ---- */
+  .rule-h{ position:relative; padding-left:14px; }               /* 見出し左に Gold 縦バー */
+  .rule-h::before{ content:""; position:absolute; left:0; top:.12em; bottom:.12em; width:4px; background:var(--neo-gold); border-radius:2px; }
+  .divider{ width:48px; height:2px; background:var(--neo-gold); border:0; margin:14px 0; }   /* 装飾区切り */
+  .hr-line{ width:100%; height:1px; background:var(--line); border:0; margin:16px 0; }        /* 機能的区切り */
+
+  .num{ display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px;
+        border-radius:10px; background:var(--neo-navy); color:#fff; font-weight:900; font-size:18px; }
+
+  .imgframe{ background:var(--wash); border:1px solid var(--line); border-radius:8px;
+             display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:11px; }
+
+  .card{ background:#fff; border:1px solid var(--line); border-radius:8px; padding:14mm; }
+  .grid{ display:grid; gap:8mm; }
+  .grid-2{ grid-template-columns:1fr 1fr; } .grid-3{ grid-template-columns:repeat(3,1fr); }
+
+  .logo{ font-weight:900; color:var(--neo-navy); letter-spacing:.04em; }
+  .logo .dot{ color:var(--neo-gold); }
+
+  /* 表紙・章扉：Navy ベタ */
+  .page.dark{ background:var(--neo-navy); color:#fff; }
+  .page.dark h1,.page.dark h2,.page.dark .cover-title{ color:#fff; }
+  .page.dark .accent{ color:var(--neo-gold); }
+</style>
+</head>
+<body>
+
+  <!-- ============ 表紙（Navy ベタ） ============ -->
+  <section class="page dark">
+    <div style="height:100%;display:flex;flex-direction:column;">
+      <div class="logo" style="color:#fff;font-size:18px;">NEO <span style="color:var(--neo-gold)">ACADEMIA</span></div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+        <p class="accent" style="color:var(--neo-gold);font-weight:700;letter-spacing:.08em;">PROSPECTUS 2026</p>
+        <h1 class="cover-title" style="margin-top:8px;">学びを、<br>次の自分へ。</h1>
+        <hr class="divider" style="background:var(--neo-gold);margin-top:18px;">
+        <p style="color:#cdd6ef;max-width:120mm;">NEO ACADEMIA のビジョンと、5つの強みをご紹介します。</p>
+      </div>
+      <div class="imgframe" style="height:70mm;background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.18);color:#9fb0db;">キービジュアル枠</div>
+    </div>
+  </section>
+
+  <!-- ============ 章扉（Navy ベタ） ============ -->
+  <section class="page dark">
+    <div style="height:100%;display:flex;flex-direction:column;justify-content:center;">
+      <p class="accent" style="color:var(--neo-gold);font-size:64px;font-weight:900;line-height:1;">01</p>
+      <h1 style="margin-top:8px;">5つの強み</h1>
+      <p style="color:#cdd6ef;margin-top:12px;max-width:120mm;">章の導入リード文をここに。</p>
+    </div>
+  </section>
+
+  <!-- ============ 強みページ（2カラム・白地） ============ -->
+  <section class="page">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="num">01</span>
+      <h2 class="rule-h" style="padding-left:12px;">少人数・実践重視のカリキュラム</h2>
+    </div>
+    <hr class="divider">
+    <div class="grid grid-2" style="margin-top:6mm;align-items:start;">
+      <div>
+        <p class="lead">リード文：この強みのひとことサマリー。</p>
+        <p style="margin-top:10px;">本文。具体的な特徴・根拠・受講者メリットを2〜3段落で。数値は事実のみ使用する。</p>
+        <p style="margin-top:10px;">本文の続き。</p>
+      </div>
+      <div class="imgframe" style="height:110mm;">図版 / 写真枠</div>
+    </div>
+  </section>
+
+  <!-- ============ カードグリッド（白地） ============ -->
+  <section class="page">
+    <h1 class="rule-h">受講者の声</h1>
+    <hr class="divider">
+    <div class="grid grid-3" style="margin-top:6mm;">
+      <div class="card"><div class="imgframe" style="height:30mm;margin-bottom:8px;">写真</div><h3>お名前 / 属性</h3><p style="margin-top:6px;">コメント本文。</p></div>
+      <div class="card"><div class="imgframe" style="height:30mm;margin-bottom:8px;">写真</div><h3>お名前 / 属性</h3><p style="margin-top:6px;">コメント本文。</p></div>
+      <div class="card"><div class="imgframe" style="height:30mm;margin-bottom:8px;">写真</div><h3>お名前 / 属性</h3><p style="margin-top:6px;">コメント本文。</p></div>
+    </div>
+  </section>
+
+  <!-- ============ 裏表紙（白地・フッターのみ） ============ -->
+  <section class="page">
+    <div style="height:100%;display:flex;flex-direction:column;justify-content:flex-end;">
+      <div class="logo" style="font-size:24px;">NEO <span class="dot">ACADEMIA</span></div>
+      <hr class="hr-line">
+      <p class="caption">お問い合わせ：example@neo-academia.jp ／ 000-0000-0000<br>所在地：（地域版でアクセス情報を差し替え）</p>
+    </div>
+  </section>
+
+</body>
+</html>
