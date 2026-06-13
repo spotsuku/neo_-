@@ -19,14 +19,30 @@ model: sonnet
 - 図解（フロー・関係図）は画像生成より **SVG をコードで作る方が再現性が高い**ため、
   その旨を layout_agent への申し送りとして残す。
 
-## 出力フォーマット（prompts.md）
+## 出力フォーマット
+人が読む `design/output/prompts.md` と、バッチ生成用 `design/output/prompts.json` の両方を出す。
+
+prompts.md:
 ```
-### P_xx <用途>  (aspect: 16:9 / size: 横長)
+### P_cover 表紙キービジュアル  (size: 1024x1536 縦)
 prompt(en): ...
-negative: text, watermark, low-res, cluttered
 note: SVGで作る方が良い場合はその旨
 ```
 
-## 接続済みツール
-- Canva MCP で `upload-asset-from-url` / `generate-design` 等が利用可能。
-- 画像生成 API（OpenAI 等）を使う場合は `.env` の `OPENAI_API_KEY` を前提とする。
+prompts.json（`scripts/openai_image.mjs --from` で一括生成できる形式）:
+```json
+[
+  { "id": "P_cover", "prompt": "...(英語で具体的に)...", "size": "1024x1536", "quality": "high" },
+  { "id": "P03_strength01", "prompt": "...", "size": "1024x1024", "quality": "high" }
+]
+```
+※ NEO の配色・余白・「文字なし」はスクリプト側で自動付与されるため、プロンプト本文は被写体・構図・光・雰囲気に集中する。
+
+## 画像生成ルート（優先順）
+1. **OpenAI 画像生成（既定・最高品質）** — `gpt-image-1`。`scripts/openai_image.mjs` を使う。
+   ```
+   node --env-file=.env scripts/openai_image.mjs --from design/output/prompts.json
+   ```
+   前提: `.env` の `OPENAI_API_KEY` と、`api.openai.com` への egress 許可。
+2. Canva MCP — ブランドテンプレートからの生成が必要なときの補助。
+- 図解（フロー・関係図）は画像でなく **SVG をコード生成**する方が再現性が高い（layout_agent に申し送り）。
