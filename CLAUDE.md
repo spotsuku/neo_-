@@ -63,6 +63,10 @@
 - [2026-04-29] MF債務支払いの取込ロジックで `Object.assign(row, next)` の**後**に `row.actual` を読んで前値を取得しようとし、差分が常に 0 になるバグを混入。セルフレビュー段階で発覚し修正。→ **対策**: 既存オブジェクトを更新する場合、変更前スナップショット（旧 `actual` / 旧 `payMonth` 等）は必ず破壊的代入の**前**にローカル変数へ退避する。CHECKチェックリストに項目追加済み。
 - [2026-04-30] MF連携の `/api/mf/auth` が本番で 500 を返し「Unexpected end of JSON input」になる不具合。`sbRest()` が `Prefer: return=minimal` 付きの POST に対して PostgREST が返す **201 + 空ボディ**を `r.json()` で直接パースして失敗していた。→ **対策**: REST ヘルパは「2xx でも空ボディ」を必ず想定し、`r.text()` で取得 → 空なら null、非空なら JSON.parse、失敗時は文字列のまま返すフォールバックを置く。Vercel API は `vercel logs` を見ない限りスタックが見えないので、サーバ側 catch では `console.error` も残すこと。
 - [2026-04-30] OAuth2 token endpoint で `token_exchange_401` が発生。MF アプリ登録のクライアント認証方式が **CLIENT_SECRET_BASIC** だったが、実装側は client_id/secret を **body のフォーム値**として送っていた。→ **対策**: token / refresh の両方で `Authorization: Basic base64(id:secret)` ヘッダを付け、body には grant_type / code / redirect_uri / code_verifier のみを残す。OAuth プロバイダは Developer Portal で必ず認証方式を確認（`CLIENT_SECRET_BASIC` / `CLIENT_SECRET_POST` / `none(PKCE)` など）。
+- [2026-05-09] 同時編集でデータが消える/古い状態に戻る重大バグを5箇所同時修正。
+  根本原因: (1) `loadFromDB` で「localStorage の estimates 件数が多ければ優先」していたため別端末の編集が古いタブで上書き／(2) `save` のマージが `{...DB, ...saveData}` の浅いマージで events/sessions/estimates 等のネスト構造ごと上書き／(3) save の 5秒判定で短時間連続編集は完全上書き／(4) `saveMemberData` がマージなし完全上書き／(5) `applySyncData` (Realtime) が `S = _pendingSyncData` で全置換、30秒で未保存変更も自動上書き。
+  → **対策**: `mergeS()` / `mergeArrayById()` 深いマージ関数を導入し、全保存・受信パスで「データを失わない union 方向」に統一。配列は id（categories は name、defaults は name）ベースで union、ネストの events.items / sessions.items / estimates も再帰マージ。saveData 側を優先するが他人の追加項目は絶対に消さない。
+  教訓: マルチ端末・マルチタブ前提のアプリでは「最後の保存が勝つ」設計は致命的。必ず id ベースの 3-way merge（base / mine / theirs）を考える。spread の浅いマージはネスト構造を破壊する。
 - [2026-04-30] MFクラウド債務支払いの公式スコープは仕様上 3つのみ:
   `mfc/accounts-payable/received_invoice.read`,
   `mfc/accounts-payable/received_invoice.write`,
