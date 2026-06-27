@@ -2176,21 +2176,36 @@ async function flushOfflineQueue() {
     for (const it of items) {
       try {
         const dbId = it.dbId;
-        // 送信時に再度マージ（オフライン中に他人が更新したかも）
+        // 送信時に再度 fetch して version 取得＆深いマージ
         const {data: currentDb} = await _sb.from('dashboard_data')
-          .select('updated_at, data').eq('id', dbId).maybeSingle();
+          .select('updated_at, data, version').eq('id', dbId).maybeSingle();
+        const readVersion = (currentDb && typeof currentDb.version === 'number') ? currentDb.version : 0;
         let payload = it.data;
         if (currentDb?.data && currentDb.data.updated_by_email !== _currentUser.email) {
           payload = mergeS(currentDb.data, it.data);
         }
+        // 楽観的ロックで送信
         const {error: upErr, data: upData} = await _sb.from('dashboard_data')
-          .update({data: payload, updated_by: _currentUser.id, updated_at: new Date().toISOString()})
-          .eq('id', dbId).select();
+          .update({
+            data: payload, updated_by: _currentUser.id,
+            updated_at: new Date().toISOString(),
+            version: readVersion + 1,
+          })
+          .eq('id', dbId).eq('version', readVersion).select();
         if (upErr) throw upErr;
         if (!upData || upData.length === 0) {
+          // 衝突 or 新規行 → INSERT 試行
           const {error: inErr} = await _sb.from('dashboard_data')
-            .insert({id: dbId, data: payload, updated_by: _currentUser.id, updated_at: new Date().toISOString()});
-          if (inErr) throw inErr;
+            .insert({
+              id: dbId, data: payload,
+              updated_by: _currentUser.id,
+              updated_at: new Date().toISOString(),
+              version: 1,
+            });
+          if (inErr) {
+            // INSERT も失敗（重複等）→ もう一度ループの先頭に戻すため残す
+            throw inErr;
+          }
         }
         await _idbDelete(it.id);
       } catch (e) {
@@ -2251,11 +2266,14 @@ async function _doSave(){
       const dbId = getFiscalYearDbId(_currentFiscalYear);
       const saveData = {...S, updated_by_email: _currentUser.email};
 
-      // 保存前にSupabaseの現在のデータを取得（他ユーザーの変更を保護）
+      // 保存前にSupabaseの現在のデータを取得（他ユーザーの変更＋version を取得）
       const {data: currentDb} = await _sb.from('dashboard_data')
-        .select('updated_at, data').eq('id', dbId).maybeSingle();
+        .select('updated_at, data, version').eq('id', dbId).maybeSingle();
 
-      // 他人が更新していたら、5秒判定は撤廃して必ず深いマージで統合
+      // 楽観的ロック用: 読み込んだ時点の version
+      const readVersion = (currentDb && typeof currentDb.version === 'number') ? currentDb.version : 0;
+
+      // 他人が更新していたら、深いマージで統合
       // - 配列(events.items / sessions.items / estimates / revenues / ledger 等)は id ベースで union
       // - 同 id は自分(saveData)優先（直前の編集を尊重）
       // - 自分のローカルに無い他人の追加項目を絶対に消さない
@@ -2265,15 +2283,46 @@ async function _doSave(){
       }
       _lastSaveTime = Date.now();
 
-      const{data:upData,error:upErr} = await _sb.from('dashboard_data')
-        .update({data:saveData, updated_by:_currentUser.id, updated_at:new Date().toISOString()})
-        .eq('id',dbId).select();
-      if(upErr) throw upErr;
+      // 楽観的ロック: WHERE id=? AND version=readVersion で更新、成功すれば version+1
+      // 別の write が割り込んだら 0行更新 → 衝突として再試行
+      const nextVersion = readVersion + 1;
+      const {data: upData, error: upErr} = await _sb.from('dashboard_data')
+        .update({
+          data:       saveData,
+          updated_by: _currentUser.id,
+          updated_at: new Date().toISOString(),
+          version:    nextVersion,
+        })
+        .eq('id', dbId)
+        .eq('version', readVersion)
+        .select();
+      if (upErr) throw upErr;
 
-      if(!upData||upData.length===0){
-        const{error:inErr} = await _sb.from('dashboard_data')
-          .insert({id:dbId, data:saveData, updated_by:_currentUser.id, updated_at:new Date().toISOString()});
-        if(inErr) throw inErr;
+      if (!upData || upData.length === 0) {
+        // 0 行更新: 行が無いか、version 衝突のどちらか
+        if (currentDb) {
+          // SELECT 時には存在していた → 競合確定。リトライに委ねる
+          const conflictErr = new Error('VERSION_CONFLICT');
+          conflictErr.isVersionConflict = true;
+          throw conflictErr;
+        }
+        // 新規行 → INSERT
+        const {error: inErr} = await _sb.from('dashboard_data')
+          .insert({
+            id: dbId, data: saveData,
+            updated_by: _currentUser.id,
+            updated_at: new Date().toISOString(),
+            version: 1,
+          });
+        if (inErr) {
+          // INSERT 時に重複制約 = ほぼ同時に別クライアントが入れた
+          if ((inErr.code === '23505') || /duplicate key|already exists/i.test(inErr.message || '')) {
+            const conflictErr = new Error('VERSION_CONFLICT');
+            conflictErr.isVersionConflict = true;
+            throw conflictErr;
+          }
+          throw inErr;
+        }
       }
 
       // 見積データをlocalStorageに確実にバックアップ
@@ -2283,7 +2332,15 @@ async function _doSave(){
 
     } catch(e) {
       _isSyncing = false;
-      const isTimeout = e.message && (e.message.includes('timeout') || e.message.includes('canceling'));
+      const isTimeout  = e.message && (e.message.includes('timeout') || e.message.includes('canceling'));
+      const isConflict = !!e.isVersionConflict;
+
+      if (isConflict && attempt < MAX_RETRY) {
+        // 楽観ロック衝突: 短いランダム待ち→fetch→merge→save を再試行
+        setSaveStatus('saving', `他ユーザーと競合、再マージ中... (${attempt}/${MAX_RETRY})`);
+        await new Promise(r => setTimeout(r, 200 + Math.random() * 400));
+        return trySave();
+      }
 
       if(isTimeout && attempt < MAX_RETRY){
         // タイムアウトなら少し待ってリトライ
@@ -2321,14 +2378,21 @@ async function saveMemberData(){
     const saveData = {...S, updated_by_email: _currentUser?.email || ''};
     // 他人の更新があれば深いマージで保護（管理者保存と同じロジック）
     const {data: currentDb} = await _sb.from('dashboard_data')
-      .select('updated_at, data').eq('id', dbId).maybeSingle();
+      .select('updated_at, data, version').eq('id', dbId).maybeSingle();
+    const readVersion = (currentDb && typeof currentDb.version === 'number') ? currentDb.version : 0;
     if (currentDb?.data && currentDb.data.updated_by_email !== (_currentUser?.email || '')) {
       const merged = mergeS(currentDb.data, saveData);
       Object.assign(saveData, merged);
     }
-    const {error} = await _sb.from('dashboard_data')
-      .update({data: saveData, updated_at: new Date().toISOString()}).eq('id', dbId);
+    // 楽観的ロック: version 一致時のみ更新
+    const {data: upData, error} = await _sb.from('dashboard_data')
+      .update({data: saveData, updated_at: new Date().toISOString(), version: readVersion + 1})
+      .eq('id', dbId).eq('version', readVersion).select();
     if (error) throw error;
+    if (!upData || upData.length === 0) {
+      // 衝突 → オフラインキューに退避して次回 flush に委ねる
+      throw new Error('VERSION_CONFLICT');
+    }
     sdot().className = 'sdot';
     slbl().textContent = '保存済み ' + new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
   } catch (e) {
@@ -2354,12 +2418,13 @@ function debouncedSave(){
   markUnsaved();
   _pendingChanges++;
   clearTimeout(_saveTimer);
-  // 最後の変更から1.5秒後に1回だけ保存
+  // 最後の変更から 500ms 後に1回だけ保存（旧1500ms から短縮）
+  // タブ閉じロスのウィンドウを 3 分の 1 に
   _saveTimer = setTimeout(async() => {
     const count = _pendingChanges;
     _pendingChanges = 0;
     await save();
-  }, 1500);
+  }, 500);
 }
 
 // 即時保存（削除・重要操作用）- ただし直前のdebouncedSaveをキャンセル
@@ -3731,10 +3796,120 @@ function applyEstimatesToEvt(key){const rows=getEstimates(key);if(!rows.length){
 
 // ── 変更履歴 ──
 if(!S.changelog)S.changelog=[];
-function logChange(type,description,before,after){if(!S.changelog)S.changelog=[];S.changelog.unshift({id:uid(),ts:new Date().toISOString(),user:_currentName||_currentUser?.email||'不明',type,description,before:before!==undefined?String(before):'',after:after!==undefined?String(after):''});if(S.changelog.length>500)S.changelog=S.changelog.slice(0,500);}
+// 変更履歴を記録
+// - 互換のため S.changelog にも書く（旧UI/フィルタが動く）
+// - 新規: Supabase の dashboard_changelog テーブルにも追記（永久保持・検索可）
+function logChange(type, description, before, after){
+  if (!S.changelog) S.changelog = [];
+  S.changelog.unshift({
+    id: uid(),
+    ts: new Date().toISOString(),
+    user: _currentName || _currentUser?.email || '不明',
+    type, description,
+    before: before !== undefined ? String(before) : '',
+    after:  after  !== undefined ? String(after)  : '',
+  });
+  if (S.changelog.length > 500) S.changelog = S.changelog.slice(0, 500);
+
+  // Supabase 永久ログへ非同期追記（失敗してもローカルログは残る）
+  if (_sb && _currentUser && typeof _currentFiscalYear === 'number') {
+    _sb.rpc('log_change', {
+      p_fiscal_year: _currentFiscalYear,
+      p_type:        String(type || 'other'),
+      p_description: String(description || ''),
+      p_before:      before !== undefined ? String(before) : null,
+      p_after:       after  !== undefined ? String(after)  : null,
+      p_meta:        null,
+    }).then(({error}) => {
+      if (error) console.warn('[changelog] Supabase 書込失敗（ローカルは保持）:', error.message);
+    });
+  }
+}
 const TYPE_LABELS={session:'回次編集',event:'イベント費目',budget:'予算変更',ledger:'経費明細',mkt:'マーケ費用',prod:'製作物',other:'その他'};
 const TYPE_COLORS_CL={session:'var(--green)',event:'var(--blue)',budget:'var(--acc)',ledger:'var(--acc2)',mkt:'var(--purple)',prod:'var(--yellow)',other:'var(--t2)'};
-function renderChangelog(){const filterUser=document.getElementById('cl-filter-user')?.value||'';const filterType=document.getElementById('cl-filter-type')?.value||'';const logs=(S.changelog||[]).filter(l=>{if(filterUser&&l.user!==filterUser)return false;if(filterType&&l.type!==filterType)return false;return true;});const users=[...new Set((S.changelog||[]).map(l=>l.user).filter(Boolean))];const userSel=document.getElementById('cl-filter-user');if(userSel){const cur=userSel.value;userSel.innerHTML='<option value="">全ユーザー</option>'+users.map(u=>`<option${u===cur?' selected':''}>${u}</option>`).join('');}const clrBtn=document.getElementById('cl-clear-btn');if(clrBtn)clrBtn.style.display=isAdmin()?'':'none';const empty=document.getElementById('changelog-empty');const tbody=document.getElementById('changelog-tbody');if(!logs.length){tbody.innerHTML='';empty.style.display='';return;}empty.style.display='none';tbody.innerHTML=logs.map(l=>{const dt=new Date(l.ts).toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});const typeColor=TYPE_COLORS_CL[l.type]||'var(--t2)';const typeLabel=TYPE_LABELS[l.type]||l.type;const before=l.before?(l.before.length>40?l.before.slice(0,40)+'…':l.before):'—';const after=l.after?(l.after.length>40?l.after.slice(0,40)+'…':l.after):'—';return`<tr><td style="font-family:var(--mono);font-size:10px;white-space:nowrap">${dt}</td><td style="font-size:10px;color:var(--t2)">${l.user||'不明'}</td><td><span style="font-size:9px;font-weight:700;color:${typeColor};padding:1px 6px;border-radius:3px">${typeLabel}</span></td><td style="font-size:11px">${l.description||'—'}</td><td style="font-size:9px;color:var(--t3);font-family:var(--mono)">${before}</td><td style="font-size:9px;color:var(--green);font-family:var(--mono)">${after}</td></tr>`;}).join('');}
+// Supabase 側の changelog をフェッチして S.changelog と統合して描画
+async function fetchChangelogRemote(limit){
+  if (!_sb || !_currentUser) return [];
+  try {
+    const {data, error} = await _sb.from('dashboard_changelog')
+      .select('id, type, description, before_text, after_text, user_email, user_name, created_at')
+      .eq('fiscal_year', _currentFiscalYear)
+      .order('created_at', { ascending: false })
+      .limit(limit || 1000);
+    if (error) throw error;
+    return (data || []).map(r => ({
+      id: r.id,
+      ts: r.created_at,
+      user: r.user_name || r.user_email || '不明',
+      type: r.type,
+      description: r.description || '',
+      before: r.before_text || '',
+      after: r.after_text || '',
+      _remote: true,
+    }));
+  } catch (e) {
+    console.warn('[changelog] remote fetch 失敗、ローカルのみ:', e.message);
+    return [];
+  }
+}
+
+async function renderChangelog(){
+  const filterUser = document.getElementById('cl-filter-user')?.value || '';
+  const filterType = document.getElementById('cl-filter-type')?.value || '';
+
+  // ローカル + リモート 統合 (id 重複排除、新しい順)
+  const local  = (S.changelog || []).map(l => ({...l, _local: true}));
+  const remote = await fetchChangelogRemote(1000);
+  const seenDesc = new Set();
+  const all = [...remote, ...local]
+    .sort((a,b) => new Date(b.ts || 0) - new Date(a.ts || 0))
+    .filter(l => {
+      // 同じ description + ts(分単位) は1回だけ表示（重複抑制）
+      const key = `${l.description}|${l.user}|${new Date(l.ts).toISOString().slice(0,16)}`;
+      if (seenDesc.has(key)) return false;
+      seenDesc.add(key);
+      return true;
+    });
+
+  const logs = all.filter(l => {
+    if (filterUser && l.user !== filterUser) return false;
+    if (filterType && l.type !== filterType) return false;
+    return true;
+  });
+
+  const users = [...new Set(all.map(l => l.user).filter(Boolean))];
+  const userSel = document.getElementById('cl-filter-user');
+  if (userSel) {
+    const cur = userSel.value;
+    userSel.innerHTML = '<option value="">全ユーザー</option>' + users.map(u => `<option${u===cur?' selected':''}>${u}</option>`).join('');
+  }
+  const clrBtn = document.getElementById('cl-clear-btn');
+  if (clrBtn) clrBtn.style.display = isAdmin() ? '' : 'none';
+
+  const empty = document.getElementById('changelog-empty');
+  const tbody = document.getElementById('changelog-tbody');
+  if (!logs.length) { tbody.innerHTML = ''; empty.style.display = ''; return; }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = logs.map(l => {
+    const dt         = new Date(l.ts).toLocaleString('ja-JP', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const typeColor  = TYPE_COLORS_CL[l.type] || 'var(--t2)';
+    const typeLabel  = TYPE_LABELS[l.type] || l.type;
+    const before     = l.before ? (l.before.length > 40 ? l.before.slice(0,40) + '…' : l.before) : '—';
+    const after      = l.after  ? (l.after.length  > 40 ? l.after.slice(0,40)  + '…' : l.after)  : '—';
+    const sourceBadge = l._remote
+      ? '<span style="font-size:8px;background:rgba(37,99,235,.1);color:var(--blue);padding:0 4px;border-radius:3px">☁</span>'
+      : '<span style="font-size:8px;background:rgba(156,163,175,.15);color:var(--t3);padding:0 4px;border-radius:3px">📵</span>';
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:10px;white-space:nowrap">${dt} ${sourceBadge}</td>
+      <td style="font-size:10px;color:var(--t2)">${l.user||'不明'}</td>
+      <td><span style="font-size:9px;font-weight:700;color:${typeColor};padding:1px 6px;border-radius:3px">${typeLabel}</span></td>
+      <td style="font-size:11px">${escapeHtml(l.description||'—')}</td>
+      <td style="font-size:9px;color:var(--t3);font-family:var(--mono)">${escapeHtml(before)}</td>
+      <td style="font-size:9px;color:var(--green);font-family:var(--mono)">${escapeHtml(after)}</td>
+    </tr>`;
+  }).join('');
+}
 function clearChangelog(){if(!isAdmin())return;if(!confirm('変更履歴をすべて削除しますか？'))return;S.changelog=[];save();renderChangelog();}
 
 // ── 発注マスタ ──
@@ -5504,6 +5679,25 @@ async function refreshVersionList() {
   renderVersionList();
 }
 
+// 比較モード state: 選択中の id を最大2つ保持
+let _diffPickA = null;
+let _diffPickB = null;
+let _viewMode  = 'list'; // 'list' | 'timeline'
+
+function toggleDiffPick(id, isRemote) {
+  // 同じものを2度クリックで解除
+  if (_diffPickA && _diffPickA.id === id) { _diffPickA = null; renderVersionList(); return; }
+  if (_diffPickB && _diffPickB.id === id) { _diffPickB = null; renderVersionList(); return; }
+  // 空きスロットへ
+  const entry = {id, isRemote: !!isRemote};
+  if (!_diffPickA) _diffPickA = entry;
+  else if (!_diffPickB) _diffPickB = entry;
+  else { _diffPickA = _diffPickB; _diffPickB = entry; } // FIFO 置換
+  renderVersionList();
+}
+
+function setViewMode(mode) { _viewMode = mode; renderVersionList(); }
+
 function renderVersionList() {
   const el = document.getElementById('version-list');
   if (!el) return;
@@ -5513,12 +5707,63 @@ function renderVersionList() {
     return;
   }
   const KIND_LABEL = {auto:'⏲ 自動', manual:'✋ 手動', 'pre-restore':'↩️ 復元前', 'pre-import':'📥 取込前'};
-  el.innerHTML = `
-    <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+
+  // ツールバー（共通）
+  const cntRemote = snaps.filter(s=>s._remote).length;
+  const cntLocal  = snaps.filter(s=>s._localOnly).length;
+  const diffReady = _diffPickA && _diffPickB;
+  const toolbar = `
+    <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
       <button class="btn btn-xs btn-p" onclick="createManualSnapshot()" style="font-size:10px">＋ 現在を手動保存</button>
       <button class="btn btn-xs btn-g" onclick="refreshVersionList()" style="font-size:10px">🔄 更新</button>
-      <span style="font-size:10px;color:var(--t3);margin-left:auto">${snaps.length}件 (リモート ${snaps.filter(s=>s._remote).length} / ローカルのみ ${snaps.filter(s=>s._localOnly).length})</span>
-    </div>` + snaps.map((snap, i) => {
+      <div style="display:inline-flex;border:1px solid var(--b2);border-radius:6px;overflow:hidden">
+        <button onclick="setViewMode('list')"     style="font-size:10px;padding:4px 10px;border:none;cursor:pointer;background:${_viewMode==='list'?'var(--blue)':'transparent'};color:${_viewMode==='list'?'#fff':'var(--t2)'}">📋 リスト</button>
+        <button onclick="setViewMode('timeline')" style="font-size:10px;padding:4px 10px;border:none;cursor:pointer;background:${_viewMode==='timeline'?'var(--blue)':'transparent'};color:${_viewMode==='timeline'?'#fff':'var(--t2)'}">📈 タイムライン</button>
+      </div>
+      ${diffReady
+        ? `<button class="btn btn-xs btn-p" onclick="openDiffView()" style="font-size:10px;background:var(--green)">🔍 2つを比較 (A↔B)</button>`
+        : `<span style="font-size:10px;color:var(--t3)">📋 2つ「比較」をクリックすると差分表示</span>`
+      }
+      <span style="font-size:10px;color:var(--t3);margin-left:auto">${snaps.length}件 (☁${cntRemote} / 📵${cntLocal})</span>
+    </div>
+    ${_diffPickA || _diffPickB ? `
+      <div style="font-size:10px;color:var(--t2);background:var(--s2);border:1px solid var(--b1);border-radius:6px;padding:6px 8px;margin-bottom:8px">
+        比較選択中: A=${_diffPickA ? escapeHtml(_diffPickA.id.slice(0,8)) : '—'}  B=${_diffPickB ? escapeHtml(_diffPickB.id.slice(0,8)) : '—'}
+        <button class="btn btn-xs btn-g" onclick="_diffPickA=_diffPickB=null;renderVersionList()" style="font-size:9px;margin-left:8px">クリア</button>
+      </div>` : ''}
+  `;
+
+  // ── タイムライン表示 ──
+  if (_viewMode === 'timeline') {
+    const minTs = Math.min(...snaps.map(s => new Date(s.ts).getTime()));
+    const maxTs = Math.max(...snaps.map(s => new Date(s.ts).getTime()));
+    const range = Math.max(1, maxTs - minTs);
+    const KIND_COLOR = {auto:'#9ca3af', manual:'#3b82f6', 'pre-restore':'#f59e0b', 'pre-import':'#10b981'};
+    el.innerHTML = toolbar + `
+      <div style="position:relative;height:80px;background:var(--s2);border:1px solid var(--b1);border-radius:8px;padding:30px 12px 8px">
+        <div style="position:absolute;left:12px;right:12px;top:50%;height:2px;background:var(--b1);transform:translateY(-50%)"></div>
+        ${snaps.map((s, i) => {
+          const t = new Date(s.ts).getTime();
+          const pct = ((t - minTs) / range) * 100;
+          const color = KIND_COLOR[s.kind || 'auto'];
+          const picked = (_diffPickA?.id === s.id || _diffPickB?.id === s.id);
+          return `<div title="${escapeHtml(s.label || '')}  ${new Date(s.ts).toLocaleString('ja-JP')}"
+            onclick="toggleDiffPick('${s.id}', ${!!s._remote})"
+            style="position:absolute;left:calc(${pct}% - 6px);top:50%;width:12px;height:12px;border-radius:50%;background:${color};border:2px solid ${picked?'var(--blue)':'#fff'};cursor:pointer;transform:translateY(-50%);box-shadow:0 1px 3px rgba(0,0,0,.2);${picked?'transform:translateY(-50%) scale(1.4)':''}"></div>`;
+        }).join('')}
+        <div style="position:absolute;left:12px;top:6px;font-size:9px;color:var(--t3)">${new Date(minTs).toLocaleString('ja-JP', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+        <div style="position:absolute;right:12px;top:6px;font-size:9px;color:var(--t3)">${new Date(maxTs).toLocaleString('ja-JP', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:8px;font-size:9px;color:var(--t3);flex-wrap:wrap">
+        ${Object.entries(KIND_COLOR).map(([k,c]) => `<span><span style="display:inline-block;width:8px;height:8px;background:${c};border-radius:50%;vertical-align:middle"></span> ${KIND_LABEL[k] || k}</span>`).join('')}
+        <span style="margin-left:auto">点をクリックで比較選択 / ダブルクリックで詳細</span>
+      </div>
+    `;
+    return;
+  }
+
+  // ── リスト表示 ──
+  el.innerHTML = toolbar + snaps.map((snap, i) => {
     const ts = new Date(snap.ts);
     const dateStr = ts.toLocaleString('ja-JP', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
     const isLatest = i === 0;
@@ -5527,14 +5772,20 @@ function renderVersionList() {
     const badge = snap._localOnly
       ? '<span style="font-size:8px;background:rgba(239,68,68,.1);color:var(--red);padding:1px 5px;border-radius:3px">📵 未同期</span>'
       : '<span style="font-size:8px;background:rgba(37,99,235,.1);color:var(--blue);padding:1px 5px;border-radius:3px">☁ クラウド</span>';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;margin-bottom:5px;background:${isLatest?'rgba(37,99,235,.06)':'var(--s2)'};border:1.5px solid ${isLatest?'var(--blue)':'var(--b1)'}">
+    const isPickedA = _diffPickA?.id === snap.id;
+    const isPickedB = _diffPickB?.id === snap.id;
+    const pickedBadge = isPickedA ? '🅰' : (isPickedB ? '🅱' : '');
+    const borderColor = (isPickedA || isPickedB) ? 'var(--green)' : (isLatest ? 'var(--blue)' : 'var(--b1)');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;margin-bottom:5px;background:${isLatest?'rgba(37,99,235,.06)':'var(--s2)'};border:1.5px solid ${borderColor}">
       <div style="flex:1;min-width:0">
-        <div style="font-weight:700;font-size:12px;color:${isLatest?'var(--blue)':'var(--t1)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(snap.label || '(無題)')} <span style="font-size:9px;color:var(--t3);font-weight:400">${kindLabel}</span></div>
+        <div style="font-weight:700;font-size:12px;color:${isLatest?'var(--blue)':'var(--t1)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${pickedBadge} ${escapeHtml(snap.label || '(無題)')} <span style="font-size:9px;color:var(--t3);font-weight:400">${kindLabel}</span></div>
         <div style="font-size:10px;color:var(--t3);margin-top:2px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">${dateStr} ${authorLabel} ${badge}${isLatest?' <span style="color:var(--blue);font-weight:700">● 最新</span>':''}</div>
       </div>
-      <div style="display:flex;gap:6px">
+      <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">
+        <button class="btn btn-xs btn-g" onclick="toggleDiffPick('${snap.id}',${!!snap._remote})" style="font-size:10px;${(isPickedA||isPickedB)?'background:var(--green);color:#fff':''}">${(isPickedA||isPickedB)?'✓ 選択中':'⇄ 比較'}</button>
         <button class="btn btn-xs btn-g" onclick="previewSnapshotById('${snap.id}',${!!snap._remote})" style="font-size:10px">詳細</button>
-        ${!isLatest ? `<button class="btn btn-xs btn-p" onclick="restoreSnapshotById('${snap.id}',${!!snap._remote})" style="font-size:10px">⏪ この時点に戻す</button>` : ''}
+        <button class="btn btn-xs btn-g" onclick="openCellRestore('${snap.id}',${!!snap._remote})" style="font-size:10px">🔧 部分復元</button>
+        ${!isLatest ? `<button class="btn btn-xs btn-p" onclick="restoreSnapshotById('${snap.id}',${!!snap._remote})" style="font-size:10px">⏪ 全体復元</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -5570,6 +5821,232 @@ async function restoreSnapshotById(snapId, isRemote) {
   closeOv('ov-version-history');
   renderPg(_curPg || 'ov');
   alert('✅ 指定のバージョンに復元しました。\n復元前データは履歴の「復元前（自動保存）」から再復元できます。');
+}
+
+
+// ══════════════════════════════════════════════════
+// P2-1: 差分ビュー
+// 2つのスナップショット間で field-level の変更を一覧化
+// ══════════════════════════════════════════════════
+function _flattenForDiff(obj, prefix, out) {
+  out = out || {};
+  prefix = prefix || '';
+  if (obj == null) return out;
+  if (Array.isArray(obj)) {
+    // 配列は id (or name) でフラット化
+    obj.forEach((it, i) => {
+      const key = (it && (it.id != null ? it.id : (it.name != null ? it.name : i)));
+      _flattenForDiff(it, `${prefix}[${key}]`, out);
+    });
+    return out;
+  }
+  if (typeof obj === 'object') {
+    Object.keys(obj).forEach(k => {
+      // 内部メタ・大きすぎる物はスキップ
+      if (k === '_localOnly' || k === '_remote' || k === 'changelog') return;
+      _flattenForDiff(obj[k], prefix ? `${prefix}.${k}` : k, out);
+    });
+    return out;
+  }
+  out[prefix] = obj;
+  return out;
+}
+
+function _computeDiff(dataA, dataB) {
+  const flatA = _flattenForDiff(dataA);
+  const flatB = _flattenForDiff(dataB);
+  const keys = new Set([...Object.keys(flatA), ...Object.keys(flatB)]);
+  const diffs = [];
+  keys.forEach(k => {
+    const a = flatA[k], b = flatB[k];
+    if (a === b) return;
+    if (JSON.stringify(a) === JSON.stringify(b)) return;
+    let kind = 'changed';
+    if (a === undefined) kind = 'added';
+    else if (b === undefined) kind = 'removed';
+    diffs.push({path: k, a, b, kind});
+  });
+  // 重要そうな順 (events > sessions > estimates > ledger > ...) でソート
+  const sortKey = p => {
+    if (p.startsWith('events.'))    return '1';
+    if (p.startsWith('sessions.'))  return '2';
+    if (p.startsWith('estimates.')) return '3';
+    if (p.startsWith('ledger'))     return '4';
+    if (p.startsWith('revenues'))   return '5';
+    if (p.startsWith('prodItems'))  return '6';
+    if (p.startsWith('monthlyTotal')) return '7';
+    if (p.startsWith('programs.'))  return '8';
+    return '9' + p;
+  };
+  diffs.sort((x,y) => sortKey(x.path).localeCompare(sortKey(y.path)) || x.path.localeCompare(y.path));
+  return diffs;
+}
+
+async function openDiffView() {
+  if (!_diffPickA || !_diffPickB) { alert('2つのスナップショットを選択してください'); return; }
+  // 同時に取得
+  const [dA, dB] = await Promise.all([
+    loadSnapshotData(_diffPickA.id, _diffPickA.isRemote),
+    loadSnapshotData(_diffPickB.id, _diffPickB.isRemote),
+  ]);
+  if (!dA || !dB) { alert('スナップショットの取得に失敗'); return; }
+  const sA = _snapCache.find(s => s.id === _diffPickA.id);
+  const sB = _snapCache.find(s => s.id === _diffPickB.id);
+  // A は古い方、B は新しい方に並べ替え
+  const aIsOlder = new Date(sA.ts) <= new Date(sB.ts);
+  const [oldD, newD, oldS, newS] = aIsOlder ? [dA, dB, sA, sB] : [dB, dA, sB, sA];
+  const diffs = _computeDiff(oldD, newD);
+  _renderDiffView(oldS, newS, oldD, newD, diffs);
+}
+
+function _renderDiffView(oldS, newS, oldD, newD, diffs) {
+  const overlayId = 'ov-diff-view';
+  let ov = document.getElementById(overlayId);
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = overlayId;
+    ov.className = 'ov';
+    ov.innerHTML = `<div class="panel wide" style="width:96vw;max-width:1100px;max-height:90vh">
+      <div class="ph"><h2>🔍 バージョン差分</h2><button class="xbtn" onclick="closeOv('${overlayId}')">×</button></div>
+      <div class="pb-body" id="diff-body" style="overflow:auto"></div>
+    </div>`;
+    document.body.appendChild(ov);
+  }
+  const fmtVal = v => {
+    if (v === undefined) return '<span style="color:var(--t3)">—</span>';
+    if (v === null) return 'null';
+    if (typeof v === 'string') return escapeHtml(v.length > 60 ? v.slice(0,60)+'…' : v);
+    if (typeof v === 'object') return escapeHtml(JSON.stringify(v).slice(0,60)+'…');
+    return escapeHtml(String(v));
+  };
+  const KIND_BADGE = {
+    added:   '<span style="background:rgba(16,185,129,.15);color:var(--green);padding:1px 6px;border-radius:3px;font-size:9px">＋ 追加</span>',
+    removed: '<span style="background:rgba(239,68,68,.15);color:var(--red);padding:1px 6px;border-radius:3px;font-size:9px">− 削除</span>',
+    changed: '<span style="background:rgba(245,158,11,.15);color:#f59e0b;padding:1px 6px;border-radius:3px;font-size:9px">✎ 変更</span>',
+  };
+  const body = document.getElementById('diff-body');
+  const oldTs = new Date(oldS.ts).toLocaleString('ja-JP');
+  const newTs = new Date(newS.ts).toLocaleString('ja-JP');
+  body.innerHTML = `
+    <div style="display:flex;gap:12px;font-size:11px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+      <div style="flex:1;padding:8px 12px;background:rgba(156,163,175,.1);border-radius:6px;border-left:3px solid #9ca3af">
+        <div style="font-weight:700;font-size:12px">A（古い）: ${escapeHtml(oldS.label || '(無題)')}</div>
+        <div style="color:var(--t3);font-size:10px">${oldTs}</div>
+      </div>
+      <div style="font-size:18px;color:var(--t3)">→</div>
+      <div style="flex:1;padding:8px 12px;background:rgba(37,99,235,.08);border-radius:6px;border-left:3px solid var(--blue)">
+        <div style="font-weight:700;font-size:12px">B（新しい）: ${escapeHtml(newS.label || '(無題)')}</div>
+        <div style="color:var(--t3);font-size:10px">${newTs}</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--t2);margin-bottom:8px">${diffs.length}件の変更 (＋追加 ${diffs.filter(d=>d.kind==='added').length} / −削除 ${diffs.filter(d=>d.kind==='removed').length} / ✎変更 ${diffs.filter(d=>d.kind==='changed').length})</div>
+    ${diffs.length === 0 ? '<div style="text-align:center;padding:30px;color:var(--t3)">差分はありません</div>' : `
+    <table class="tbl" style="width:100%;font-size:10px">
+      <thead><tr><th style="width:60px">種別</th><th>パス</th><th style="width:30%">A の値</th><th style="width:30%">B の値</th></tr></thead>
+      <tbody>${diffs.slice(0, 500).map(d => `<tr>
+        <td>${KIND_BADGE[d.kind]}</td>
+        <td style="font-family:var(--mono);font-size:9px;word-break:break-all">${escapeHtml(d.path)}</td>
+        <td style="font-family:var(--mono);color:${d.kind==='added'?'var(--t3)':'var(--red)'}">${fmtVal(d.a)}</td>
+        <td style="font-family:var(--mono);color:${d.kind==='removed'?'var(--t3)':'var(--green)'}">${fmtVal(d.b)}</td>
+      </tr>`).join('')}</tbody>
+    </table>
+    ${diffs.length > 500 ? `<div style="text-align:center;padding:8px;color:var(--t3);font-size:10px">… 他 ${diffs.length - 500} 件（先頭500件のみ表示）</div>` : ''}
+    `}
+  `;
+  openOv(overlayId);
+}
+
+
+// ══════════════════════════════════════════════════
+// P2-2: 部分復元（セル単位）
+// スナップショットから特定の配列/オブジェクトだけを現在の S にマージ
+// ══════════════════════════════════════════════════
+const PARTIAL_RESTORE_TARGETS = [
+  {key:'events',    label:'🎉 イベント費目 (events)'},
+  {key:'sessions',  label:'📚 シリーズ・回次 (sessions)'},
+  {key:'estimates', label:'📝 見積・実績入力 (estimates)'},
+  {key:'ledger',    label:'📋 経費明細 (ledger)'},
+  {key:'revenues',  label:'💰 収入管理 (revenues)'},
+  {key:'prodItems', label:'📦 製作物管理 (prodItems)'},
+  {key:'mktItems',  label:'📢 マーケ費 (mktItems)'},
+  {key:'orderMaster', label:'🗂 発注マスタ (orderMaster)'},
+  {key:'programs',  label:'🎯 プログラム/予算 (programs)'},
+  {key:'categories', label:'🏷 カテゴリ (categories)'},
+  {key:'defaults',  label:'⚙ デフォルト費目 (defaults)'},
+  {key:'monthlyTotal', label:'📈 月次集計 (monthlyTotal)'},
+  {key:'prodBudgets',  label:'💴 製作物予算 (prodBudgets)'},
+];
+
+let _cellRestoreData = null;
+let _cellRestoreSnap = null;
+
+async function openCellRestore(snapId, isRemote) {
+  const data = await loadSnapshotData(snapId, isRemote);
+  if (!data) { alert('スナップショットの取得に失敗しました'); return; }
+  _cellRestoreData = data;
+  _cellRestoreSnap = _snapCache.find(s => s.id === snapId);
+
+  const overlayId = 'ov-cell-restore';
+  let ov = document.getElementById(overlayId);
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = overlayId;
+    ov.className = 'ov';
+    ov.innerHTML = `<div class="panel wide" style="width:560px;max-width:96vw">
+      <div class="ph"><h2>🔧 部分復元</h2><button class="xbtn" onclick="closeOv('${overlayId}')">×</button></div>
+      <div class="pb-body" id="cell-restore-body"></div>
+      <div class="pf" style="justify-content:space-between">
+        <button class="btn btn-g" onclick="closeOv('${overlayId}')">キャンセル</button>
+        <button class="btn btn-p" onclick="executeCellRestore()">✓ 選択した項目だけ復元</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+  }
+
+  const ts = new Date(_cellRestoreSnap.ts).toLocaleString('ja-JP');
+  const body = document.getElementById('cell-restore-body');
+  body.innerHTML = `
+    <div style="font-size:11px;color:var(--t2);margin-bottom:10px;padding:8px 10px;background:var(--s2);border-radius:6px;border-left:3px solid var(--blue)">
+      <strong>${escapeHtml(_cellRestoreSnap.label || '(無題)')}</strong><br>
+      <span style="font-size:10px;color:var(--t3)">${ts}</span>
+    </div>
+    <div style="font-size:11px;color:var(--t2);margin-bottom:8px">復元したいデータ種別にチェック（id ベースで union マージするので「今ある物は消えず、過去の物だけ戻る」）</div>
+    <div style="max-height:50vh;overflow:auto">
+      ${PARTIAL_RESTORE_TARGETS.map(t => {
+        const present = data[t.key] !== undefined;
+        const itemCount = Array.isArray(data[t.key]) ? data[t.key].length
+                        : (data[t.key] && typeof data[t.key] === 'object' ? Object.keys(data[t.key]).length : null);
+        const cnt = itemCount !== null ? ` <span style="color:var(--t3);font-size:9px">(${itemCount}件)</span>` : '';
+        return `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--b1);border-radius:6px;margin-bottom:4px;cursor:${present?'pointer':'not-allowed'};opacity:${present?1:.4}">
+          <input type="checkbox" class="cell-restore-cb" value="${t.key}" ${present?'':'disabled'}>
+          <span style="font-size:12px">${t.label}${cnt}</span>
+        </label>`;
+      }).join('')}
+    </div>
+  `;
+  openOv(overlayId);
+}
+
+async function executeCellRestore() {
+  if (!_cellRestoreData) return;
+  const checks = Array.from(document.querySelectorAll('.cell-restore-cb:checked'));
+  const keys = checks.map(c => c.value);
+  if (!keys.length) { alert('復元する項目を1つ以上選択してください'); return; }
+  if (!confirm(`以下を復元します:\n\n・${keys.join('\n・')}\n\n現在の値とマージされます (id 単位で union, 衝突は復元側を優先)。\n\nよろしいですか？`)) return;
+
+  // 復元前の自動バックアップ
+  saveSnapshot(`部分復元前 (${keys.join(',')})`, 'pre-restore');
+
+  // 選択された key だけを部分的に取り出した「擬似 incoming」を作って mergeS で統合
+  const partial = {};
+  keys.forEach(k => { partial[k] = _cellRestoreData[k]; });
+  S = mergeS(S, partial);
+
+  await save();
+  closeOv('ov-cell-restore');
+  closeOv('ov-version-history');
+  renderPg(_curPg || 'ov');
+  alert(`✅ ${keys.length}件のデータ種別を部分復元しました。\n復元前の状態は履歴の「部分復元前」から再復元できます。`);
 }
 
 
