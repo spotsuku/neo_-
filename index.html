@@ -1308,6 +1308,10 @@ async function onLogin(user) {
   await renderPg(_curPg || 'ov');
   // リアルタイム同期開始
   startRealtimeSync();
+  // オフライン中に溜まった未送信データを流す
+  if (typeof flushOfflineQueue === 'function') {
+    setTimeout(() => flushOfflineQueue(), 1500);
+  }
 }
 
 // ══════════════════════════════════════════════════
@@ -2086,10 +2090,149 @@ function mergeS(base, incoming) {
   return result;
 }
 
+// ══════════════════════════════════════════════════
+// オフライン保存キュー（IndexedDB）
+// Supabase 不達時に saveData を蓄積、復帰時に自動 flush
+// ══════════════════════════════════════════════════
+const IDB_NAME  = 'neo_offline_queue';
+const IDB_STORE = 'pending_saves';
+
+function _idbOpen() {
+  return new Promise((resolve, reject) => {
+    if (!('indexedDB' in window)) return reject(new Error('IndexedDB unavailable'));
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) {
+        db.createObjectStore(IDB_STORE, { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => reject(req.error || new Error('IDB open failed'));
+  });
+}
+
+async function _idbEnqueue(payload) {
+  try {
+    const db = await _idbOpen();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).add({
+        ts: Date.now(),
+        ...payload,
+      });
+      tx.oncomplete = () => resolve(true);
+      tx.onerror    = () => reject(tx.error);
+    });
+  } catch (e) {
+    console.warn('[offline-queue] enqueue failed, falling back to localStorage', e);
+    // フォールバック: localStorage に最後の失敗だけ持つ
+    try { localStorage.setItem('neo_offline_last', JSON.stringify(payload)); } catch(_) {}
+    return false;
+  }
+}
+
+async function _idbList() {
+  try {
+    const db = await _idbOpen();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror   = () => reject(req.error);
+    });
+  } catch (e) {
+    return [];
+  }
+}
+
+async function _idbDelete(id) {
+  try {
+    const db = await _idbOpen();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).delete(id);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror    = () => reject(tx.error);
+    });
+  } catch (_) { return false; }
+}
+
+async function _idbCount() {
+  const items = await _idbList();
+  return items.length;
+}
+
+// キュー内の未送信を順次 flush。成功したものを削除
+let _isFlushing = false;
+async function flushOfflineQueue() {
+  if (_isFlushing) return;
+  if (!_sb || !_currentUser) return;
+  _isFlushing = true;
+  try {
+    const items = await _idbList();
+    if (!items.length) return;
+    setSaveStatus('saving', `オフライン保存を同期中... (${items.length}件)`);
+    for (const it of items) {
+      try {
+        const dbId = it.dbId;
+        // 送信時に再度マージ（オフライン中に他人が更新したかも）
+        const {data: currentDb} = await _sb.from('dashboard_data')
+          .select('updated_at, data').eq('id', dbId).maybeSingle();
+        let payload = it.data;
+        if (currentDb?.data && currentDb.data.updated_by_email !== _currentUser.email) {
+          payload = mergeS(currentDb.data, it.data);
+        }
+        const {error: upErr, data: upData} = await _sb.from('dashboard_data')
+          .update({data: payload, updated_by: _currentUser.id, updated_at: new Date().toISOString()})
+          .eq('id', dbId).select();
+        if (upErr) throw upErr;
+        if (!upData || upData.length === 0) {
+          const {error: inErr} = await _sb.from('dashboard_data')
+            .insert({id: dbId, data: payload, updated_by: _currentUser.id, updated_at: new Date().toISOString()});
+          if (inErr) throw inErr;
+        }
+        await _idbDelete(it.id);
+      } catch (e) {
+        console.warn('[offline-queue] flush item failed', it.id, e);
+        // この1件は失敗。次回再試行のため残す
+        break;
+      }
+    }
+    const remaining = await _idbCount();
+    if (remaining === 0) {
+      setSaveStatus('saved', 'オフライン同期完了 ' + new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'}));
+    } else {
+      setSaveStatus('error', `未同期 ${remaining}件（次回再試行）`);
+    }
+  } finally {
+    _isFlushing = false;
+  }
+}
+
+// オンライン復帰時とフォーカス時に自動 flush
+if (typeof window !== 'undefined') {
+  window.addEventListener('online',  () => { flushOfflineQueue(); });
+  window.addEventListener('focus',   () => { flushOfflineQueue(); });
+  setInterval(() => { if (navigator.onLine) flushOfflineQueue(); }, 30_000);
+}
+
+// save() の排他制御: 前の save() 完了まで次は Promise チェーンで待機
+// 並行 write による競合・トークン上書き・部分書き込みを防止
+let _saveChain = Promise.resolve();
+
 async function save(){
-  localStorage.setItem(SK,JSON.stringify(S));
+  // ローカルバックアップは即時。これは並行性の影響を受けない（最新の S を保存するだけ）
+  try { localStorage.setItem(SK, JSON.stringify(S)); } catch(_) {}
   if(!_currentUser){setSaveStatus('error','未ログイン');return;}
 
+  // 直前の save() が走っていれば完走を待ってから自分の処理に入る
+  const myTurn = _saveChain.then(_doSave, _doSave); // 前回が成功でも失敗でも続行
+  _saveChain = myTurn.catch(() => {}); // 失敗が後続のチェーンを止めないようガード
+  return myTurn;
+}
+
+async function _doSave(){
   // 5分ごとに自動スナップショット
   const now = Date.now();
   if(now - _lastSnapshotTs > 5 * 60 * 1000) {
@@ -2151,7 +2294,18 @@ async function save(){
 
       setSaveStatus('error', '保存エラー: ' + e.message);
       if(!isTimeout || attempt >= MAX_RETRY){
-        alert('⚠️ クラウド保存に失敗しました。\n\nエラー: ' + e.message + '\n\nデータはローカルに保存済みです。');
+        // 失敗時はオフラインキューに退避（後で自動 flush）
+        try {
+          const dbId = getFiscalYearDbId(_currentFiscalYear);
+          const saveData = {...S, updated_by_email: _currentUser?.email || ''};
+          await _idbEnqueue({dbId, data: saveData, error: e.message});
+          const cnt = await _idbCount();
+          setSaveStatus('error', `保存失敗→オフライン保管 (未同期${cnt}件)`);
+          console.warn('[save] enqueued to offline queue:', e.message, 'pending:', cnt);
+        } catch (qe) {
+          console.error('[save] offline queue also failed', qe);
+          alert('⚠️ クラウド保存に失敗し、オフライン保管にも失敗しました。\n\nエラー: ' + e.message + '\n\nブラウザを閉じる前にスクショで控えてください。');
+        }
       }
     }
   };
@@ -2180,6 +2334,16 @@ async function saveMemberData(){
   } catch (e) {
     sdot().className = 'sdot uns';
     slbl().textContent = '保存エラー';
+    // メンバー保存もオフラインキューに退避
+    try {
+      const dbId = getFiscalYearDbId(_currentFiscalYear);
+      const saveData = {...S, updated_by_email: _currentUser?.email || ''};
+      await _idbEnqueue({dbId, data: saveData, error: e.message});
+      const cnt = await _idbCount();
+      slbl().textContent = `保存失敗→オフライン保管 (${cnt}件)`;
+    } catch (qe) {
+      console.error('[saveMemberData] offline queue failed', qe);
+    }
   }
 }
 
@@ -4119,27 +4283,96 @@ function showXlPreview(data) {
 // ══════════════════════════════════════════════════
 const MAX_SNAPSHOTS = 20;
 
-function saveSnapshot(label) {
+// kind: 'auto' | 'manual' | 'pre-restore' | 'pre-import'
+function saveSnapshot(label, kind) {
+  const k = kind || (typeof label === 'string' && label.startsWith('自動保存') ? 'auto' : 'manual');
   const snapKey = `neo_snapshots_${_currentFiscalYear}`;
   let snaps = [];
   try { snaps = JSON.parse(localStorage.getItem(snapKey) || '[]'); } catch(e) {}
-  snaps.unshift({
-    id: Date.now(),
-    label,
-    ts: new Date().toISOString(),
-    data: JSON.parse(JSON.stringify(S)),
-  });
+  const dataClone = JSON.parse(JSON.stringify(S));
+  const entry = {
+    id:    Date.now(),
+    label: label || '',
+    kind:  k,
+    ts:    new Date().toISOString(),
+    data:  dataClone,
+    _localOnly: true, // Supabase 同期前のフラグ
+  };
+  snaps.unshift(entry);
   if (snaps.length > MAX_SNAPSHOTS) snaps = snaps.slice(0, MAX_SNAPSHOTS);
-  localStorage.setItem(snapKey, JSON.stringify(snaps));
-  // 後方互換のため旧形式にも保存
-  localStorage.setItem(`neo_snapshot_${_currentFiscalYear}`, JSON.stringify(snaps[0]));
-  console.log('[snapshot] 保存:', label, `(${snaps.length}件)`);
-  return snaps[0];
+  try {
+    localStorage.setItem(snapKey, JSON.stringify(snaps));
+    localStorage.setItem(`neo_snapshot_${_currentFiscalYear}`, JSON.stringify(snaps[0]));
+  } catch(_) {}
+  console.log('[snapshot] local 保存:', label, `(${snaps.length}件)`);
+
+  // Supabase にも非同期で永続化（失敗してもローカルは残る）
+  if (_sb && _currentUser) {
+    _sb.rpc('create_snapshot', {
+      p_fiscal_year: _currentFiscalYear,
+      p_label:       label || '',
+      p_kind:        k,
+      p_data:        dataClone,
+    }).then(({error}) => {
+      if (error) {
+        console.warn('[snapshot] Supabase 保存失敗（ローカルは保持）:', error.message);
+      } else {
+        // 古い auto を間引き（200件超分削除）。失敗しても無視
+        _sb.rpc('prune_snapshots', { p_fiscal_year: _currentFiscalYear, p_keep: 200 })
+          .catch(_ => {});
+      }
+    });
+  }
+  return entry;
 }
 
+// ローカル＋Supabase からスナップショット一覧を取得（同期）
 function getSnapshots() {
   const snapKey = `neo_snapshots_${_currentFiscalYear}`;
   try { return JSON.parse(localStorage.getItem(snapKey) || '[]'); } catch(e) { return []; }
+}
+
+// Supabase 側を含めた完全な履歴一覧を返す（非同期）
+async function getAllSnapshots() {
+  const local = getSnapshots();
+  if (!_sb || !_currentUser) return local;
+  try {
+    const {data, error} = await _sb.from('dashboard_snapshots')
+      .select('id, kind, label, created_at, created_by_email, data_size')
+      .eq('fiscal_year', _currentFiscalYear)
+      .order('created_at', { ascending: false })
+      .limit(500);
+    if (error) throw error;
+    // Supabase 側を主、ローカルだけにある（未送信）を補完
+    const supaIds = new Set((data || []).map(s => s.id));
+    const remote = (data || []).map(s => ({
+      id:     s.id,
+      label:  s.label,
+      kind:   s.kind,
+      ts:     s.created_at,
+      author: s.created_by_email || '',
+      size:   s.data_size || 0,
+      _remote: true,
+    }));
+    const localOnly = local.filter(s => !supaIds.has(s.id)).map(s => ({...s, _localOnly: true}));
+    return [...remote, ...localOnly].sort((a,b) => new Date(b.ts) - new Date(a.ts));
+  } catch (e) {
+    console.warn('[snapshot] Supabase 一覧取得失敗、ローカルのみ表示:', e.message);
+    return local;
+  }
+}
+
+// 指定 id のスナップショットの中身を取得（リモート or ローカル）
+async function loadSnapshotData(snapId, isRemote) {
+  if (!isRemote) {
+    // ローカル
+    return (getSnapshots().find(s => s.id === snapId) || {}).data || null;
+  }
+  if (!_sb) return null;
+  const {data, error} = await _sb.from('dashboard_snapshots')
+    .select('data').eq('id', snapId).maybeSingle();
+  if (error || !data) return null;
+  return data.data;
 }
 
 // Ctrl+Z で直前の操作を取り消す
@@ -5256,76 +5489,87 @@ function estDrop(e, key, targetIdx) {
 // バージョン履歴
 // ══════════════════════════════════════════════════
 
-function openVersionHistory() {
-  renderVersionList();
+// バージョン履歴は Supabase 永続化 + ローカルキャッシュのハイブリッド
+let _snapCache = []; // 最後に取得した一覧（id, label, kind, ts, author, size, _remote, _localOnly）
+
+async function openVersionHistory() {
   openOv('ov-version-history');
+  const el = document.getElementById('version-list');
+  if (el) el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3)">読み込み中…</div>';
+  await refreshVersionList();
+}
+
+async function refreshVersionList() {
+  _snapCache = await getAllSnapshots();
+  renderVersionList();
 }
 
 function renderVersionList() {
   const el = document.getElementById('version-list');
   if (!el) return;
-  const snaps = getSnapshots();
-
+  const snaps = _snapCache;
   if (!snaps.length) {
-    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3)">バージョン履歴がありません<br><small>Excelインポート時に自動保存されます</small></div>';
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3)">バージョン履歴がありません<br><small>編集すると5分ごとに自動保存されます</small></div>';
     return;
   }
-
-  el.innerHTML = snaps.map((snap, i) => {
+  const KIND_LABEL = {auto:'⏲ 自動', manual:'✋ 手動', 'pre-restore':'↩️ 復元前', 'pre-import':'📥 取込前'};
+  el.innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+      <button class="btn btn-xs btn-p" onclick="createManualSnapshot()" style="font-size:10px">＋ 現在を手動保存</button>
+      <button class="btn btn-xs btn-g" onclick="refreshVersionList()" style="font-size:10px">🔄 更新</button>
+      <span style="font-size:10px;color:var(--t3);margin-left:auto">${snaps.length}件 (リモート ${snaps.filter(s=>s._remote).length} / ローカルのみ ${snaps.filter(s=>s._localOnly).length})</span>
+    </div>` + snaps.map((snap, i) => {
     const ts = new Date(snap.ts);
-    const dateStr = ts.toLocaleDateString('ja-JP', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
+    const dateStr = ts.toLocaleString('ja-JP', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
     const isLatest = i === 0;
-    return `<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:8px;margin-bottom:6px;background:${isLatest?'rgba(37,99,235,.06)':'var(--s2)'};border:1.5px solid ${isLatest?'var(--blue)':'var(--b1)'}">
-      <div style="flex:1">
-        <div style="font-weight:700;font-size:12px;color:${isLatest?'var(--blue)':'var(--t1)'}">${snap.label}</div>
-        <div style="font-size:10px;color:var(--t3);margin-top:2px">${dateStr}${isLatest?' <span style="color:var(--blue)">● 最新</span>':''}</div>
+    const kindLabel = KIND_LABEL[snap.kind || 'auto'] || snap.kind || '';
+    const authorLabel = snap.author ? `<span style="color:var(--t3)">by ${snap.author.split('@')[0]}</span>` : '';
+    const badge = snap._localOnly
+      ? '<span style="font-size:8px;background:rgba(239,68,68,.1);color:var(--red);padding:1px 5px;border-radius:3px">📵 未同期</span>'
+      : '<span style="font-size:8px;background:rgba(37,99,235,.1);color:var(--blue);padding:1px 5px;border-radius:3px">☁ クラウド</span>';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;margin-bottom:5px;background:${isLatest?'rgba(37,99,235,.06)':'var(--s2)'};border:1.5px solid ${isLatest?'var(--blue)':'var(--b1)'}">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:12px;color:${isLatest?'var(--blue)':'var(--t1)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(snap.label || '(無題)')} <span style="font-size:9px;color:var(--t3);font-weight:400">${kindLabel}</span></div>
+        <div style="font-size:10px;color:var(--t3);margin-top:2px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">${dateStr} ${authorLabel} ${badge}${isLatest?' <span style="color:var(--blue);font-weight:700">● 最新</span>':''}</div>
       </div>
       <div style="display:flex;gap:6px">
-        <button class="btn btn-xs btn-g" onclick="previewSnapshot(${i})" style="font-size:10px">詳細</button>
-        ${!isLatest ? `<button class="btn btn-xs btn-p" onclick="restoreSnapshotIdx(${i})" style="font-size:10px">⏪ この時点に戻す</button>` : ''}
+        <button class="btn btn-xs btn-g" onclick="previewSnapshotById('${snap.id}',${!!snap._remote})" style="font-size:10px">詳細</button>
+        ${!isLatest ? `<button class="btn btn-xs btn-p" onclick="restoreSnapshotById('${snap.id}',${!!snap._remote})" style="font-size:10px">⏪ この時点に戻す</button>` : ''}
       </div>
     </div>`;
   }).join('');
 }
 
-function previewSnapshot(idx) {
-  const snap = getSnapshots()[idx];
-  if (!snap) return;
-  const ts = new Date(snap.ts).toLocaleString('ja-JP');
-  const progs = snap.data?.programs || [];
-  const sessions = snap.data?.sessions || {};
-  const estimates = snap.data?.estimates || {};
-
-  let info = `【${snap.label}】 ${ts}\n\n`;
-  progs.forEach(p => {
-    const est = Object.values(estimates).flat().filter(r => {
-      // rough match
-      return true;
-    });
-  });
-
-  const totA = (snap.data?.programs || []).reduce((t, p) => {
-    const saved = S;
-    S = snap.data;
-    const v = progActual(p.id);
-    S = saved;
-    return t + v;
-  }, 0);
-
-  alert(`${info}実績合計: ${fmtN(totA)}円\n\nこの時点のデータに戻す場合は「この時点に戻す」ボタンを押してください。`);
+async function createManualSnapshot() {
+  const label = prompt('このスナップショットのラベル（任意）', `手動保存 ${new Date().toLocaleString('ja-JP', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}`);
+  if (label == null) return;
+  saveSnapshot(label || '手動保存', 'manual');
+  setTimeout(refreshVersionList, 800); // RPC 完了を少し待ってからリスト更新
 }
 
-function restoreSnapshotIdx(idx) {
-  const snap = getSnapshots()[idx];
-  if (!snap) return;
-  if (!confirm(`「${snap.label}」の時点に戻します。\n現在のデータは失われます。\n\nよろしいですか？`)) return;
-  // 現在を新しいスナップショットとして保存
-  saveSnapshot('復元前（自動保存）');
-  S = snap.data;
-  save();
+async function previewSnapshotById(snapId, isRemote) {
+  const data = await loadSnapshotData(snapId, isRemote);
+  if (!data) { alert('スナップショットの取得に失敗しました'); return; }
+  const totA = (data.programs || []).reduce((t, p) => {
+    const saved = S; S = data; const v = progActual(p.id); S = saved;
+    return t + v;
+  }, 0);
+  const ledger = (data.ledger || []).length;
+  const events = Object.values(data.events || {}).reduce((t,e)=>t+(e.items||[]).length, 0);
+  const estimates = Object.values(data.estimates || {}).reduce((t,a)=>t+a.length, 0);
+  alert(`📊 サマリー\n\n実績合計: ${fmtN(totA)}円\nledger 件数: ${ledger}\nイベント費目: ${events}\n見積行: ${estimates}\n\n「この時点に戻す」でこの状態に復元できます。`);
+}
+
+async function restoreSnapshotById(snapId, isRemote) {
+  const data = await loadSnapshotData(snapId, isRemote);
+  if (!data) { alert('スナップショットの取得に失敗しました'); return; }
+  if (!confirm(`この時点に戻します。\n現在のデータは「復元前（自動保存）」として履歴に残ります。\n\nよろしいですか？`)) return;
+  saveSnapshot('復元前（自動保存）', 'pre-restore');
+  S = data;
+  await save();
   closeOv('ov-version-history');
   renderPg(_curPg || 'ov');
-  alert('✅ 指定のバージョンに戻しました。\n現在のデータは「復元前（自動保存）」として履歴に残っています。');
+  alert('✅ 指定のバージョンに復元しました。\n復元前データは履歴の「復元前（自動保存）」から再復元できます。');
 }
 
 
