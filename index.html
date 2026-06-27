@@ -1723,14 +1723,18 @@ async function loadFromDB(){
     if(error&&error.code!=='PGRST116')throw error;
     if(data?.data&&Object.keys(data.data).length>0){
       const dbData=data.data;
-      // localStorageのestimatesが件数多い場合は保護
+      // 旧バグ対策: 以前は「localStorageの件数が多ければ優先」していたが、
+      // これが別端末の編集を古いタブで上書きする最大の元凶だったため撤廃。
+      // 代わりに DB を必ず正とし、未送信のローカル変更だけは id ベースで救う
+      // （DB に無く localStorage にだけある id を保持。DB にあるものは DB を信頼）
       const localRaw=localStorage.getItem(SK);
-      const localData=localRaw?JSON.parse(localRaw):null;
-      S=dbData;
-      if(localData?.estimates){
-        const dbTotal=Object.values(dbData.estimates||{}).reduce((t,a)=>t+a.length,0);
-        const localTotal=Object.values(localData.estimates||{}).reduce((t,a)=>t+a.length,0);
-        if(localTotal>dbTotal){S.estimates=localData.estimates;console.log('[DB] estimates: local優先',localTotal,'>',dbTotal);}
+      const localData=localRaw?(()=>{try{return JSON.parse(localRaw);}catch(_){return null;}})():null;
+      if (localData && typeof mergeS === 'function') {
+        // base=localData(古い), incoming=dbData(正) → DB の値で上書きしつつ、
+        // localStorage 側にしか無い id のレコードはそのまま残る（未送信編集の救済）
+        S = mergeS(localData, dbData);
+      } else {
+        S = dbData;
       }
       if(!S.programs)S.programs=DEF.programs;if(!S.revenues)S.revenues=DEF.revenues;if(!S.sessions)S.sessions=DEF.sessions;
       if(!S.events)S.events={};
@@ -1966,6 +1970,122 @@ function buildKpiSections({totR=0, totRB=0, totB=0, totE=0, totA=0, target=0, pr
 // 最後のスナップショット保存時刻
 let _lastSnapshotTs = 0;
 
+// ══════════════════════════════════════════════════
+// 深いマージユーティリティ
+// 配列で id を持つ要素は id ベースで union、incoming が同 id で優先
+// オブジェクトは再帰マージ、プリミティブは incoming 優先
+// 「データを失わない」哲学: 削除より union を選び、後で UI で消せる方が安全
+// ══════════════════════════════════════════════════
+function mergeArrayById(baseArr, incArr, key='id') {
+  if (!Array.isArray(baseArr)) return Array.isArray(incArr) ? incArr.slice() : [];
+  if (!Array.isArray(incArr))  return baseArr.slice();
+  const map = new Map();
+  baseArr.forEach(it => { if (it && it[key] != null) map.set(it[key], it); });
+  incArr.forEach(it => {
+    if (it && it[key] != null) {
+      const existing = map.get(it[key]);
+      map.set(it[key], existing ? {...existing, ...it} : it);
+    }
+  });
+  // key 持たない要素は incoming のみ採用（base 側は捨てる、orphan を増やさない）
+  const noKeyInc = incArr.filter(it => !(it && it[key] != null));
+  return [...map.values(), ...noKeyInc];
+}
+
+function mergeS(base, incoming) {
+  if (!base || typeof base !== 'object')         return incoming || {};
+  if (!incoming || typeof incoming !== 'object') return base;
+  const result = {...base};
+
+  // 配列フィールド（id ベース、incoming 優先）
+  ['revenues','ledger','mktItems','prodItems','orderMaster','programs','mfPayables']
+    .forEach(k => {
+      if (Array.isArray(base[k]) || Array.isArray(incoming[k])) {
+        result[k] = mergeArrayById(base[k], incoming[k], 'id');
+      }
+    });
+
+  // categories は name で union
+  if (Array.isArray(base.categories) || Array.isArray(incoming.categories)) {
+    result.categories = mergeArrayById(base.categories, incoming.categories, 'name');
+  }
+
+  // changelog は追記のみ、id で union → 新しい順、500件上限
+  if (Array.isArray(base.changelog) || Array.isArray(incoming.changelog)) {
+    const merged = mergeArrayById(base.changelog, incoming.changelog, 'id');
+    merged.sort((a,b) => new Date(b.ts||0) - new Date(a.ts||0));
+    result.changelog = merged.slice(0, 500);
+  }
+
+  // events: {key:{label,items[]}} key毎にマージ + items は id で
+  if (base.events || incoming.events) {
+    const keys = new Set([...Object.keys(base.events||{}), ...Object.keys(incoming.events||{})]);
+    const evt = {};
+    keys.forEach(k => {
+      const b = base.events?.[k] || {};
+      const i = incoming.events?.[k] || {};
+      evt[k] = {...b, ...i, items: mergeArrayById(b.items, i.items, 'id')};
+    });
+    result.events = evt;
+  }
+
+  // sessions: {key:[{id,...items[]}]} セッション毎 + items も id で
+  if (base.sessions || incoming.sessions) {
+    const keys = new Set([...Object.keys(base.sessions||{}), ...Object.keys(incoming.sessions||{})]);
+    const sess = {};
+    keys.forEach(k => {
+      const bArr = base.sessions?.[k] || [];
+      const iArr = incoming.sessions?.[k] || [];
+      const map = new Map();
+      bArr.forEach(s => { if (s?.id != null) map.set(s.id, s); });
+      iArr.forEach(s => {
+        if (s?.id != null) {
+          const existing = map.get(s.id);
+          map.set(s.id, existing
+            ? {...existing, ...s, items: mergeArrayById(existing.items, s.items, 'id')}
+            : s);
+        }
+      });
+      sess[k] = Array.from(map.values());
+    });
+    result.sessions = sess;
+  }
+
+  // estimates: {key:[{id,...}]} key毎に id で union
+  if (base.estimates || incoming.estimates) {
+    const keys = new Set([...Object.keys(base.estimates||{}), ...Object.keys(incoming.estimates||{})]);
+    const est = {};
+    keys.forEach(k => {
+      est[k] = mergeArrayById(base.estimates?.[k], incoming.estimates?.[k], 'id');
+    });
+    result.estimates = est;
+  }
+
+  // defaults: {key:[{name,budget}]} name で union
+  if (base.defaults || incoming.defaults) {
+    const keys = new Set([...Object.keys(base.defaults||{}), ...Object.keys(incoming.defaults||{})]);
+    const def = {};
+    keys.forEach(k => {
+      def[k] = mergeArrayById(base.defaults?.[k], incoming.defaults?.[k], 'name');
+    });
+    result.defaults = def;
+  }
+
+  // 単純なオブジェクト系（key 別マージ、incoming 優先）
+  ['prodBudgets','cityFesLabels'].forEach(k => {
+    if (base[k] || incoming[k]) {
+      result[k] = {...(base[k]||{}), ...(incoming[k]||{})};
+    }
+  });
+
+  // 集計系・メタ系: incoming 優先
+  ['monthlyTotal','months','fiscalYear','updated_by_email'].forEach(k => {
+    if (incoming[k] !== undefined) result[k] = incoming[k];
+  });
+
+  return result;
+}
+
 async function save(){
   localStorage.setItem(SK,JSON.stringify(S));
   if(!_currentUser){setSaveStatus('error','未ログイン');return;}
@@ -1988,23 +2108,17 @@ async function save(){
       const dbId = getFiscalYearDbId(_currentFiscalYear);
       const saveData = {...S, updated_by_email: _currentUser.email};
 
-      // 保存前にSupabaseの現在のデータを確認（他ユーザーの変更を保護）
+      // 保存前にSupabaseの現在のデータを取得（他ユーザーの変更を保護）
       const {data: currentDb} = await _sb.from('dashboard_data')
         .select('updated_at, data').eq('id', dbId).maybeSingle();
-      
-      // DBのデータが現在のSより新しい場合（他ユーザーが更新済み）はマージ
+
+      // 他人が更新していたら、5秒判定は撤廃して必ず深いマージで統合
+      // - 配列(events.items / sessions.items / estimates / revenues / ledger 等)は id ベースで union
+      // - 同 id は自分(saveData)優先（直前の編集を尊重）
+      // - 自分のローカルに無い他人の追加項目を絶対に消さない
       if (currentDb?.data && currentDb.data.updated_by_email !== _currentUser.email) {
-        const dbTime = new Date(currentDb.updated_at).getTime();
-        const myTime = _lastSaveTime || 0;
-        if (dbTime > myTime + 5000) { // 5秒以上の差がある場合
-          // 重要データ（revenues, estimates）をDBから保持してマージ
-          const merged = {...currentDb.data, ...saveData};
-          // revenuesは件数が多い方を採用
-          if ((currentDb.data.revenues||[]).length > (saveData.revenues||[]).length) {
-            merged.revenues = currentDb.data.revenues;
-          }
-          Object.assign(saveData, merged);
-        }
+        const merged = mergeS(currentDb.data, saveData);
+        Object.assign(saveData, merged);
       }
       _lastSaveTime = Date.now();
 
@@ -2045,7 +2159,29 @@ async function save(){
   await trySave();
 }
 
-async function saveMemberData(){localStorage.setItem(SK,JSON.stringify(S));if(isAdmin()){save();return;}try{const dbId=getFiscalYearDbId(_currentFiscalYear);const{error}=await _sb.from('dashboard_data').update({data:S,updated_at:new Date().toISOString()}).eq('id',dbId);if(error)throw error;sdot().className='sdot';slbl().textContent='保存済み '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});}catch(e){sdot().className='sdot uns';slbl().textContent='保存エラー';}}
+async function saveMemberData(){
+  localStorage.setItem(SK, JSON.stringify(S));
+  if (isAdmin()) { save(); return; }
+  try {
+    const dbId = getFiscalYearDbId(_currentFiscalYear);
+    const saveData = {...S, updated_by_email: _currentUser?.email || ''};
+    // 他人の更新があれば深いマージで保護（管理者保存と同じロジック）
+    const {data: currentDb} = await _sb.from('dashboard_data')
+      .select('updated_at, data').eq('id', dbId).maybeSingle();
+    if (currentDb?.data && currentDb.data.updated_by_email !== (_currentUser?.email || '')) {
+      const merged = mergeS(currentDb.data, saveData);
+      Object.assign(saveData, merged);
+    }
+    const {error} = await _sb.from('dashboard_data')
+      .update({data: saveData, updated_at: new Date().toISOString()}).eq('id', dbId);
+    if (error) throw error;
+    sdot().className = 'sdot';
+    slbl().textContent = '保存済み ' + new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
+  } catch (e) {
+    sdot().className = 'sdot uns';
+    slbl().textContent = '保存エラー';
+  }
+}
 
 let _saveTimer = null;
 let _pendingChanges = 0;  // 保留中の変更カウンター
@@ -5351,15 +5487,15 @@ function applySyncData() {
   if (banner) banner.remove();
   if (!_pendingSyncData) return;
 
-  // 未保存の変更がある場合は警告
-  if (_hasUnsaved) {
-    if (!confirm('未保存の変更があります。\n他のユーザーのデータで上書きされますが、よろしいですか？')) {
-      _pendingSyncData = null;
-      return;
-    }
+  // 全置換ではなく深いマージで適用
+  // - base=他人の最新(_pendingSyncData), incoming=自分の現在のS → 自分の編集が同 id で優先
+  // - 自分のローカルに無い他人の追加項目は完全に取り込む
+  // - 未保存変更があっても消えないので 30秒自動適用も安全
+  if (typeof mergeS === 'function') {
+    S = mergeS(_pendingSyncData, S);
+  } else {
+    S = _pendingSyncData;
   }
-
-  S = _pendingSyncData;
   _pendingSyncData = null;
   localStorage.setItem(SK, JSON.stringify(S));
   setSaveStatus('saved', '同期済み ' + new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'}));
