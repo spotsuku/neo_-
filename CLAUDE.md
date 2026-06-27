@@ -63,6 +63,12 @@
 - [2026-04-29] MF債務支払いの取込ロジックで `Object.assign(row, next)` の**後**に `row.actual` を読んで前値を取得しようとし、差分が常に 0 になるバグを混入。セルフレビュー段階で発覚し修正。→ **対策**: 既存オブジェクトを更新する場合、変更前スナップショット（旧 `actual` / 旧 `payMonth` 等）は必ず破壊的代入の**前**にローカル変数へ退避する。CHECKチェックリストに項目追加済み。
 - [2026-04-30] MF連携の `/api/mf/auth` が本番で 500 を返し「Unexpected end of JSON input」になる不具合。`sbRest()` が `Prefer: return=minimal` 付きの POST に対して PostgREST が返す **201 + 空ボディ**を `r.json()` で直接パースして失敗していた。→ **対策**: REST ヘルパは「2xx でも空ボディ」を必ず想定し、`r.text()` で取得 → 空なら null、非空なら JSON.parse、失敗時は文字列のまま返すフォールバックを置く。Vercel API は `vercel logs` を見ない限りスタックが見えないので、サーバ側 catch では `console.error` も残すこと。
 - [2026-04-30] OAuth2 token endpoint で `token_exchange_401` が発生。MF アプリ登録のクライアント認証方式が **CLIENT_SECRET_BASIC** だったが、実装側は client_id/secret を **body のフォーム値**として送っていた。→ **対策**: token / refresh の両方で `Authorization: Basic base64(id:secret)` ヘッダを付け、body には grant_type / code / redirect_uri / code_verifier のみを残す。OAuth プロバイダは Developer Portal で必ず認証方式を確認（`CLIENT_SECRET_BASIC` / `CLIENT_SECRET_POST` / `none(PKCE)` など）。
+- [2026-05-09] データロス防止 3層強化 (P0)。DB をきれいに整理、リアルタイム自動保存をオフラインでも継続、履歴をクラウド永続化。
+  - migration 010_dashboard_safety.sql: dashboard_data 正式定義 + dashboard_snapshots / login_history 新設 + RLS + RPC (create_snapshot / prune_snapshots)
+  - IndexedDB オフラインキュー: save 失敗時に saveData を退避 → online/focus/30秒タイマで自動 flush
+  - save() ミューテックス: _saveChain Promise チェーンで直列化 (並行 write 競合を物理的に防止)
+  - スナップショット Supabase 永続化: 端末横断で履歴閲覧・復元可能、200件ローテーション、☁/📵 バッジで同期状態を可視化
+  教訓: 「データを失わない」は単一の対策では不十分。書き込みパス全体に多層防御 (mutex + retry + offline queue + cloud snapshot) を入れる必要がある。
 - [2026-05-09] 同時編集でデータが消える/古い状態に戻る重大バグを5箇所同時修正。
   根本原因: (1) `loadFromDB` で「localStorage の estimates 件数が多ければ優先」していたため別端末の編集が古いタブで上書き／(2) `save` のマージが `{...DB, ...saveData}` の浅いマージで events/sessions/estimates 等のネスト構造ごと上書き／(3) save の 5秒判定で短時間連続編集は完全上書き／(4) `saveMemberData` がマージなし完全上書き／(5) `applySyncData` (Realtime) が `S = _pendingSyncData` で全置換、30秒で未保存変更も自動上書き。
   → **対策**: `mergeS()` / `mergeArrayById()` 深いマージ関数を導入し、全保存・受信パスで「データを失わない union 方向」に統一。配列は id（categories は name、defaults は name）ベースで union、ネストの events.items / sessions.items / estimates も再帰マージ。saveData 側を優先するが他人の追加項目は絶対に消さない。
