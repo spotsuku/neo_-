@@ -1022,8 +1022,9 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
     </div>
     <div class="pb-body">
       <p style="font-size:11px;color:var(--t2);margin-bottom:12px">
-        ExcelインポートやデータのリストアなどによってローカルPCに最大20件保存されます。<br>
-        <strong style="color:var(--acc)">⚠️ このブラウザのこのデバイスのみで利用可能です。</strong>
+        編集中は5分ごとに自動保存、データ取込前と部分復元前にも自動でスナップショットを取ります。<br>
+        <strong style="color:var(--blue)">☁ クラウド (Supabase)</strong>: 端末横断で参照・復元可能・最新200件保持<br>
+        <strong style="color:var(--red)">📵 未同期</strong>: ローカルブラウザのみ (オフライン中に作成 等)
       </p>
       <div id="version-list" style="max-height:500px;overflow-y:auto"></div>
     </div>
@@ -4733,14 +4734,38 @@ function saveSnapshot(label, kind) {
       p_label:       label || '',
       p_kind:        k,
       p_data:        dataClone,
-    }).then(({error}) => {
+    }).then(({data: remoteId, error}) => {
       if (error) {
-        console.warn('[snapshot] Supabase 保存失敗（ローカルは保持）:', error.message);
-      } else {
-        // 古い auto を間引き（200件超分削除）。失敗しても無視
-        _sb.rpc('prune_snapshots', { p_fiscal_year: _currentFiscalYear, p_keep: 200 })
-          .catch(_ => {});
+        console.warn('[snapshot] Supabase 保存失敗（ローカルは保持）:', error.message, error);
+        // setSaveStatus などで可視化できるよう簡易ログ
+        try {
+          const sd = document.getElementById('save-status-text');
+          if (sd && /スナップショット|snapshot/i.test(String(error.message))) {
+            sd.textContent = 'スナップショットのクラウド保存失敗: ' + (error.message||'').slice(0,40);
+          }
+        } catch(_) {}
+        return;
       }
+      // ✅ 成功: 該当のローカル entry に Supabase UUID を記録
+      // → 次回 getAllSnapshots で「同じスナップショット」として認識され、☁ バッジが付く
+      if (remoteId) {
+        try {
+          const raw = localStorage.getItem(snapKey);
+          if (raw) {
+            const arr = JSON.parse(raw);
+            const found = arr.find(x => x && x.id === entry.id);
+            if (found) {
+              found._remoteId  = String(remoteId);
+              found._localOnly = false;
+              localStorage.setItem(snapKey, JSON.stringify(arr));
+              localStorage.setItem(`neo_snapshot_${_currentFiscalYear}`, JSON.stringify(arr[0]));
+            }
+          }
+        } catch(_) {}
+      }
+      // 古い auto を間引き（失敗しても無視）
+      _sb.rpc('prune_snapshots', { p_fiscal_year: _currentFiscalYear, p_keep: 200 })
+        .catch(_ => {});
     });
   }
   return entry;
@@ -4758,15 +4783,13 @@ async function getAllSnapshots() {
   if (!_sb || !_currentUser) return local;
   try {
     const {data, error} = await _sb.from('dashboard_snapshots')
-      .select('id, kind, label, created_at, created_by_email, data_size')
+      .select('id, kind, label, created_at, created_by_email, data_size, fiscal_year')
       .eq('fiscal_year', _currentFiscalYear)
       .order('created_at', { ascending: false })
       .limit(500);
     if (error) throw error;
-    // Supabase 側を主、ローカルだけにある（未送信）を補完
-    const supaIds = new Set((data || []).map(s => s.id));
     const remote = (data || []).map(s => ({
-      id:     s.id,
+      id:     s.id,                       // UUID 文字列
       label:  s.label,
       kind:   s.kind,
       ts:     s.created_at,
@@ -4774,7 +4797,22 @@ async function getAllSnapshots() {
       size:   s.data_size || 0,
       _remote: true,
     }));
-    const localOnly = local.filter(s => !supaIds.has(s.id)).map(s => ({...s, _localOnly: true}));
+    // ローカルとリモートの紐付け: id型が違うので、ローカルに記録した _remoteId
+    // または「同じラベル + 同じ分単位の時刻」で一致と見なす
+    const remoteByKey = new Map();
+    remote.forEach(r => {
+      const k = `${r.label}|${new Date(r.ts).toISOString().slice(0,16)}`;
+      remoteByKey.set(k, r);
+      remoteByKey.set(String(r.id), r);
+    });
+    const localOnly = local.filter(s => {
+      // 1) 既に _remoteId を持っている = 過去に同期済み → 重複表示しない
+      if (s._remoteId && remoteByKey.has(String(s._remoteId))) return false;
+      // 2) ラベル + 時刻分単位でマッチ → 同期済み
+      const key = `${s.label}|${new Date(s.ts).toISOString().slice(0,16)}`;
+      if (remoteByKey.has(key)) return false;
+      return true;
+    }).map(s => ({...s, _localOnly: true}));
     return [...remote, ...localOnly].sort((a,b) => new Date(b.ts) - new Date(a.ts));
   } catch (e) {
     console.warn('[snapshot] Supabase 一覧取得失敗、ローカルのみ表示:', e.message);
@@ -4784,9 +4822,10 @@ async function getAllSnapshots() {
 
 // 指定 id のスナップショットの中身を取得（リモート or ローカル）
 async function loadSnapshotData(snapId, isRemote) {
+  // id 型不一致対策: ローカル(数値 Date.now()) と リモート(UUID 文字列) を文字列化して比較
+  const sid = String(snapId);
   if (!isRemote) {
-    // ローカル
-    return (getSnapshots().find(s => s.id === snapId) || {}).data || null;
+    return (getSnapshots().find(s => String(s.id) === sid) || {}).data || null;
   }
   if (!_sb) return null;
   const {data, error} = await _sb.from('dashboard_snapshots')
@@ -5025,8 +5064,9 @@ function executeXlImport() {
     </div>
     <div class="pb-body">
       <p style="font-size:11px;color:var(--t2);margin-bottom:12px">
-        ExcelインポートやデータのリストアなどによってローカルPCに最大20件保存されます。<br>
-        <strong style="color:var(--acc)">⚠️ このブラウザのこのデバイスのみで利用可能です。</strong>
+        編集中は5分ごとに自動保存、データ取込前と部分復元前にも自動でスナップショットを取ります。<br>
+        <strong style="color:var(--blue)">☁ クラウド (Supabase)</strong>: 端末横断で参照・復元可能・最新200件保持<br>
+        <strong style="color:var(--red)">📵 未同期</strong>: ローカルブラウザのみ (オフライン中に作成 等)
       </p>
       <div id="version-list" style="max-height:500px;overflow-y:auto"></div>
     </div>
@@ -6135,8 +6175,8 @@ async function openDiffView() {
     loadSnapshotData(_diffPickB.id, _diffPickB.isRemote),
   ]);
   if (!dA || !dB) { alert('スナップショットの取得に失敗'); return; }
-  const sA = _snapCache.find(s => s.id === _diffPickA.id);
-  const sB = _snapCache.find(s => s.id === _diffPickB.id);
+  const sA = _snapCache.find(s => String(s.id) === String(_diffPickA.id));
+  const sB = _snapCache.find(s => String(s.id) === String(_diffPickB.id));
   // A は古い方、B は新しい方に並べ替え
   const aIsOlder = new Date(sA.ts) <= new Date(sB.ts);
   const [oldD, newD, oldS, newS] = aIsOlder ? [dA, dB, sA, sB] : [dB, dA, sB, sA];
@@ -6229,7 +6269,7 @@ async function openCellRestore(snapId, isRemote) {
   const data = await loadSnapshotData(snapId, isRemote);
   if (!data) { alert('スナップショットの取得に失敗しました'); return; }
   _cellRestoreData = data;
-  _cellRestoreSnap = _snapCache.find(s => s.id === snapId);
+  _cellRestoreSnap = _snapCache.find(s => String(s.id) === String(snapId));
 
   const overlayId = 'ov-cell-restore';
   let ov = document.getElementById(overlayId);
