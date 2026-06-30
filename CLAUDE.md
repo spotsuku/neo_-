@@ -63,6 +63,14 @@
 - [2026-04-29] MF債務支払いの取込ロジックで `Object.assign(row, next)` の**後**に `row.actual` を読んで前値を取得しようとし、差分が常に 0 になるバグを混入。セルフレビュー段階で発覚し修正。→ **対策**: 既存オブジェクトを更新する場合、変更前スナップショット（旧 `actual` / 旧 `payMonth` 等）は必ず破壊的代入の**前**にローカル変数へ退避する。CHECKチェックリストに項目追加済み。
 - [2026-04-30] MF連携の `/api/mf/auth` が本番で 500 を返し「Unexpected end of JSON input」になる不具合。`sbRest()` が `Prefer: return=minimal` 付きの POST に対して PostgREST が返す **201 + 空ボディ**を `r.json()` で直接パースして失敗していた。→ **対策**: REST ヘルパは「2xx でも空ボディ」を必ず想定し、`r.text()` で取得 → 空なら null、非空なら JSON.parse、失敗時は文字列のまま返すフォールバックを置く。Vercel API は `vercel logs` を見ない限りスタックが見えないので、サーバ側 catch では `console.error` も残すこと。
 - [2026-04-30] OAuth2 token endpoint で `token_exchange_401` が発生。MF アプリ登録のクライアント認証方式が **CLIENT_SECRET_BASIC** だったが、実装側は client_id/secret を **body のフォーム値**として送っていた。→ **対策**: token / refresh の両方で `Authorization: Basic base64(id:secret)` ヘッダを付け、body には grant_type / code / redirect_uri / code_verifier のみを残す。OAuth プロバイダは Developer Portal で必ず認証方式を確認（`CLIENT_SECRET_BASIC` / `CLIENT_SECRET_POST` / `none(PKCE)` など）。
+- [2026-05-09] 信頼性向上 + スプシ並み履歴 (P1+P2)。
+  - P1-1: debounce 1500→500ms (タブ閉じロス窓を 1/3 に)
+  - P1-2: 楽観的ロック実装。dashboard_data.version 列を使い `WHERE id=? AND version=?` で更新、衝突時 3回まで自動 fetch→merge→retry
+  - P1-3: migration 011 で dashboard_changelog テーブル新設 + RPC log_change。logChange はローカル/Supabase 両方に書き、renderChangelog は両方統合表示 (重複除去)
+  - P2-1: 差分ビュー。任意2スナップショットを再帰フラット化して field-level diff (配列は id ベース)、追加/削除/変更を色分け
+  - P2-2: 部分復元。13種別から選んで mergeS で union (今ある物は消えず過去のだけ戻る)、pre-restore 自動バックアップ付き
+  - P2-3: タイムライン UI。リスト/タイムライン切替、種別別カラープロット、点クリックで比較選択
+  教訓: 楽観的ロックは「同じ version で UPDATE → 0 行返ったら衝突」の単純実装でも非常に強力。差分計算は再帰フラット化 (path → value の Map) すれば配列・ネストオブジェクトも統一的に扱える。
 - [2026-05-09] データロス防止 3層強化 (P0)。DB をきれいに整理、リアルタイム自動保存をオフラインでも継続、履歴をクラウド永続化。
   - migration 010_dashboard_safety.sql: dashboard_data 正式定義 + dashboard_snapshots / login_history 新設 + RLS + RPC (create_snapshot / prune_snapshots)
   - IndexedDB オフラインキュー: save 失敗時に saveData を退避 → online/focus/30秒タイマで自動 flush

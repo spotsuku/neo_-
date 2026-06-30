@@ -1740,6 +1740,9 @@ async function loadFromDB(){
       } else {
         S = dbData;
       }
+      // 3-way merge の出発点を「今 DB から取った状態」に設定
+      // これ以降の編集は base との差分で識別される
+      if (typeof _setBaseSnapshot === 'function') _setBaseSnapshot(dbData);
       if(!S.programs)S.programs=DEF.programs;if(!S.revenues)S.revenues=DEF.revenues;if(!S.sessions)S.sessions=DEF.sessions;
       if(!S.events)S.events={};
       const EVT_LABELS={ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',md:'マッチデイ',tour:'ツアー',sd:'スペシャルデイズ',cf3:'イベント3',cf4:'イベント4'};
@@ -2091,6 +2094,239 @@ function mergeS(base, incoming) {
 }
 
 // ══════════════════════════════════════════════════
+// 3-way マージ (base / mine / theirs)
+// - BASE  : 自分が前回 DB から取得した時点の状態（_baseSnapshot）
+// - MINE  : 現在のメモリ S（自分の編集結果）
+// - THEIRS: 保存直前に取得した最新 DB 値
+//
+// ルール:
+//   item.id 毎に「base→mine の変更」と「base→theirs の変更」を比較
+//   - 自分だけ変えた             → mine
+//   - 相手だけ変えた             → theirs
+//   - 両方変えた (conflict)      → mine (自分が今 save を押した意思を尊重)
+//   - 自分が削除 (base にあり mine になし) → 削除を尊重
+//   - 相手が削除                 → 削除を尊重 (ただし自分が編集してたら mine を残す)
+//   - どちらかが新規追加           → 追加を取り込む
+// ══════════════════════════════════════════════════
+let _baseSnapshot = null; // 直近 DB から読み込んだ「出発点」の状態
+
+function _setBaseSnapshot(s) {
+  try { _baseSnapshot = s ? JSON.parse(JSON.stringify(s)) : null; }
+  catch (_) { _baseSnapshot = null; }
+}
+
+function _shallowEq(a, b) {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false;
+  try { return JSON.stringify(a) === JSON.stringify(b); } catch (_) { return false; }
+}
+
+function merge3wayArrayById(baseArr, mineArr, theirsArr, key='id') {
+  const toMap = arr => {
+    const m = new Map();
+    (arr || []).forEach(it => { if (it && it[key] != null) m.set(it[key], it); });
+    return m;
+  };
+  const bMap = toMap(baseArr);
+  const mMap = toMap(mineArr);
+  const tMap = toMap(theirsArr);
+
+  const allIds = new Set([...bMap.keys(), ...mMap.keys(), ...tMap.keys()]);
+  const result = [];
+
+  for (const id of allIds) {
+    const b = bMap.get(id);
+    const m = mMap.get(id);
+    const t = tMap.get(id);
+    const hasB = b !== undefined;
+    const hasM = m !== undefined;
+    const hasT = t !== undefined;
+
+    // 自分のメモリに無いケース
+    if (!hasM) {
+      if (hasB) {
+        // base にあって自分が削除 → 削除を尊重（含めない）
+        continue;
+      }
+      if (hasT) {
+        // 自分は知らないが相手が追加 → 取り込む
+        result.push(t);
+      }
+      continue;
+    }
+
+    // 自分のメモリに有るケース
+    if (!hasT) {
+      // 相手が削除（または最初から無い）
+      if (hasB && _shallowEq(b, m)) {
+        // base==mine: 自分は編集してない、相手が削除 → 削除尊重
+        continue;
+      }
+      // 自分が追加 or 編集してる → 残す
+      result.push(m);
+      continue;
+    }
+
+    // base / mine / theirs どれも存在
+    if (hasB && _shallowEq(b, m)) {
+      // 自分は編集してない → theirs を採用（相手の最新を反映）
+      result.push(t);
+      continue;
+    }
+    if (hasB && _shallowEq(b, t)) {
+      // 相手は編集してない → mine を採用
+      result.push(m);
+      continue;
+    }
+    // 両方編集 (conflict) → mine を採用（フィールド単位では mine が theirs を上書き）
+    result.push({...t, ...m});
+  }
+
+  // id を持たない要素は mine 側のものだけ残す
+  const noKeyMine = (mineArr || []).filter(it => !(it && it[key] != null));
+  return [...result, ...noKeyMine];
+}
+
+function mergeS3way(base, mine, theirs) {
+  // どれかが無ければ 2-way merge にフォールバック
+  if (!base   || typeof base   !== 'object') return mergeS(theirs || {}, mine);
+  if (!mine   || typeof mine   !== 'object') return theirs || {};
+  if (!theirs || typeof theirs !== 'object') return mine;
+
+  const result = {...theirs};
+
+  // 配列フィールド（id ベース 3-way）
+  ['revenues','ledger','mktItems','prodItems','orderMaster','programs','mfPayables'].forEach(k => {
+    if (Array.isArray(base[k]) || Array.isArray(mine[k]) || Array.isArray(theirs[k])) {
+      result[k] = merge3wayArrayById(base[k], mine[k], theirs[k], 'id');
+    }
+  });
+
+  // categories は name で
+  if (Array.isArray(base.categories) || Array.isArray(mine.categories) || Array.isArray(theirs.categories)) {
+    result.categories = merge3wayArrayById(base.categories, mine.categories, theirs.categories, 'name');
+  }
+
+  // changelog: 追記のみのログ → id で union（3-way の特殊扱い）
+  if (Array.isArray(base.changelog) || Array.isArray(mine.changelog) || Array.isArray(theirs.changelog)) {
+    const merged = mergeArrayById(theirs.changelog, mine.changelog, 'id');
+    merged.sort((a,b) => new Date(b.ts||0) - new Date(a.ts||0));
+    result.changelog = merged.slice(0, 500);
+  }
+
+  // events: {key:{label,items[]}} key 毎 + items は id で 3-way
+  if (base.events || mine.events || theirs.events) {
+    const keys = new Set([
+      ...Object.keys(base.events||{}),
+      ...Object.keys(mine.events||{}),
+      ...Object.keys(theirs.events||{}),
+    ]);
+    const evt = {};
+    keys.forEach(k => {
+      const bv = base.events?.[k]   || {};
+      const mv = mine.events?.[k]   || {};
+      const tv = theirs.events?.[k] || {};
+      evt[k] = {
+        ...tv, ...mv, // label など 単純フィールドは mine 優先
+        items: merge3wayArrayById(bv.items, mv.items, tv.items, 'id'),
+      };
+    });
+    result.events = evt;
+  }
+
+  // sessions: {key:[{id,items[]}]}
+  if (base.sessions || mine.sessions || theirs.sessions) {
+    const keys = new Set([
+      ...Object.keys(base.sessions||{}),
+      ...Object.keys(mine.sessions||{}),
+      ...Object.keys(theirs.sessions||{}),
+    ]);
+    const sess = {};
+    keys.forEach(k => {
+      const bArr = base.sessions?.[k]   || [];
+      const mArr = mine.sessions?.[k]   || [];
+      const tArr = theirs.sessions?.[k] || [];
+      // セッション自体を 3-way union
+      const map = new Map();
+      bArr.forEach(s => s?.id != null && map.set(s.id, {b: s}));
+      mArr.forEach(s => { if (s?.id != null) { const cur = map.get(s.id) || {}; cur.m = s; map.set(s.id, cur); } });
+      tArr.forEach(s => { if (s?.id != null) { const cur = map.get(s.id) || {}; cur.t = s; map.set(s.id, cur); } });
+      const arr = [];
+      for (const {b, m, t} of map.values()) {
+        if (!m) { if (b) continue; if (t) arr.push(t); continue; }
+        if (!t) { if (b && _shallowEq(b, m)) continue; arr.push(m); continue; }
+        if (b && _shallowEq(b, m)) {
+          // 自分編集なし → theirs を採用、ただし items は 3-way (相手の items 編集が反映)
+          arr.push({...t, items: merge3wayArrayById(b?.items, m.items, t.items, 'id')});
+          continue;
+        }
+        // 自分が編集 → mine ベース、items 3-way
+        arr.push({
+          ...t, ...m,
+          items: merge3wayArrayById(b?.items, m.items, t.items, 'id'),
+        });
+      }
+      sess[k] = arr;
+    });
+    result.sessions = sess;
+  }
+
+  // estimates: {key:[{id,...}]}
+  if (base.estimates || mine.estimates || theirs.estimates) {
+    const keys = new Set([
+      ...Object.keys(base.estimates||{}),
+      ...Object.keys(mine.estimates||{}),
+      ...Object.keys(theirs.estimates||{}),
+    ]);
+    const est = {};
+    keys.forEach(k => {
+      est[k] = merge3wayArrayById(base.estimates?.[k], mine.estimates?.[k], theirs.estimates?.[k], 'id');
+    });
+    result.estimates = est;
+  }
+
+  // defaults: {key:[{name,...}]}
+  if (base.defaults || mine.defaults || theirs.defaults) {
+    const keys = new Set([
+      ...Object.keys(base.defaults||{}),
+      ...Object.keys(mine.defaults||{}),
+      ...Object.keys(theirs.defaults||{}),
+    ]);
+    const def = {};
+    keys.forEach(k => {
+      def[k] = merge3wayArrayById(base.defaults?.[k], mine.defaults?.[k], theirs.defaults?.[k], 'name');
+    });
+    result.defaults = def;
+  }
+
+  // 単純オブジェクト系: 3-way で「自分が変えてないキーは theirs、変えたキーは mine」
+  ['prodBudgets','cityFesLabels'].forEach(k => {
+    if (base[k] || mine[k] || theirs[k]) {
+      const b = base[k] || {}, m = mine[k] || {}, t = theirs[k] || {};
+      const out = {...t};
+      Object.keys(m).forEach(kk => {
+        if (!(kk in b) || !_shallowEq(b[kk], m[kk])) out[kk] = m[kk]; // 自分が変えた
+      });
+      // 自分が削除（base にあり mine になし）
+      Object.keys(b).forEach(kk => { if (!(kk in m)) delete out[kk]; });
+      result[k] = out;
+    }
+  });
+
+  // 集計系・メタ系: 自分が変えていれば mine、そうでなければ theirs
+  ['monthlyTotal','months','fiscalYear','updated_by_email'].forEach(k => {
+    const baseEq = base[k] !== undefined && _shallowEq(base[k], mine[k]);
+    if (!baseEq && mine[k] !== undefined) {
+      result[k] = mine[k];
+    } else if (theirs[k] !== undefined) {
+      result[k] = theirs[k];
+    }
+  });
+
+  return result;
+}
+
+// ══════════════════════════════════════════════════
 // オフライン保存キュー（IndexedDB）
 // Supabase 不達時に saveData を蓄積、復帰時に自動 flush
 // ══════════════════════════════════════════════════
@@ -2182,7 +2418,8 @@ async function flushOfflineQueue() {
         const readVersion = (currentDb && typeof currentDb.version === 'number') ? currentDb.version : 0;
         let payload = it.data;
         if (currentDb?.data && currentDb.data.updated_by_email !== _currentUser.email) {
-          payload = mergeS(currentDb.data, it.data);
+          // オフライン中の編集を 3-way で安全に合流
+          payload = mergeS3way(_baseSnapshot, it.data, currentDb.data);
         }
         // 楽観的ロックで送信
         const {error: upErr, data: upData} = await _sb.from('dashboard_data')
@@ -2273,11 +2510,16 @@ async function _doSave(){
       // 楽観的ロック用: 読み込んだ時点の version
       const readVersion = (currentDb && typeof currentDb.version === 'number') ? currentDb.version : 0;
 
-      // 他人が更新していたら、深いマージで統合
-      // - 配列(events.items / sessions.items / estimates / revenues / ledger 等)は id ベースで union
-      // - 同 id は自分(saveData)優先（直前の編集を尊重）
-      // - 自分のローカルに無い他人の追加項目を絶対に消さない
+      // 3-way merge で統合
+      //   BASE   = _baseSnapshot (自分が前回 DB から取得した時点の状態)
+      //   MINE   = saveData       (現在の自分のメモリ)
+      //   THEIRS = currentDb.data (保存直前の最新 DB)
+      // 自分が触ってないフィールドは theirs (他人の最新) を尊重 → 「触ってない値で上書きする」バグを根絶
       if (currentDb?.data && currentDb.data.updated_by_email !== _currentUser.email) {
+        const merged = mergeS3way(_baseSnapshot, saveData, currentDb.data);
+        Object.assign(saveData, merged);
+      } else if (currentDb?.data && !_baseSnapshot) {
+        // base が無く theirs が自分由来 → 通常の 2-way（保険）
         const merged = mergeS(currentDb.data, saveData);
         Object.assign(saveData, merged);
       }
@@ -2327,6 +2569,8 @@ async function _doSave(){
 
       // 見積データをlocalStorageに確実にバックアップ
       localStorage.setItem(SK, JSON.stringify(S));
+      // 3-way merge の出発点を「今 DB に書いた状態」に更新
+      _setBaseSnapshot(saveData);
       setSaveStatus('saved','保存済み '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}));
       setTimeout(()=>{ _isSyncing = false; }, 2000);
 
@@ -2376,12 +2620,12 @@ async function saveMemberData(){
   try {
     const dbId = getFiscalYearDbId(_currentFiscalYear);
     const saveData = {...S, updated_by_email: _currentUser?.email || ''};
-    // 他人の更新があれば深いマージで保護（管理者保存と同じロジック）
+    // 他人の更新があれば 3-way merge で保護（管理者保存と同じロジック）
     const {data: currentDb} = await _sb.from('dashboard_data')
       .select('updated_at, data, version').eq('id', dbId).maybeSingle();
     const readVersion = (currentDb && typeof currentDb.version === 'number') ? currentDb.version : 0;
     if (currentDb?.data && currentDb.data.updated_by_email !== (_currentUser?.email || '')) {
-      const merged = mergeS(currentDb.data, saveData);
+      const merged = mergeS3way(_baseSnapshot, saveData, currentDb.data);
       Object.assign(saveData, merged);
     }
     // 楽観的ロック: version 一致時のみ更新
@@ -2393,6 +2637,7 @@ async function saveMemberData(){
       // 衝突 → オフラインキューに退避して次回 flush に委ねる
       throw new Error('VERSION_CONFLICT');
     }
+    _setBaseSnapshot(saveData);
     sdot().className = 'sdot';
     slbl().textContent = '保存済み ' + new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
   } catch (e) {
@@ -6208,15 +6453,21 @@ function applySyncData() {
   if (banner) banner.remove();
   if (!_pendingSyncData) return;
 
-  // 全置換ではなく深いマージで適用
-  // - base=他人の最新(_pendingSyncData), incoming=自分の現在のS → 自分の編集が同 id で優先
-  // - 自分のローカルに無い他人の追加項目は完全に取り込む
-  // - 未保存変更があっても消えないので 30秒自動適用も安全
-  if (typeof mergeS === 'function') {
+  // 3-way merge で適用
+  //   BASE   = _baseSnapshot      (前回 DB から取った状態)
+  //   MINE   = S                  (自分の未保存変更を含む現在のメモリ)
+  //   THEIRS = _pendingSyncData   (他人が保存した最新)
+  // 自分が触ってないフィールドは theirs を採用 → 他人の最新が確実に反映
+  // 自分が触ったフィールドは mine を維持 → 未保存編集を失わない
+  if (typeof mergeS3way === 'function' && _baseSnapshot) {
+    S = mergeS3way(_baseSnapshot, S, _pendingSyncData);
+  } else if (typeof mergeS === 'function') {
     S = mergeS(_pendingSyncData, S);
   } else {
     S = _pendingSyncData;
   }
+  // 受信した最新を新しい base とする（次回 save 時の出発点）
+  if (typeof _setBaseSnapshot === 'function') _setBaseSnapshot(_pendingSyncData);
   _pendingSyncData = null;
   localStorage.setItem(SK, JSON.stringify(S));
   setSaveStatus('saved', '同期済み ' + new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'}));
