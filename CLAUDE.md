@@ -63,6 +63,10 @@
 - [2026-04-29] MF債務支払いの取込ロジックで `Object.assign(row, next)` の**後**に `row.actual` を読んで前値を取得しようとし、差分が常に 0 になるバグを混入。セルフレビュー段階で発覚し修正。→ **対策**: 既存オブジェクトを更新する場合、変更前スナップショット（旧 `actual` / 旧 `payMonth` 等）は必ず破壊的代入の**前**にローカル変数へ退避する。CHECKチェックリストに項目追加済み。
 - [2026-04-30] MF連携の `/api/mf/auth` が本番で 500 を返し「Unexpected end of JSON input」になる不具合。`sbRest()` が `Prefer: return=minimal` 付きの POST に対して PostgREST が返す **201 + 空ボディ**を `r.json()` で直接パースして失敗していた。→ **対策**: REST ヘルパは「2xx でも空ボディ」を必ず想定し、`r.text()` で取得 → 空なら null、非空なら JSON.parse、失敗時は文字列のまま返すフォールバックを置く。Vercel API は `vercel logs` を見ない限りスタックが見えないので、サーバ側 catch では `console.error` も残すこと。
 - [2026-04-30] OAuth2 token endpoint で `token_exchange_401` が発生。MF アプリ登録のクライアント認証方式が **CLIENT_SECRET_BASIC** だったが、実装側は client_id/secret を **body のフォーム値**として送っていた。→ **対策**: token / refresh の両方で `Authorization: Basic base64(id:secret)` ヘッダを付け、body には grant_type / code / redirect_uri / code_verifier のみを残す。OAuth プロバイダは Developer Portal で必ず認証方式を確認（`CLIENT_SECRET_BASIC` / `CLIENT_SECRET_POST` / `none(PKCE)` など）。
+- [2026-05-14] 履歴の各種ボタン（詳細/比較/部分復元）が「スナップショット取得失敗」になる、全件「📵 未同期」になるバグを修正 (PR #14)。
+  原因: ローカル snapshot の id は Date.now() の数値、Supabase の id は UUID 文字列で型が一致せず === 比較が常に false。
+  対策: 全ての id 検索を String(s.id) === String(snapId) に。Supabase RPC 成功時に返却 UUID を ローカル entry._remoteId に書き戻し、_localOnly:false へ更新。
+  教訓: クラウド/ローカル両持ちのオブジェクトは ID 体系が必ずズレる。共通スーパーキー（_remoteId）か文字列化比較で常に紐付け可能にすること。
 - [2026-05-10] 3-way merge で「自分が触ってない値で DB を上書き」バグを根絶 (PR #13)。
   P0〜P2 で入れた mergeS は「同 id なら自分(mine)が勝つ」設計だったため、
   「自分が触ってない場所まで自分のメモリの古い値で上書きする」副作用が残っていた。
