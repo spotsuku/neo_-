@@ -63,6 +63,23 @@
 - [2026-04-29] MF債務支払いの取込ロジックで `Object.assign(row, next)` の**後**に `row.actual` を読んで前値を取得しようとし、差分が常に 0 になるバグを混入。セルフレビュー段階で発覚し修正。→ **対策**: 既存オブジェクトを更新する場合、変更前スナップショット（旧 `actual` / 旧 `payMonth` 等）は必ず破壊的代入の**前**にローカル変数へ退避する。CHECKチェックリストに項目追加済み。
 - [2026-04-30] MF連携の `/api/mf/auth` が本番で 500 を返し「Unexpected end of JSON input」になる不具合。`sbRest()` が `Prefer: return=minimal` 付きの POST に対して PostgREST が返す **201 + 空ボディ**を `r.json()` で直接パースして失敗していた。→ **対策**: REST ヘルパは「2xx でも空ボディ」を必ず想定し、`r.text()` で取得 → 空なら null、非空なら JSON.parse、失敗時は文字列のまま返すフォールバックを置く。Vercel API は `vercel logs` を見ない限りスタックが見えないので、サーバ側 catch では `console.error` も残すこと。
 - [2026-04-30] OAuth2 token endpoint で `token_exchange_401` が発生。MF アプリ登録のクライアント認証方式が **CLIENT_SECRET_BASIC** だったが、実装側は client_id/secret を **body のフォーム値**として送っていた。→ **対策**: token / refresh の両方で `Authorization: Basic base64(id:secret)` ヘッダを付け、body には grant_type / code / redirect_uri / code_verifier のみを残す。OAuth プロバイダは Developer Portal で必ず認証方式を確認（`CLIENT_SECRET_BASIC` / `CLIENT_SECRET_POST` / `none(PKCE)` など）。
+- [2026-06-26] TAICHIさん報告「開いた瞬間に上書き」の真の根本原因を修正 (PR #17)。
+  症状: PC で編集して閉じ、別ユーザーが別 PC で開いた瞬間、開いた側の localStorage の
+        古い state で DB が上書きされる。編集していないユーザーが「開くだけ」で発生。
+  原因: onLogin() で `hideLoginScreen() → await loadFromDB()` の順序だったため、
+        UI 露出中の数百ms〜数秒間、S は古い localStorage・_baseSnapshot は null。
+        この window で debouncedSave/immediateSave/migrateMktToProd の save() が発火すると、
+        _baseSnapshot が null なので 2-way merge にフォールバック
+        → mergeS(theirs=DB最新, mine=localStorage古い) で mine 優先 = 古い state で上書き。
+  対策:
+    1. `_loadingFromDB` フラグ + `_loadFromDBReady` Promise 導入。save/saveMemberData の
+       入口で loadFromDB 完了を Promise.race で最大15秒待機。
+    2. loadFromDB の finally で必ず `_setBaseSnapshot(S)`。DB 空・エラー時も BASE 確定。
+    3. onLogin の順序を変更: applyRoleUI → await loadFromDB → migrateMktToProd
+       → hideLoginScreen → renderPg。BASE 準備完了後に UI 露出。
+  教訓: 「UI 露出タイミング」と「データ整合性のセットアップ完了」を必ず同期させる。
+        localStorage は「オフライン fallback」であって「最新の真実」ではない。
+        重要な状態変数 (_baseSnapshot 等) は初期化を絶対に保証する (成功/失敗どちらも)。
 - [2026-05-14] 3-way merge 導入後も残っていた真犯人: save() 系の `updated_by_email !== me` 条件による merge スキップ (PR #15)。
   症状: TAICHI さんの「PC で編集 → Phone で開いた瞬間から元に戻る」が完全に消えなかった。
   原因: 「エコー抑制のため前回更新者が自分ならスキップ」ロジックが save / saveMemberData / オフラインキュー / Realtime handler の 4 箇所に残っていた。
