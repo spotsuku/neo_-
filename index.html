@@ -1741,9 +1741,10 @@ async function loadFromDB(){
       } else {
         S = dbData;
       }
-      // 3-way merge の出発点を「今 DB から取った状態」に設定
-      // これ以降の編集は base との差分で識別される
-      if (typeof _setBaseSnapshot === 'function') _setBaseSnapshot(dbData);
+      // 3-way merge の出発点を「今の S (mergeS 済み) 」に設定
+      // dbData だけだと mergeS で加わった localStorage 側の追加フィールドが
+      // 差分と誤認されて mine 扱いになるため、S を BASE とする
+      if (typeof _setBaseSnapshot === 'function') _setBaseSnapshot(S);
       if(!S.programs)S.programs=DEF.programs;if(!S.revenues)S.revenues=DEF.revenues;if(!S.sessions)S.sessions=DEF.sessions;
       if(!S.events)S.events={};
       const EVT_LABELS={ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',md:'マッチデイ',tour:'ツアー',sd:'スペシャルデイズ',cf3:'イベント3',cf4:'イベント4'};
@@ -2418,9 +2419,11 @@ async function flushOfflineQueue() {
           .select('updated_at, data, version').eq('id', dbId).maybeSingle();
         const readVersion = (currentDb && typeof currentDb.version === 'number') ? currentDb.version : 0;
         let payload = it.data;
-        if (currentDb?.data && currentDb.data.updated_by_email !== _currentUser.email) {
-          // オフライン中の編集を 3-way で安全に合流
-          payload = mergeS3way(_baseSnapshot, it.data, currentDb.data);
+        // オフライン中の編集を 3-way で安全に合流（同一ユーザーの別セッション上書きも防ぐ）
+        if (currentDb?.data) {
+          payload = _baseSnapshot
+            ? mergeS3way(_baseSnapshot, it.data, currentDb.data)
+            : mergeS(currentDb.data, it.data);
         }
         // 楽観的ロックで送信
         const {error: upErr, data: upData} = await _sb.from('dashboard_data')
@@ -2515,13 +2518,15 @@ async function _doSave(){
       //   BASE   = _baseSnapshot (自分が前回 DB から取得した時点の状態)
       //   MINE   = saveData       (現在の自分のメモリ)
       //   THEIRS = currentDb.data (保存直前の最新 DB)
-      // 自分が触ってないフィールドは theirs (他人の最新) を尊重 → 「触ってない値で上書きする」バグを根絶
-      if (currentDb?.data && currentDb.data.updated_by_email !== _currentUser.email) {
-        const merged = mergeS3way(_baseSnapshot, saveData, currentDb.data);
-        Object.assign(saveData, merged);
-      } else if (currentDb?.data && !_baseSnapshot) {
-        // base が無く theirs が自分由来 → 通常の 2-way（保険）
-        const merged = mergeS(currentDb.data, saveData);
+      //
+      // ★ 重要: updated_by_email チェックを削除 (2026-05-14)
+      //   旧: 「前回更新者が自分ならスキップ」 → 別タブ/別端末の同一ユーザーが編集した
+      //       瞬間から、自分のメモリ (古い) で完全上書きしていた (TAICHIさん報告のバグ)
+      //   新: DB に行があれば必ず 3-way merge を実行。同一ユーザー複数セッション対応
+      if (currentDb?.data) {
+        const merged = _baseSnapshot
+          ? mergeS3way(_baseSnapshot, saveData, currentDb.data)
+          : mergeS(currentDb.data, saveData); // base なしなら 2-way 保護
         Object.assign(saveData, merged);
       }
       _lastSaveTime = Date.now();
@@ -2625,8 +2630,11 @@ async function saveMemberData(){
     const {data: currentDb} = await _sb.from('dashboard_data')
       .select('updated_at, data, version').eq('id', dbId).maybeSingle();
     const readVersion = (currentDb && typeof currentDb.version === 'number') ? currentDb.version : 0;
-    if (currentDb?.data && currentDb.data.updated_by_email !== (_currentUser?.email || '')) {
-      const merged = mergeS3way(_baseSnapshot, saveData, currentDb.data);
+    // 同一ユーザー複数タブでも上書き防止するため、常に merge を実行
+    if (currentDb?.data) {
+      const merged = _baseSnapshot
+        ? mergeS3way(_baseSnapshot, saveData, currentDb.data)
+        : mergeS(currentDb.data, saveData);
       Object.assign(saveData, merged);
     }
     // 楽観的ロック: version 一致時のみ更新
@@ -6421,20 +6429,16 @@ function startRealtimeSync() {
         filter: `id=eq.${dbId}`,
       },
       async (payload) => {
-        // 自分自身の保存は無視
+        // 自分自身の保存 (現タブ) のエコー抑制は _isSyncing でのみ判定
+        // (旧: email 一致でスキップ → 別タブ/別端末の同一ユーザー編集が届かず、
+        //   結果として古いメモリで DB を上書きしてしまう TAICHIさん報告のバグ)
         if (_isSyncing) return;
 
-        const updatedBy = payload.new?.data?.updated_by_email || '';
-        const myEmail = _currentUser?.email || '';
-
-        // 自分の変更は無視
-        if (updatedBy && updatedBy === myEmail) return;
-
-        // 他ユーザーの変更を受信
         const newData = payload.new?.data;
         if (!newData || typeof newData !== 'object') return;
 
-        // 通知バナーを表示して適用確認
+        const updatedBy = newData?.updated_by_email || '';
+        // 通知バナーを表示して適用確認 (別タブの同一ユーザー編集も受信して反映)
         showSyncNotification(updatedBy, newData);
       }
     )
