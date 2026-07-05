@@ -1298,14 +1298,22 @@ async function onLogin(user) {
     .then(() => {})
     .catch(() => {});
 
-  // 画面遷移
-  hideLoginScreen();
   applyRoleUI();
 
-  // データ読み込み → UI 描画
-  await loadFromDB();
+  // ★ データ読み込みを先に完了させてから画面表示
+  //   (loadFromDB 完了前に UI 見えると、ユーザー操作で古い S が DB を上書きする恐れ)
+  //   ローディング表示を出しつつ待つ
+  setSaveStatus('connecting', 'データ読み込み中...');
+  try {
+    await loadFromDB();
+  } catch(e) { console.warn('[onLogin] loadFromDB error', e); }
+
   migrateMktToProd();
   updateFYSelectorUI();
+
+  // ここでようやくログイン画面を隠す (S・_baseSnapshot 準備完了後)
+  hideLoginScreen();
+
   await renderPg(_curPg || 'ov');
   // リアルタイム同期開始
   startRealtimeSync();
@@ -1721,7 +1729,20 @@ const SK=`neo_v5_${_currentFiscalYear}`;
 let S=loadS();
 function loadS(){try{const r=localStorage.getItem(`neo_v5_${_currentFiscalYear}`);if(r){const d=JSON.parse(r);if(d&&Object.keys(d).length>3)return d;}}catch(e){}return JSON.parse(JSON.stringify(DEF));}
 
+// 初回 loadFromDB が完了するまでの save をブロックするフラグ
+// これが true の間は save() は待機する (localStorage 上書きバグを防ぐ)
+let _loadingFromDB = true;
+// loadFromDB が完了 (成功/失敗どちらでも) したら resolve される Promise
+let _loadFromDBReady = null;
+let _loadFromDBReadyResolve = null;
+_loadFromDBReady = new Promise(r => { _loadFromDBReadyResolve = r; });
+
 async function loadFromDB(){
+  _loadingFromDB = true;
+  // 新しい待機 Promise を作る (fiscal year 切替時など再度呼ばれるケースを考慮)
+  if (!_loadFromDBReady || _loadFromDBReadyResolve === null) {
+    _loadFromDBReady = new Promise(r => { _loadFromDBReadyResolve = r; });
+  }
   try{
     const dbId=getFiscalYearDbId(_currentFiscalYear);
     const{data,error}=await _sb.from('dashboard_data').select('data').eq('id',dbId).maybeSingle();
@@ -1797,7 +1818,21 @@ async function loadFromDB(){
     }
     localStorage.setItem(`neo_v5_${_currentFiscalYear}`,JSON.stringify(S));
     setSaveStatus('saved','DB同期済み');
-  }catch(e){console.warn('[loadFromDB]',e.message);setSaveStatus('connecting','ローカルデータ使用中');}
+    // DB が空だった場合など、上の if 内で set されなかったケースの保険:
+    // 必ず S を BASE として登録し、以降の 3-way merge で「触ってない」判定が正しく効くように
+    if (typeof _setBaseSnapshot === 'function' && !_baseSnapshot) {
+      _setBaseSnapshot(S);
+    }
+  }catch(e){
+    console.warn('[loadFromDB]',e.message);
+    setSaveStatus('connecting','ローカルデータ使用中');
+    // 失敗しても S を BASE にしておく (完全に null よりマシ、少なくとも Kenji の古い state 上書きは防げない)
+    if (typeof _setBaseSnapshot === 'function' && !_baseSnapshot) _setBaseSnapshot(S);
+  } finally {
+    _loadingFromDB = false;
+    if (_loadFromDBReadyResolve) { _loadFromDBReadyResolve(); _loadFromDBReadyResolve = null; }
+    console.log('[loadFromDB] 完了。以降 save 可能');
+  }
 }
 
 // ══════════════════════════════════════════════════
@@ -2560,6 +2595,22 @@ async function save(){
   try { localStorage.setItem(SK, JSON.stringify(S)); } catch(_) {}
   if(!_currentUser){setSaveStatus('error','未ログイン');return;}
 
+  // ★ 初回 loadFromDB が未完了なら待機。
+  //   これがないと「別ユーザーがブラウザを開いた瞬間、localStorage の古い S で DB を上書き」
+  //   という致命的なバグ (TAICHIさん報告のケース) が起きる。
+  if (_loadingFromDB && _loadFromDBReady) {
+    console.warn('[save] loadFromDB 完了待機中...');
+    setSaveStatus('saving', 'DB読込完了待ち...');
+    // 最大 15 秒で諦める (完全にハングしないよう保険)
+    await Promise.race([
+      _loadFromDBReady,
+      new Promise(r => setTimeout(r, 15000)),
+    ]);
+    if (_loadingFromDB) {
+      console.warn('[save] loadFromDB がタイムアウト、続行 (2-way merge にフォールバック)');
+    }
+  }
+
   // 直前の save() が走っていれば完走を待ってから自分の処理に入る
   const myTurn = _saveChain.then(_doSave, _doSave); // 前回が成功でも失敗でも続行
   _saveChain = myTurn.catch(() => {}); // 失敗が後続のチェーンを止めないようガード
@@ -2721,6 +2772,13 @@ async function _doSave(){
 async function saveMemberData(){
   localStorage.setItem(SK, JSON.stringify(S));
   if (isAdmin()) { save(); return; }
+  // 初回 loadFromDB が未完了なら待機 (save() と同じガード)
+  if (_loadingFromDB && _loadFromDBReady) {
+    await Promise.race([
+      _loadFromDBReady,
+      new Promise(r => setTimeout(r, 15000)),
+    ]);
+  }
   try {
     const dbId = getFiscalYearDbId(_currentFiscalYear);
     const saveData = {...S, updated_by_email: _currentUser?.email || ''};
