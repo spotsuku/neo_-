@@ -2477,6 +2477,84 @@ if (typeof window !== 'undefined') {
 // 並行 write による競合・トークン上書き・部分書き込みを防止
 let _saveChain = Promise.resolve();
 
+// ══════════════════════════════════════════════════
+// デバッグ支援 (window._debugSave = true で有効化)
+// ブラウザ Console で以下を実行:
+//   _debugSave = true          // デバッグモード ON
+//   showSaveDebugLog()          // 最近の save 詳細を表示
+//   showBaseSnapshotDump()      // BASE の内容ダンプ
+//   showFullDataDump()          // S 全体の JSON をダウンロード
+// ══════════════════════════════════════════════════
+window._debugSave = window._debugSave || false;
+const _saveDebugRing = []; // 直近20件
+
+function _saveDebugLog(entry) {
+  _saveDebugRing.push(entry);
+  if (_saveDebugRing.length > 20) _saveDebugRing.shift();
+  try {
+    localStorage.setItem('neo_debug_savelog', JSON.stringify(_saveDebugRing));
+  } catch(_){}
+  console.log('[save-debug]', entry);
+}
+
+function _debugCountItems(state) {
+  if (!state) return null;
+  const cnt = (arr) => Array.isArray(arr) ? arr.length : 0;
+  return {
+    events: Object.fromEntries(Object.entries(state.events||{}).map(([k,v]) => [k, cnt(v?.items)])),
+    sessions: Object.fromEntries(Object.entries(state.sessions||{}).map(([k,v]) => [k, cnt(v)])),
+    estimates: Object.fromEntries(Object.entries(state.estimates||{}).map(([k,v]) => [k, cnt(v)])),
+    ledger: cnt(state.ledger),
+    revenues: cnt(state.revenues),
+    prodItems: cnt(state.prodItems),
+    categories: cnt(state.categories),
+  };
+}
+
+function showSaveDebugLog() {
+  try {
+    const raw = localStorage.getItem('neo_debug_savelog');
+    const arr = raw ? JSON.parse(raw) : _saveDebugRing;
+    console.table(arr.map(e => ({
+      ts: e.ts, type: e.type,
+      base_events_ko: e.eventsBefore?.events?.ko,
+      mine_events_ko: e.eventsMine?.events?.ko,
+      theirs_events_ko: e.eventsTheirs?.events?.ko,
+      after_events_ko: e.eventsAfter?.events?.ko,
+      theirs_updatedBy: e.theirs_updatedBy,
+    })));
+    console.log('[full log]', arr);
+    return arr;
+  } catch(e) { console.error(e); }
+}
+
+function showBaseSnapshotDump() {
+  console.log('_baseSnapshot:', _baseSnapshot);
+  console.log('S:', S);
+  console.log('localStorage[SK]:', localStorage.getItem(SK));
+  return { _baseSnapshot, S };
+}
+
+function showFullDataDump() {
+  const bag = {
+    fiscalYear: _currentFiscalYear,
+    user: _currentUser?.email,
+    S,
+    baseSnapshot: _baseSnapshot,
+    localStorage_S: (() => { try { return JSON.parse(localStorage.getItem(SK)||'null'); } catch(_) { return null; } })(),
+    saveDebugLog: _saveDebugRing,
+    lastSaveTime: _lastSaveTime,
+  };
+  const blob = new Blob([JSON.stringify(bag, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `neo_debug_${_currentUser?.email||'anon'}_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  console.log('[debug] ダンプをダウンロードしました');
+}
+
 async function save(){
   // ローカルバックアップは即時。これは並行性の影響を受けない（最新の S を保存するだけ）
   try { localStorage.setItem(SK, JSON.stringify(S)); } catch(_) {}
@@ -2524,10 +2602,30 @@ async function _doSave(){
       //       瞬間から、自分のメモリ (古い) で完全上書きしていた (TAICHIさん報告のバグ)
       //   新: DB に行があれば必ず 3-way merge を実行。同一ユーザー複数セッション対応
       if (currentDb?.data) {
+        // デバッグ: merge 前の状態を記録
+        const preMerge = window._debugSave ? {
+          hasBase:   !!_baseSnapshot,
+          baseKeys:  _baseSnapshot ? Object.keys(_baseSnapshot).length : 0,
+          mineKeys:  Object.keys(saveData).length,
+          theirsKeys: Object.keys(currentDb.data).length,
+          theirs_updatedBy: currentDb.data?.updated_by_email,
+        } : null;
         const merged = _baseSnapshot
           ? mergeS3way(_baseSnapshot, saveData, currentDb.data)
           : mergeS(currentDb.data, saveData); // base なしなら 2-way 保護
         Object.assign(saveData, merged);
+        if (preMerge && typeof _saveDebugLog === 'function') {
+          _saveDebugLog({
+            ts: new Date().toISOString(),
+            type: 'save-merge',
+            ...preMerge,
+            resultKeys: Object.keys(saveData).length,
+            eventsBefore: _debugCountItems(_baseSnapshot),
+            eventsMine:   _debugCountItems({...S}),
+            eventsTheirs: _debugCountItems(currentDb.data),
+            eventsAfter:  _debugCountItems(saveData),
+          });
+        }
       }
       _lastSaveTime = Date.now();
 
