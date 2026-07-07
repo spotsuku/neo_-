@@ -1745,7 +1745,7 @@ async function loadFromDB(){
   }
   try{
     const dbId=getFiscalYearDbId(_currentFiscalYear);
-    const{data,error}=await _sb.from('dashboard_data').select('data').eq('id',dbId).maybeSingle();
+    const{data,error}=await _sb.from('dashboard_data').select('data, updated_at').eq('id',dbId).maybeSingle();
     if(error&&error.code!=='PGRST116')throw error;
     if(data?.data&&Object.keys(data.data).length>0){
       const dbData=data.data;
@@ -1755,13 +1755,23 @@ async function loadFromDB(){
       // （DB に無く localStorage にだけある id を保持。DB にあるものは DB を信頼）
       const localRaw=localStorage.getItem(SK);
       const localData=localRaw?(()=>{try{return JSON.parse(localRaw);}catch(_){return null;}})():null;
-      if (localData && typeof mergeS === 'function') {
+      // ★ 救済マージは「localStorage が DB より新しい時」だけに限定 (2026-07-07)
+      //   DB 更新後にこの端末で一度も保存していないなら、local にだけある id は
+      //   「未送信編集」ではなく「他ユーザーが削除した項目の残骸」の可能性が高い。
+      //   無条件に union すると削除済み項目が毎回復活する
+      //   (藤本さんが削除 → 松口さん側で残り続けるバグ)。
+      const localTs = Number(localStorage.getItem(SK + '_ts')) || 0;
+      const dbTs = data.updated_at ? (Date.parse(data.updated_at) || 0) : 0;
+      const localIsStale = dbTs > 0 && localTs < dbTs;
+      if (localData && !localIsStale && typeof mergeS === 'function') {
         // base=localData(古い), incoming=dbData(正) → DB の値で上書きしつつ、
         // localStorage 側にしか無い id のレコードはそのまま残る（未送信編集の救済）
         S = mergeS(localData, dbData);
       } else {
         S = dbData;
       }
+      // 削除済み項目 (tombstone) を除外
+      if (S.tombstones && typeof _filterTombstoned === 'function') _filterTombstoned(S, S.tombstones);
       // 3-way merge の出発点を「今の S (mergeS 済み) 」に設定
       // dbData だけだと mergeS で加わった localStorage 側の追加フィールドが
       // 差分と誤認されて mine 扱いになるため、S を BASE とする
@@ -1817,6 +1827,7 @@ async function loadFromDB(){
       S.programs.splice(otherIdx>=0?otherIdx:S.programs.length,0,{id:'tour',name:'ツアー',budget:0});
     }
     localStorage.setItem(`neo_v5_${_currentFiscalYear}`,JSON.stringify(S));
+    _touchLocalTs(`neo_v5_${_currentFiscalYear}`);
     setSaveStatus('saved','DB同期済み');
     // DB が空だった場合など、上の if 内で set されなかったケースの保険:
     // 必ず S を BASE として登録し、以降の 3-way merge で「触ってない」判定が正しく効くように
@@ -2036,6 +2047,97 @@ function mergeArrayById(baseArr, incArr, key='id') {
   return [...map.values(), ...noKeyInc];
 }
 
+// ══════════════════════════════════════════════════
+// 削除トゥームストーン（削除の同期）
+// 削除した項目の id を S.tombstones = {id: 削除時刻ms} に記録し、
+// マージ時に載っている id の項目を全コレクションから除外する。
+// これが無いと、他クライアントの localStorage や古いメモリとの
+// union マージで「削除したはずの項目」が復活してしまう
+// （藤本さんが削除 → 松口さん側で残り続けるバグの原因）。
+// 値が負の場合は「復元 (un-delete) マーカー」: 絶対値が大きい方が勝つ LWW。
+// ══════════════════════════════════════════════════
+const TOMBSTONE_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90日で失効
+
+function _unionTombstones(...maps) {
+  const out = {};
+  const now = Date.now();
+  maps.forEach(m => {
+    if (!m || typeof m !== 'object') return;
+    Object.keys(m).forEach(id => {
+      const ts = Number(m[id]) || 0;
+      if (!ts || now - Math.abs(ts) > TOMBSTONE_TTL_MS) return; // 失効分は捨てる
+      if (!(id in out) || Math.abs(out[id]) < Math.abs(ts)) out[id] = ts;
+    });
+  });
+  return out;
+}
+
+// state 内の id 付きコレクションから全 id を収集
+// (programs / categories / defaults は固定 id・name キー運用のため対象外)
+function _collectTombstoneIds(state) {
+  const ids = new Set();
+  if (!state || typeof state !== 'object') return ids;
+  const addArr = arr => { if (Array.isArray(arr)) arr.forEach(it => { if (it && it.id != null) ids.add(String(it.id)); }); };
+  ['revenues','ledger','mktItems','prodItems','orderMaster','mfPayables'].forEach(k => addArr(state[k]));
+  Object.values(state.events || {}).forEach(ev => addArr(ev && ev.items));
+  Object.values(state.sessions || {}).forEach(arr => {
+    addArr(arr);
+    if (Array.isArray(arr)) arr.forEach(s => addArr(s && s.items));
+  });
+  Object.values(state.estimates || {}).forEach(arr => addArr(arr));
+  return ids;
+}
+
+// tombstone (正の値) に載っている id の項目を state の各コレクションから除外
+function _filterTombstoned(state, tombs) {
+  if (!state || !tombs) return state;
+  const deadIds = Object.keys(tombs).filter(id => tombs[id] > 0);
+  if (!deadIds.length) return state;
+  const deadSet = new Set(deadIds);
+  const dead = it => it && it.id != null && deadSet.has(String(it.id));
+  const filterArr = arr => Array.isArray(arr) ? arr.filter(it => !dead(it)) : arr;
+
+  ['revenues','ledger','mktItems','prodItems','orderMaster','mfPayables'].forEach(k => {
+    if (Array.isArray(state[k])) state[k] = filterArr(state[k]);
+  });
+  Object.keys(state.events || {}).forEach(k => {
+    const ev = state.events[k];
+    if (ev && Array.isArray(ev.items)) ev.items = filterArr(ev.items);
+  });
+  Object.keys(state.sessions || {}).forEach(k => {
+    if (!Array.isArray(state.sessions[k])) return;
+    state.sessions[k] = filterArr(state.sessions[k]).map(s =>
+      (s && Array.isArray(s.items)) ? {...s, items: filterArr(s.items)} : s);
+  });
+  Object.keys(state.estimates || {}).forEach(k => {
+    if (Array.isArray(state.estimates[k])) state.estimates[k] = filterArr(state.estimates[k]);
+  });
+  return state;
+}
+
+// 保存直前に BASE (前回 DB 取得時点) と MINE (今の S) を突き合わせて
+//   ・BASE にあり MINE に無い id → 自分が削除した項目 → tombstone 追加
+//   ・MINE にあり BASE に無く tombstone 済みの id → 意図的な復元 → 復元マーカー(負値)
+// を MINE.tombstones に記録する。個別の削除関数を全部書き換えなくても、
+// splice / filter / 一括置換などあらゆる削除経路をここで一括検出できる。
+function _recordDeletionTombstones(base, mine) {
+  if (!base || !mine || typeof base !== 'object' || typeof mine !== 'object') return;
+  const baseIds = _collectTombstoneIds(base);
+  const mineIds = _collectTombstoneIds(mine);
+  // 安全弁: mine が空同然なのに base に大量の id がある場合は
+  // 状態破損 (localStorage 消失など) の疑いが強いので削除扱いにしない
+  if (mineIds.size === 0 && baseIds.size > 10) return;
+  const now = Date.now();
+  mine.tombstones = _unionTombstones(mine.tombstones, base.tombstones);
+  baseIds.forEach(id => { if (!mineIds.has(id)) mine.tombstones[id] = now; });
+  mineIds.forEach(id => { if (!baseIds.has(id) && mine.tombstones[id] > 0) mine.tombstones[id] = -now; });
+}
+
+// localStorage 保存時刻を記録 (loadFromDB の「未送信編集の救済」判定に使用)
+function _touchLocalTs(key) {
+  try { localStorage.setItem((key || SK) + '_ts', String(Date.now())); } catch(_) {}
+}
+
 function mergeS(base, incoming) {
   if (!base || typeof base !== 'object')         return incoming || {};
   if (!incoming || typeof incoming !== 'object') return base;
@@ -2126,6 +2228,10 @@ function mergeS(base, incoming) {
   ['monthlyTotal','months','fiscalYear','updated_by_email'].forEach(k => {
     if (incoming[k] !== undefined) result[k] = incoming[k];
   });
+
+  // 削除トゥームストーン: 双方を統合し、削除済み項目を除外（削除の同期）
+  result.tombstones = _unionTombstones(base.tombstones, incoming.tombstones);
+  _filterTombstoned(result, result.tombstones);
 
   return result;
 }
@@ -2359,6 +2465,11 @@ function mergeS3way(base, mine, theirs) {
       result[k] = theirs[k];
     }
   });
+
+  // 削除トゥームストーン: 3者を統合し、削除済み項目を除外（削除の同期）
+  // ※ 相手が削除した項目を自分が編集していた場合も「削除」を優先する
+  result.tombstones = _unionTombstones(base.tombstones, mine.tombstones, theirs.tombstones);
+  _filterTombstoned(result, result.tombstones);
 
   return result;
 }
@@ -2643,7 +2754,7 @@ function showFullDataDump() {
 
 async function save(){
   // ローカルバックアップは即時。これは並行性の影響を受けない（最新の S を保存するだけ）
-  try { localStorage.setItem(SK, JSON.stringify(S)); } catch(_) {}
+  try { localStorage.setItem(SK, JSON.stringify(S)); _touchLocalTs(); } catch(_) {}
   if(!_currentUser){setSaveStatus('error','未ログイン');return;}
 
   // ★ 初回 loadFromDB が未完了なら待機。
@@ -2687,6 +2798,10 @@ async function _doSave(){
       const dbId = getFiscalYearDbId(_currentFiscalYear);
       const saveData = {...S, updated_by_email: _currentUser.email};
 
+      // 自分が削除した項目を tombstone に記録 → 削除が他クライアントにも同期される
+      _recordDeletionTombstones(_baseSnapshot, saveData);
+      if (saveData.tombstones) S.tombstones = saveData.tombstones;
+
       // 保存前にSupabaseの現在のデータを取得（他ユーザーの変更＋version を取得）
       const {data: currentDb} = await _sb.from('dashboard_data')
         .select('updated_at, data, version').eq('id', dbId).maybeSingle();
@@ -2716,6 +2831,8 @@ async function _doSave(){
           ? mergeS3way(_baseSnapshot, saveData, currentDb.data)
           : mergeS(currentDb.data, saveData); // base なしなら 2-way 保護
         Object.assign(saveData, merged);
+        // 統合後の tombstone をメモリ側にも反映（他ユーザーが削除した項目を自画面からも除外）
+        if (saveData.tombstones) { S.tombstones = saveData.tombstones; _filterTombstoned(S, S.tombstones); }
         if (preMerge && typeof _saveDebugLog === 'function') {
           _saveDebugLog({
             ts: new Date().toISOString(),
@@ -2775,6 +2892,7 @@ async function _doSave(){
 
       // 見積データをlocalStorageに確実にバックアップ
       localStorage.setItem(SK, JSON.stringify(S));
+      _touchLocalTs();
       // 3-way merge の出発点を「今 DB に書いた状態」に更新
       _setBaseSnapshot(saveData);
       setSaveStatus('saved','保存済み '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}));
@@ -2822,6 +2940,7 @@ async function _doSave(){
 
 async function saveMemberData(){
   localStorage.setItem(SK, JSON.stringify(S));
+  _touchLocalTs();
   if (isAdmin()) { save(); return; }
   // 初回 loadFromDB が未完了なら待機 (save() と同じガード)
   if (_loadingFromDB && _loadFromDBReady) {
@@ -2833,6 +2952,9 @@ async function saveMemberData(){
   try {
     const dbId = getFiscalYearDbId(_currentFiscalYear);
     const saveData = {...S, updated_by_email: _currentUser?.email || ''};
+    // 自分が削除した項目を tombstone に記録 → 削除が他クライアントにも同期される
+    _recordDeletionTombstones(_baseSnapshot, saveData);
+    if (saveData.tombstones) S.tombstones = saveData.tombstones;
     // 他人の更新があれば 3-way merge で保護（管理者保存と同じロジック）
     const {data: currentDb} = await _sb.from('dashboard_data')
       .select('updated_at, data, version').eq('id', dbId).maybeSingle();
@@ -2843,6 +2965,8 @@ async function saveMemberData(){
         ? mergeS3way(_baseSnapshot, saveData, currentDb.data)
         : mergeS(currentDb.data, saveData);
       Object.assign(saveData, merged);
+      // 統合後の tombstone をメモリ側にも反映（他ユーザーが削除した項目を自画面からも除外）
+      if (saveData.tombstones) { S.tombstones = saveData.tombstones; _filterTombstoned(S, S.tombstones); }
     }
     // 楽観的ロック: version 一致時のみ更新
     const {data: upData, error} = await _sb.from('dashboard_data')
@@ -6540,6 +6664,11 @@ async function executeCellRestore() {
   // 選択された key だけを部分的に取り出した「擬似 incoming」を作って mergeS で統合
   const partial = {};
   keys.forEach(k => { partial[k] = _cellRestoreData[k]; });
+  // 復元対象の項目は tombstone を解除（削除済み項目でも意図的な復元なら戻せるように）
+  if (typeof _collectTombstoneIds === 'function') {
+    S.tombstones = S.tombstones || {};
+    _collectTombstoneIds(partial).forEach(id => { if (S.tombstones[id] > 0) S.tombstones[id] = -Date.now(); });
+  }
   S = mergeS(S, partial);
 
   await save();
@@ -6721,6 +6850,7 @@ function applySyncData() {
   if (typeof _setBaseSnapshot === 'function') _setBaseSnapshot(_pendingSyncData);
   _pendingSyncData = null;
   localStorage.setItem(SK, JSON.stringify(S));
+  if (typeof _touchLocalTs === 'function') _touchLocalTs();
   setSaveStatus('saved', '同期済み ' + new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'}));
   renderPg(_curPg || 'ov');
 }
