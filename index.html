@@ -4195,21 +4195,49 @@ function addDefaultItem(){const used=new Set((_defItems[_defTab]||[]).map(it=>it
 function removeDefItem(i){_defItems[_defTab].splice(i,1);renderDefaultsItems();}
 function updateDefaultsPreview(){const items=_defItems[_defTab]||[];const totB=items.reduce((t,i)=>t+n(i.budget),0);const lines=items.filter(i=>i.name&&i.budget>0).map(i=>`<span style="color:var(--t2)">${i.name}</span>: <span style="color:var(--acc2)">${fmtN(i.budget)}円</span>`);document.getElementById('defaults-preview').innerHTML=lines.length?lines.join('　／　')+`<div style="margin-top:6px;color:var(--green)">合計予算 ${fmtN(totB)}円 / 回</div>`:'<span style="color:var(--t3)">費目が設定されていません</span>';}
 function resetDefaults(){const label={hm:'ホームルーム',gk:'評議会',oe:'応援カイギ',ko:'キックオフ',aw:'アワード',ye:'イヤーエンド',md:'マッチデイ'}[_defTab];if(!confirm(`${label}のデフォルト設定を初期値にリセットしますか？`))return;const src=SERIES_DEFAULTS_INIT[_defTab]||[];_defItems[_defTab]=JSON.parse(JSON.stringify(src)).map(i=>({...i,id:uid()}));renderDefaultsItems();}
-function saveDefaults(){if(!S.defaults)S.defaults={};['hm','gk','oe','ko','aw','ye','tour','sd','cf3','cf4'].forEach(k=>{if(_defItems[k])S.defaults[k]=_defItems[k];});['ko','aw','ye','tour','sd','cf3','cf4'].forEach(key=>{const defs=S.defaults[key]||[];if(!defs.length)return;if(!S.events[key])S.events[key]={label:key,items:[]};ACCOUNTING_CATS.forEach(cat=>{const def=defs.find(d=>d.name===cat);if(!def)return;const item=S.events[key].items.find(it=>it.name===cat);if(item){item.budget=n(def.budget);}else if(n(def.budget)>0){S.events[key].items.push({id:uid(),name:cat,budget:n(def.budget),estimate:0,actual:0});}});S.events[key].items.sort((a,b)=>{const ai=ACCOUNTING_CATS.indexOf(a.name),bi=ACCOUNTING_CATS.indexOf(b.name);return(ai===-1?999:ai)-(bi===-1?999:bi);});});// シリーズ（hm/gk/oe）: 既存の全回次の費目予算をデフォルト値で更新
-['hm','gk','oe'].forEach(key=>{
-  const defs=S.defaults[key]||[];
-  if(!defs.length)return;
-  (S.sessions[key]||[]).forEach(sess=>{
-    defs.forEach(d=>{
-      if(!d.name||!n(d.budget))return;
-      const item=sess.items?.find(it=>it.name===d.name);
-      if(item){item.budget=n(d.budget);}
-      else{if(!sess.items)sess.items=[];sess.items.push({id:uid(),name:d.name,budget:n(d.budget),estimate:0,actual:0});}
+async function saveDefaults(){
+  if(!S.defaults)S.defaults={};
+  // ダイアログ編集状態（_defItems）はディープコピーで S.defaults に取り込む
+  // 参照共有のまま代入すると、再オープン時のクローン処理や別の編集で
+  // S.defaults が意図せず書き換わるリスクがある
+  ['hm','gk','oe','ko','aw','ye','tour','sd','cf3','cf4'].forEach(k=>{
+    if(_defItems[k])S.defaults[k]=JSON.parse(JSON.stringify(_defItems[k]));
+  });
+  ['ko','aw','ye','tour','sd','cf3','cf4'].forEach(key=>{
+    const defs=S.defaults[key]||[];
+    if(!defs.length)return;
+    if(!S.events[key])S.events[key]={label:key,items:[]};
+    ACCOUNTING_CATS.forEach(cat=>{
+      const def=defs.find(d=>d.name===cat);
+      if(!def)return;
+      const item=S.events[key].items.find(it=>it.name===cat);
+      if(item){item.budget=n(def.budget);}
+      else if(n(def.budget)>0){S.events[key].items.push({id:uid(),name:cat,budget:n(def.budget),estimate:0,actual:0});}
+    });
+    S.events[key].items.sort((a,b)=>{const ai=ACCOUNTING_CATS.indexOf(a.name),bi=ACCOUNTING_CATS.indexOf(b.name);return(ai===-1?999:ai)-(bi===-1?999:bi);});
+  });
+  // シリーズ（hm/gk/oe）: 既存の全回次の費目予算をデフォルト値で更新
+  ['hm','gk','oe'].forEach(key=>{
+    const defs=S.defaults[key]||[];
+    if(!defs.length)return;
+    (S.sessions[key]||[]).forEach(sess=>{
+      defs.forEach(d=>{
+        if(!d.name||!n(d.budget))return;
+        const item=sess.items?.find(it=>it.name===d.name);
+        if(item){item.budget=n(d.budget);}
+        else{if(!sess.items)sess.items=[];sess.items.push({id:uid(),name:d.name,budget:n(d.budget),estimate:0,actual:0});}
+      });
     });
   });
-});
-save();closeOv('ov-defaults');renderPg(_curPg);alert('✅ 保存しました。各イベントの予算に反映されました。');}
-function applyDefaultsToEvent(){const key=_defTab;if(!['ko','aw','ye','md'].includes(key))return;const defaults=_defItems[key]||[];if(!S.events[key])S.events[key]={label:key,items:[]};const existing=S.events[key].items.map(i=>i.name);let added=0;defaults.forEach(d=>{if(!d.name)return;if(existing.includes(d.name)){const it=S.events[key].items.find(i=>i.name===d.name);if(it&&d.budget)it.budget=d.budget;}else{S.events[key].items.push({id:uid(),name:d.name,budget:d.budget||0,estimate:0,actual:0});added++;}});save();closeOv('ov-defaults');go(key,null);alert(`✅ デフォルト費目を適用しました（${added}件追加）`);}
+  // クラウド保存の完了を await してから完了メッセージを表示。
+  // await しないと save() 内の 3-way merge / version conflict / offline queue が
+  // 未完了のまま UI が閉じ、ページ再読込時に古い S.defaults に戻る現象が出る。
+  await save();
+  closeOv('ov-defaults');
+  renderPg(_curPg);
+  alert('✅ 保存しました。各イベントの予算に反映されました。');
+}
+async function applyDefaultsToEvent(){const key=_defTab;if(!['ko','aw','ye','md'].includes(key))return;const defaults=_defItems[key]||[];if(!S.events[key])S.events[key]={label:key,items:[]};const existing=S.events[key].items.map(i=>i.name);let added=0;defaults.forEach(d=>{if(!d.name)return;if(existing.includes(d.name)){const it=S.events[key].items.find(i=>i.name===d.name);if(it&&d.budget)it.budget=d.budget;}else{S.events[key].items.push({id:uid(),name:d.name,budget:d.budget||0,estimate:0,actual:0});added++;}});await save();closeOv('ov-defaults');go(key,null);alert(`✅ デフォルト費目を適用しました（${added}件追加）`);}
 
 // ── カテゴリ判定設定 ──
 let _catTabCurrent='① 会場・施設費';
@@ -4220,7 +4248,13 @@ function addCatKeyword(){const inp=document.getElementById('cat-new-keyword');co
 function removeCatKeyword(kw){if(!S.catRules)S.catRules={};if(S.catRules[kw]){delete S.catRules[kw];}else if(CAT_MASTER[kw]){if(!confirm(`「${kw}」はデフォルトのキーワードです。無効化しますか？`))return;S.catRules[kw]='_removed_';}renderCatMasterList();}
 function testCatDetect(){const fee=document.getElementById('cat-test-input').value;const result=detectCat(fee);const el=document.getElementById('cat-test-result');el.textContent=result;el.style.background='rgba(37,99,235,.08)';el.style.color='var(--blue)';}
 function resetCatMaster(){if(!confirm('カスタムルールをすべてリセットしますか？'))return;S.catRules={};renderCatMasterList();}
-function saveCatMaster(){save();closeOv('ov-cat-master');if(S.ledger)S.ledger.forEach(i=>{if(!i._catManual)i.cat=detectCat(i.fee||'');});save();alert('✅ カテゴリ判定ルールを保存しました');}
+async function saveCatMaster(){
+  closeOv('ov-cat-master');
+  await save();
+  if(S.ledger)S.ledger.forEach(i=>{if(!i._catManual)i.cat=detectCat(i.fee||'');});
+  await save();
+  alert('✅ カテゴリ判定ルールを保存しました');
+}
 
 // ── 見積入力テーブル ──
 if(!S.estimates)S.estimates={};
@@ -4382,7 +4416,15 @@ function getOrderMaster(){if(!S.orderMaster)S.orderMaster=[];return S.orderMaste
 function renderOrderMaster(){const search=(document.getElementById('om-search')?.value||'').toLowerCase();const filterCat=document.getElementById('om-filter-cat')?.value||'';const items=getOrderMaster();const filtered=items.filter(it=>{if(filterCat&&it.cat!==filterCat)return false;if(search&&!it.name.toLowerCase().includes(search)&&!(it.vendor||'').toLowerCase().includes(search)&&!(it.content||'').toLowerCase().includes(search))return false;return true;});const sumEl=document.getElementById('om-summary');if(sumEl)sumEl.innerHTML=`<span>登録品目数: <strong>${items.length}件</strong></span><span style="margin-left:16px">表示中: <strong>${filtered.length}件</strong></span>`;const empty=document.getElementById('om-empty');const tbody=document.getElementById('om-tbody');if(!filtered.length){tbody.innerHTML='';empty.style.display='';return;}empty.style.display='none';const catOpts=['',...ACCOUNTING_CATS].map(cat=>`<option value="${cat}">${cat||'-- 科目を選択 --'}</option>`).join('');tbody.innerHTML=filtered.map(it=>{const realIdx=items.findIndex(x=>x.id===it.id);return`<tr><td style="color:var(--t3);font-size:10px;text-align:center">${realIdx+1}</td><td><input class="inline-inp" value="${(it.name||'').replace(/"/g,'&quot;')}" placeholder="品目名・サービス名" onchange="getOrderMaster()[${realIdx}].name=this.value;debouncedSave()" style="font-weight:500;font-size:12px"></td><td><select class="inline-sel" onchange="getOrderMaster()[${realIdx}].cat=this.value;renderOrderMaster();debouncedSave()">${catOpts.replace(`value="${it.cat||''}"`,`value="${it.cat||''}" selected`)}</select></td><td><input class="inline-inp" value="${(it.content||'').replace(/"/g,'&quot;')}" placeholder="仕様・内容メモ" onchange="getOrderMaster()[${realIdx}].content=this.value;debouncedSave()" style="font-size:11px;color:var(--t2)"></td><td><input class="inline-inp num" type="number" value="${it.price||''}" placeholder="0" onchange="getOrderMaster()[${realIdx}].price=parseFloat(this.value)||0;debouncedSave()"></td><td><input class="inline-inp" value="${it.unit||'式'}" style="text-align:center;font-size:11px" onchange="getOrderMaster()[${realIdx}].unit=this.value;debouncedSave()"></td><td><input class="inline-inp" value="${(it.vendor||'').replace(/"/g,'&quot;')}" placeholder="取引先名" onchange="getOrderMaster()[${realIdx}].vendor=this.value;debouncedSave()" style="font-size:11px;color:var(--t2)"></td><td><button class="del-btn" onclick="deleteOrderMaster('${it.id}')">×</button></td></tr>`;}).join('');}
 function addOrderMasterRow(){const items=getOrderMaster();items.push({id:uid(),name:'',cat:'',content:'',price:0,unit:'式',vendor:''});renderOrderMaster();debouncedSave();setTimeout(()=>{const inputs=document.querySelectorAll('#om-tbody input[placeholder="品目名・サービス名"]');if(inputs.length)inputs[inputs.length-1].focus();},50);}
 function deleteOrderMaster(id){S.orderMaster=getOrderMaster().filter(x=>x.id!==id);renderOrderMaster();immediateSave();}
-function saveOrderMaster(){save();const btn=document.querySelector('#pg-ordermaster button[onclick="saveOrderMaster()"]');if(btn){btn.textContent='✅ 保存しました';setTimeout(()=>btn.textContent='💾 保存',1500);}}
+async function saveOrderMaster(){
+  const btn=document.querySelector('#pg-ordermaster button[onclick="saveOrderMaster()"]');
+  if(btn) btn.textContent='💾 保存中...';
+  await save();
+  if(btn){
+    btn.textContent='✅ 保存しました';
+    setTimeout(()=>btn.textContent='💾 保存',1500);
+  }
+}
 function autoGenerateOrderMaster(){const existing=getOrderMaster();const existNames=new Set(existing.map(x=>x.name.trim().toLowerCase()));let added=0;const sources=[];(S.ledger||[]).forEach(l=>{if(l.fee&&l.fee.trim())sources.push({name:l.fee.trim(),cat:l.cat||'',content:l.content||'',price:l.price||0,unit:l.unit||'式',vendor:''});});Object.values(S.estimates||{}).forEach(rows=>{(rows||[]).forEach(r=>{if(r.name&&r.name.trim())sources.push({name:r.name.trim(),cat:r.cat||'',content:'',price:0,unit:'式',vendor:''});});});const seen=new Set(existNames);sources.forEach(src=>{const key=src.name.toLowerCase();if(!seen.has(key)){seen.add(key);existing.push({id:uid(),...src});added++;}});renderOrderMaster();alert(`✅ ${added}件を発注マスタに追加しました`);}
 
 // ── キャッシュフロー ──
@@ -4507,7 +4549,15 @@ function renderProd(){
 
 function addProdRowInCat(cat){if(!S.prodItems)S.prodItems=[];S.prodItems.push({id:uid(),cat,name:'',content:'',price:0,qty:1,unit:'個',stockInit:0,stockUsed:0,stockAlert:0,budget:0,estimate:0,actual:0,status:'',memo:''});renderProd();setTimeout(()=>{const allInputs=document.querySelectorAll('#prod-sections input[placeholder="品目名を入力"]');if(allInputs.length)allInputs[allInputs.length-1].focus();},50);}
 function addProdRow(){const cat=document.getElementById('prod-filter-cat')?.value||'グッズ（外販）';addProdRowInCat(cat);}
-function saveProdInline(){save();const btns=document.querySelectorAll('#pg-prod button[onclick="saveProdInline()"]');btns.forEach(btn=>{btn.textContent='✅ 保存しました';setTimeout(()=>btn.textContent='💾 保存',1500);});}
+async function saveProdInline(){
+  const btns=document.querySelectorAll('#pg-prod button[onclick="saveProdInline()"]');
+  btns.forEach(btn=>btn.textContent='💾 保存中...');
+  await save();
+  btns.forEach(btn=>{
+    btn.textContent='✅ 保存しました';
+    setTimeout(()=>btn.textContent='💾 保存',1500);
+  });
+}
 function deleteProdById(id){const it=(S.prodItems||[]).find(x=>x.id===id);logChange('prod',`製作物削除: ${it?.name||id}`,JSON.stringify(it),null);pushUndo('製作物削除');S.prodItems=(S.prodItems||[]).filter(x=>x.id!==id);immediateSave();}
 
 // ── migrateMktToProd ──
