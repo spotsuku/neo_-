@@ -3143,6 +3143,9 @@ function renderOvMonthly() {
     ? [{key:'budget',label:'予算',color:'var(--blue)'},{key:'estimate',label:'見積',color:'var(--green)'},{key:'actual',label:'実績',color:'var(--acc)'}]
     : [{key:type, label:type==='budget'?'予算':type==='estimate'?'見積':'実績', color:type==='budget'?'var(--blue)':type==='estimate'?'var(--green)':'var(--acc)'}];
 
+  // 月次表は列幅が狭く、円単位（6〜7桁）だと隣列とくっついて読めないため
+  // 千円単位で丸めて表示する。行合計も同じ丸め方針で揃える。
+  const fmtK = v => Math.round(v/1000).toLocaleString();
   showTypes.forEach(t => {
     const data = t.key==='budget'?budget:t.key==='estimate'?estimate:actual;
     const total = months.reduce((s,m)=>s+(data[m]||0),0);
@@ -3151,9 +3154,9 @@ function renderOvMonthly() {
       <td style="font-weight:700;font-size:11px;color:${t.color}">${t.label}</td>
       ${months.map(m=>{
         const v=data[m]||0;
-        return `<td style="text-align:right;font-family:var(--mono);font-size:10px;color:${v>0?t.color:'var(--t3)'}">${v>0?fmtN(v):'—'}</td>`;
+        return `<td style="text-align:right;font-family:var(--mono);font-size:10px;color:${v>0?t.color:'var(--t3)'}">${v>0?fmtK(v):'—'}</td>`;
       }).join('')}
-      <td style="text-align:right;font-family:var(--mono);font-size:10px;font-weight:700;color:${t.color}">${fmtN(total)}</td>
+      <td style="text-align:right;font-family:var(--mono);font-size:10px;font-weight:700;color:${t.color}">${fmtK(total)}</td>
     </tr>`);
   });
 
@@ -3168,7 +3171,8 @@ function renderOvMonthly() {
        </div>`
     : '';
 
-  el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:10px;min-width:700px">
+  el.innerHTML = `<div style="display:flex;justify-content:flex-end;font-size:9px;color:var(--t3);padding:0 4px 4px">（単位: 千円）</div>
+  <table style="width:100%;border-collapse:collapse;font-size:10px;min-width:700px">
     <thead><tr style="background:var(--s2)">
       <th style="text-align:left;padding:4px 8px;width:50px"></th>
       ${monthLabels.map(l=>`<th style="text-align:right;padding:4px 6px">${l}</th>`).join('')}
