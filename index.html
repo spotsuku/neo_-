@@ -1877,7 +1877,7 @@ function buildKpiCards({totR, totRB=0, totB, totE, totA, arariYosoku, arari, tar
   const revForForecast = totRB > 0 ? totRB : totR;  // 収入予算があればそれを使う
   const grossForecast = revForForecast - totB;   // 粗利予測 = 収入予算(or実収入) - 予算
   const gross         = totR - totA;   // 粗利実績 = 収入 - 実績
-  const grossEst      = totR - totE;   // 粗利見積 = 収入 - 見積
+  const grossEst      = revForForecast - totE;   // 粗利見積 = 収入目標(未設定なら実収入) - 見積
   const budgetRate    = totB > 0 ? Math.round(totE / totB * 100) : 0;
   const execRate      = totE > 0 ? Math.round(totA / totE * 100) : 0;
   const targetRate    = target > 0 ? Math.min(999, Math.round(gross / target * 100)) : null;
@@ -1958,7 +1958,9 @@ function buildKpiSections({totR=0, totRB=0, totB=0, totE=0, totA=0, target=0, pr
   const revForPlan   = totRB>0 ? totRB : totR;
   const grossForecast = revForPlan - totB;
   const gross      = totR - totA;
-  const grossEst   = totR - totE;
+  // 見積粗利は見積行の「収入」カード (revForPlan = 収入目標、未設定なら実収入) と同じ収入を使う
+  // (旧: totR(実収入) を使っていたため、収入0円の段階で 粗利 = −見積合計 になり表示と矛盾していた)
+  const grossEst   = revForPlan - totE;
   const budgetRate = totB>0 ? Math.round(totE/totB*100) : 0;
   const execRate   = totE>0 ? Math.round(totA/totE*100) : 0;
   const targetRate   = target>0 ? Math.min(999,Math.round(gross/target*100)) : null;
