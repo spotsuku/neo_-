@@ -88,6 +88,22 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);display:flex;f
 .pb-fill{height:100%;border-radius:4px;transition:width 1s cubic-bezier(.4,0,.2,1);}
 .sg{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
 @media(min-width:1400px){.sg{grid-template-columns:repeat(3,1fr);}}
+/* ── タブレット (iPad 横 ≒1024〜1280px): 数字が切れない・列が潰れないように ── */
+@media(max-width:1280px){
+  .kv{font-size:17px;}
+  .kpi{padding:12px 12px;min-width:0;}
+  .ks{font-size:9px;}
+  .content{padding:14px 12px;}
+  .g2,.g31,.g13{grid-template-columns:1fr;}
+  .g4{grid-template-columns:repeat(2,1fr);}
+  .g5{grid-template-columns:repeat(3,1fr);}
+}
+/* ── さらに狭い画面 (iPad 縦・スマホ) ── */
+@media(max-width:900px){
+  .kv{font-size:15px;}
+  .g4,.g5{grid-template-columns:repeat(2,1fr);}
+  .topbar{padding:0 10px;}
+}
 .sc{background:var(--s1);border:1.5px solid var(--b1);border-radius:10px;padding:14px 16px;transition:all .2s;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.04);}
 .sc:hover{border-color:var(--blue2);box-shadow:0 4px 12px rgba(37,99,235,.08);transform:translateY(-1px);}
 .sc.has-items{border-color:rgba(37,99,235,.25);background:rgba(37,99,235,.01);}
@@ -1851,6 +1867,9 @@ async function loadFromDB(){
       const otherIdx=S.programs.findIndex(p=>p.id==='other');
       S.programs.splice(otherIdx>=0?otherIdx:S.programs.length,0,{id:'tour',name:'ツアー',budget:0});
     }
+    // ★ スプレッドシート方式: 見積・実績入力は行単位テーブル (estimate_rows) が正。
+    //   ブロブ内の estimates は旧形式のため、テーブルの内容で置き換える
+    try { await loadEstimateRows(); } catch(e) { console.warn('[estRows]', e.message); }
     localStorage.setItem(`neo_v5_${_currentFiscalYear}`,JSON.stringify(S));
     setSaveStatus('saved','DB同期済み');
     // DB が空だった場合など、上の if 内で set されなかったケースの保険:
@@ -2551,6 +2570,7 @@ ${list}
             ? mergeS3way(_baseSnapshot, it.data, currentDb.data)
             : mergeS(currentDb.data, it.data);
         }
+        if (payload && typeof payload === 'object') delete payload.estimates; // 行単位テーブルが正
         // 楽観的ロックで送信
         const {error: upErr, data: upData} = await _sb.from('dashboard_data')
           .update({
@@ -2769,6 +2789,9 @@ async function _doSave(){
           });
         }
       }
+      // ★ 見積・実績入力は estimate_rows テーブルに保存するため、ブロブには含めない
+      //   (ブロブ経由の union マージで古い行が復活するのを防ぐ)
+      delete saveData.estimates;
       _lastSaveTime = Date.now();
 
       // 楽観的ロック: WHERE id=? AND version=readVersion で更新、成功すれば version+1
@@ -2884,6 +2907,7 @@ async function saveMemberData(){
         : mergeS(currentDb.data, saveData);
       Object.assign(saveData, merged);
     }
+    delete saveData.estimates; // 見積・実績入力は estimate_rows テーブルが正
     // 楽観的ロック: version 一致時のみ更新
     const {data: upData, error} = await _sb.from('dashboard_data')
       .update({data: saveData, updated_at: new Date().toISOString(), version: readVersion + 1})
@@ -3230,6 +3254,17 @@ async function loadPrevYearData() {
     const dbId = getFiscalYearDbId(prevFY);
     const { data } = await _sb.from('dashboard_data').select('data').eq('id', dbId).maybeSingle();
     _prevYearData = data?.data || null;
+    // 見積・実績入力は行単位テーブルが正 (移行後はブロブ内が更新されないため)
+    try {
+      const { data: rows } = await _sb.from('estimate_rows').select('*')
+        .eq('fiscal_year', prevFY).eq('deleted', false).order('sort_order');
+      if (rows && rows.length) {
+        const est = {};
+        rows.forEach(d => { (est[d.event_key] = est[d.event_key] || []).push(_estRowFromDb(d)); });
+        if (_prevYearData) _prevYearData.estimates = est;
+        else _prevYearData = { estimates: est };
+      }
+    } catch(_) {}
     _prevYearFY = prevFY;
     return _prevYearData;
   } catch(e) {
@@ -4380,6 +4415,193 @@ async function saveCatMaster(){
 // ── 見積入力テーブル ──
 if(!S.estimates)S.estimates={};
 function getEstimates(key){if(!S.estimates)S.estimates={};if(!S.estimates[key])S.estimates[key]=[];return S.estimates[key];}
+
+// ══════════════════════════════════════════════════
+// スプレッドシート方式: 見積・実績入力の行単位保存
+// 1行 = estimate_rows テーブルの1レコード。編集はその行だけを即保存し、
+// 最新の上書きが勝つ (LWW)。削除は deleted フラグ (復活しない)。
+// 変更履歴は DB トリガで estimate_rows_history に全件残る。
+// S.estimates はメモリ上の表示用キャッシュとして維持する (集計系はそのまま動く)。
+// ══════════════════════════════════════════════════
+let _estRowsChannel = null;
+let _estRowRetry = {};   // 送信失敗した書き込みの再送キュー {key: payload or {__del}}
+let _estRowTimers = {};  // 行ごとの保存デバウンス
+
+function _estRowFromDb(d){
+  const r = {id:String(d.id), name:d.name||'', cat:d.cat||'', budget:n(d.budget), estimate:n(d.estimate), actual:n(d.actual), orderMonth:d.order_month||'', payMonth:d.pay_month||'', _sort:(+d.sort_order||0)};
+  if (d.prev_actual != null) r.prevActual = n(d.prev_actual);
+  if (d.prev_estimate != null) r.prevEstimate = n(d.prev_estimate);
+  if (d.from_prev_year) r.fromPrevYear = true;
+  return r;
+}
+function _estRowToDb(key, r, idx){
+  return {
+    id: String(r.id), fiscal_year: _currentFiscalYear, event_key: key,
+    name: r.name||'', cat: r.cat||'',
+    budget: n(r.budget), estimate: n(r.estimate), actual: n(r.actual),
+    prev_actual: r.prevActual==null?null:n(r.prevActual),
+    prev_estimate: r.prevEstimate==null?null:n(r.prevEstimate),
+    from_prev_year: !!r.fromPrevYear,
+    order_month: r.orderMonth||'', pay_month: r.payMonth||'',
+    sort_order: (idx!==undefined? idx : (r._sort||0)),
+    deleted: false,
+    updated_at: new Date().toISOString(),
+    updated_by: _currentUser?.email||'',
+  };
+}
+
+async function _estUpsert(payloads){
+  if (!payloads || !payloads.length) return true;
+  if (!_sb || !_currentUser) { payloads.forEach(p=>{_estRowRetry[p.event_key+'/'+p.id]=p;}); return false; }
+  try {
+    setSaveStatus('saving','保存中...');
+    const {error} = await _sb.from('estimate_rows').upsert(payloads, {onConflict:'fiscal_year,event_key,id'});
+    if (error) throw error;
+    payloads.forEach(p => { delete _estRowRetry[p.event_key+'/'+p.id]; });
+    try { localStorage.setItem(SK, JSON.stringify(S)); } catch(_){}
+    setSaveStatus('saved','保存済み '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}));
+    return true;
+  } catch(e) {
+    payloads.forEach(p => { _estRowRetry[p.event_key+'/'+p.id] = p; });
+    setSaveStatus('error','保存エラー(自動再送します): '+e.message);
+    console.warn('[estRows] upsert failed:', e.message);
+    return false;
+  }
+}
+
+async function _estMarkDeleted(key, id){
+  const marker = {__del:true, event_key:key, id:String(id)};
+  if (!_sb || !_currentUser) { _estRowRetry['del:'+key+'/'+id] = marker; return false; }
+  try {
+    setSaveStatus('saving','保存中...');
+    const {error} = await _sb.from('estimate_rows')
+      .update({deleted:true, updated_at:new Date().toISOString(), updated_by:_currentUser?.email||''})
+      .eq('fiscal_year', _currentFiscalYear).eq('event_key', key).eq('id', String(id));
+    if (error) throw error;
+    delete _estRowRetry['del:'+key+'/'+id];
+    try { localStorage.setItem(SK, JSON.stringify(S)); } catch(_){}
+    setSaveStatus('saved','保存済み '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}));
+    return true;
+  } catch(e) {
+    _estRowRetry['del:'+key+'/'+id] = marker;
+    setSaveStatus('error','保存エラー(自動再送します): '+e.message);
+    return false;
+  }
+}
+
+// 失敗した書き込みを15秒おきに再送
+setInterval(async () => {
+  const entries = Object.entries(_estRowRetry);
+  if (!entries.length || !_sb || !_currentUser) return;
+  const ups = [], dels = [];
+  entries.forEach(([k,v]) => { if (v && v.__del) dels.push(v); else ups.push(v); });
+  if (ups.length) await _estUpsert(ups);
+  for (const d of dels) await _estMarkDeleted(d.event_key, d.id);
+}, 15000);
+
+// 1行編集のデバウンス保存 (スプレッドシートのセル編集に相当)
+function queueEstRowSave(key, row, idx){
+  if (!row || row.id == null) return;
+  const tk = key + '/' + row.id;
+  markUnsaved();
+  clearTimeout(_estRowTimers[tk]);
+  _estRowTimers[tk] = setTimeout(() => {
+    delete _estRowTimers[tk];
+    _estUpsert([_estRowToDb(key, row, idx)]);
+  }, 500);
+}
+
+// イベント1つ分の行をまとめて保存 (並び順確定・一括操作用)。
+// removeStray: true なら「手元に無い行」を削除扱いにする (バージョン復元用)
+async function syncEstimatesToDb(key, opts){
+  const removeStray = !!(opts && opts.removeStray);
+  const rows = (S.estimates && S.estimates[key]) || [];
+  const payloads = rows.filter(r=>r && r.id!=null).map((r,i)=>_estRowToDb(key,r,i));
+  const ok = await _estUpsert(payloads);
+  if (removeStray && _sb && _currentUser) {
+    try {
+      const ids = new Set(rows.map(r=>String(r.id)));
+      const {data} = await _sb.from('estimate_rows').select('id')
+        .eq('fiscal_year', _currentFiscalYear).eq('event_key', key).eq('deleted', false);
+      for (const d of (data||[])) {
+        if (!ids.has(String(d.id))) await _estMarkDeleted(key, d.id);
+      }
+    } catch(e) { console.warn('[estRows] stray cleanup failed:', e.message); }
+  }
+  return ok;
+}
+async function syncAllEstimatesToDb(opts){
+  const keys = Object.keys(S.estimates || {});
+  for (const k of keys) { await syncEstimatesToDb(k, opts); }
+}
+
+// 年度分の行を読み込んで S.estimates を構築 + リアルタイム購読
+async function loadEstimateRows(){
+  if (!_sb) return false;
+  const {data, error} = await _sb.from('estimate_rows').select('*')
+    .eq('fiscal_year', _currentFiscalYear)
+    .order('sort_order', {ascending:true});
+  if (error) { console.warn('[estRows] load failed:', error.message); return false; }
+  const est = {};
+  (data||[]).forEach(d => { if (!d.deleted) (est[d.event_key] = est[d.event_key] || []).push(_estRowFromDb(d)); });
+  const blobHasRows = S.estimates && Object.values(S.estimates).some(a=>Array.isArray(a)&&a.length);
+  if ((data||[]).length === 0 && blobHasRows) {
+    // テーブルが空でブロブに行がある (未バックフィルの年度) → 初回だけ書き込んで移行
+    console.log('[estRows] テーブル空 + ブロブに行あり → クライアント側バックフィル');
+    await syncAllEstimatesToDb();
+  } else {
+    S.estimates = est;
+  }
+  startEstRowsRealtime();
+  return true;
+}
+
+function startEstRowsRealtime(){
+  if (!_sb) return;
+  if (_estRowsChannel) { _sb.removeChannel(_estRowsChannel); _estRowsChannel = null; }
+  _estRowsChannel = _sb
+    .channel('estimate_rows_changes_' + _currentFiscalYear)
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'estimate_rows',
+      filter: `fiscal_year=eq.${_currentFiscalYear}`,
+    }, payload => {
+      const d = payload.new;
+      if (!d || d.fiscal_year !== _currentFiscalYear) return;
+      // 自分の書き込みのエコーは無視 (入力中のセルが巻き戻らないように)
+      if ((d.updated_by||'') === (_currentUser?.email||'')) return;
+      _applyRemoteEstRow(d);
+    })
+    .subscribe();
+}
+
+function _applyRemoteEstRow(d){
+  if (!S.estimates) S.estimates = {};
+  const arr = S.estimates[d.event_key] = S.estimates[d.event_key] || [];
+  const idx = arr.findIndex(r => String(r.id) === String(d.id));
+  if (d.deleted) {
+    if (idx >= 0) arr.splice(idx, 1); else return;
+  } else {
+    const r = _estRowFromDb(d);
+    if (idx >= 0) arr[idx] = r;
+    else arr.push(r);
+    arr.sort((a,b)=>(a._sort||0)-(b._sort||0));
+  }
+  try { localStorage.setItem(SK, JSON.stringify(S)); } catch(_){}
+  _scheduleEstRerender(d.event_key);
+}
+
+let _estRerenderTimers = {};
+function _scheduleEstRerender(key){
+  clearTimeout(_estRerenderTimers[key]);
+  _estRerenderTimers[key] = setTimeout(() => {
+    const tbody = document.getElementById(`${key}-est-tbody`);
+    if (!tbody) return;
+    // 入力中に再描画するとフォーカスが飛ぶので、編集が終わるまで待つ
+    if (document.activeElement && tbody.contains(document.activeElement)) { _scheduleEstRerender(key); return; }
+    renderEstimateTable(key);
+    if (typeof setSaveStatus === 'function') setSaveStatus('saved','他ユーザーの編集を反映 '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}));
+  }, 1200);
+}
 function renderEstimateTable(key){const rows=getEstimates(key);const tbody=document.getElementById(`${key}-est-tbody`);const empty=document.getElementById(`${key}-est-empty`);const total=document.getElementById(`${key}-est-total`);if(!tbody)return;if(!rows.length){tbody.innerHTML='';if(empty)empty.style.display='';if(total)total.style.display='none';return;}if(empty)empty.style.display='none';const catOpts=['',...ACCOUNTING_CATS].map(cat=>`<option value="${cat}">${cat||'-- 未分類 --'}</option>`).join('');const inpStyle=`width:100%;padding:6px 8px;border:1.5px solid var(--b2);border-radius:6px;font-size:12px;font-family:var(--mono);background:var(--s1);color:var(--t1);outline:none;text-align:right`;const payMonths=[];for(let m=4;m<=12;m++)payMonths.push(`${_currentFiscalYear}/${m}`);for(let m=1;m<=3;m++)payMonths.push(`${_currentFiscalYear+1}/${m}`);tbody.innerHTML=rows.map((r,i)=>{const cc=r.cat?(CAT_COLORS[r.cat]||{fg:'374151',bg:'f3f4f6'}):{fg:'9ca3af',bg:'f9fafb'};const pmOpts=`<option value="">—</option>`+payMonths.map(m=>`<option value="${m}"${r.payMonth===m?' selected':''}>${m.split('/')[1]}月</option>`).join('');
   // 前年実績列の表示
   const hasPrev = r.prevActual !== undefined && r.prevActual !== null;
@@ -4397,22 +4619,22 @@ function renderEstimateTable(key){const rows=getEstimates(key);const tbody=docum
     ondragend="this.draggable=false"
     ><td style="color:var(--t3);font-size:10px;text-align:center;width:28px;cursor:grab;touch-action:none" title="ドラッグで並び替え" onpointerdown="this.parentElement.draggable=true" onpointerup="this.parentElement.draggable=false" onpointercancel="this.parentElement.draggable=false">⠿</td><td><input id="est-name-${key}-${i}" value="${(r.name||'').replace(/"/g,'&quot;')}" placeholder="品目名・内容を入力..." style="width:100%;padding:6px 8px;border:1.5px solid var(--b2);border-radius:6px;font-size:12px;background:var(--s1);color:var(--t1);outline:none" oninput="updateEstRow('${key}',${i},'name',this.value)" onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--b2)';autoClassifyRow('${key}',${i})" autocomplete="off"></td><td><select style="width:100%;padding:5px 7px;border:1.5px solid #${cc.bg};border-radius:6px;font-size:10px;font-weight:700;background:#${cc.bg};color:#${cc.fg};outline:none" onchange="updateEstRow('${key}',${i},'cat',this.value);renderEstimateTable('${key}')">${catOpts.replace(`value="${r.cat||''}"`,`value="${r.cat||''}" selected`)}</select></td><td style="text-align:right"><input type="number" value="${r.estimate||''}" placeholder="0" style="${inpStyle}" oninput="updateEstRow('${key}',${i},'estimate',parseFloat(this.value)||0);updateEstTotal('${key}')" onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--b2)'"></td><td style="text-align:right"><input type="number" value="${r.actual||''}" placeholder="0" style="${inpStyle}" oninput="updateEstRow('${key}',${i},'actual',parseFloat(this.value)||0);updateEstTotal('${key}')" onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--b2)'"></td>${prevCell}<td><select style="font-size:10px;padding:5px 6px;border:1.5px solid rgba(139,92,246,.3);border-radius:5px;background:rgba(139,92,246,.04);color:var(--t1);outline:none;width:72px" onchange="updateEstRow('${key}',${i},'orderMonth',this.value);debouncedSave()" title="発注月">${getOrderMonthOptions(r.orderMonth)}</select></td><td><select style="font-size:10px;padding:5px 6px;border:1.5px solid var(--b2);border-radius:5px;background:var(--s1);color:var(--t1);outline:none;width:72px" onchange="updateEstRow('${key}',${i},'payMonth',this.value);updateEstTotal('${key}');if(typeof renderCF==='function')renderCF()">${pmOpts}</select></td><td><button onclick="removeEstRow('${key}',${i})" style="width:24px;height:24px;border-radius:5px;border:1px solid var(--b2);background:none;color:var(--t3);cursor:pointer;font-size:13px" onmouseover="this.style.color='var(--red)';this.style.borderColor='var(--red)'" onmouseout="this.style.color='var(--t3)';this.style.borderColor='var(--b2)'">×</button></td></tr>`;}).join('');updateEstTotal(key);}
 function updateEstTotal(key){const rows=getEstimates(key);const totE=rows.reduce((t,r)=>t+n(r.estimate),0),totA=rows.reduce((t,r)=>t+n(r.actual),0);const el=document.getElementById(`${key}-est-total`);if(!el)return;el.style.display='';const rowCnt=(S.estimates?.[key]||[]).length,pmCnt=(S.estimates?.[key]||[]).filter(r=>r.payMonth).length;const numsEl=document.getElementById(`${key}-est-total-nums`);const numsHtml=`<div style="display:flex;gap:16px;align-items:center;justify-content:flex-end;flex-wrap:wrap">${rowCnt?`<span style="font-size:10px;color:var(--blue)">${rowCnt}件</span>`:''}${pmCnt?`<span style="font-size:10px;color:var(--purple)">📅 支払月登録 ${pmCnt}件</span>`:''}<span>見積: <strong style="font-family:var(--mono);color:var(--blue)">${fmtN(totE)}円</strong></span><span>実績: <strong style="font-family:var(--mono);color:var(--green)">${fmtN(totA)}円</strong></span></div>`;if(numsEl){numsEl.innerHTML=numsHtml;}else{el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><button class="btn btn-xs btn-g" onclick="addEstimateRow('${key}')" style="font-size:10px">＋ 行を追加</button>${numsHtml}</div>`;}}
-function updateEstRow(key,i,field,value){const rows=getEstimates(key);if(!rows[i])return;rows[i][field]=value;debouncedSave();}
-function addEstimateRow(key){const rows=getEstimates(key);rows.push({id:uid(),name:'',cat:'',budget:0,estimate:0,actual:0,payMonth:''});renderEstimateTable(key);setTimeout(()=>{const inputs=document.querySelectorAll(`#${key}-est-tbody input[placeholder*="品目"]`);if(inputs.length)inputs[inputs.length-1].focus();},50);}
+function updateEstRow(key,i,field,value){const rows=getEstimates(key);if(!rows[i])return;rows[i][field]=value;queueEstRowSave(key,rows[i],i);}
+function addEstimateRow(key){const rows=getEstimates(key);rows.push({id:uid(),name:'',cat:'',budget:0,estimate:0,actual:0,payMonth:''});queueEstRowSave(key,rows[rows.length-1],rows.length-1);renderEstimateTable(key);setTimeout(()=>{const inputs=document.querySelectorAll(`#${key}-est-tbody input[placeholder*="品目"]`);if(inputs.length)inputs[inputs.length-1].focus();},50);}
 // 見積テーブルの実績を一括クリア
 function clearActuals(key) {
   if(!confirm('このイベントの実績をすべて0にリセットしますか？\n\n※ 見積データは保持されます。')) return;
   pushUndo('実績クリア');
   const rows = getEstimates(key);
   rows.forEach(r => { r.actual = 0; });
-  immediateSave();
+  syncEstimatesToDb(key);
   renderEstimateTable(key);
   renderPg(key);
 }
 
-function removeEstRow(key,i){pushUndo(`見積行削除`);const rows=getEstimates(key);rows.splice(i,1);renderEstimateTable(key);immediateSave();}
-function autoClassifyRow(key,i){const rows=getEstimates(key);if(!rows[i])return;if(rows[i].name&&!rows[i].cat){rows[i].cat=detectCat(rows[i].name);renderEstimateTable(key);}}
-function classifyAllEstimates(key){const rows=getEstimates(key);if(!rows.length){alert('先に品目を入力してください');return;}rows.forEach(r=>{if(r.name)r.cat=detectCat(r.name)||r.cat||'⑩ その他';});renderEstimateTable(key);save();}
+function removeEstRow(key,i){pushUndo(`見積行削除`);const rows=getEstimates(key);const removed=rows.splice(i,1)[0];renderEstimateTable(key);if(removed&&removed.id!=null)_estMarkDeleted(key,removed.id);}
+function autoClassifyRow(key,i){const rows=getEstimates(key);if(!rows[i])return;if(rows[i].name&&!rows[i].cat){rows[i].cat=detectCat(rows[i].name);queueEstRowSave(key,rows[i],i);renderEstimateTable(key);}}
+function classifyAllEstimates(key){const rows=getEstimates(key);if(!rows.length){alert('先に品目を入力してください');return;}rows.forEach(r=>{if(r.name)r.cat=detectCat(r.name)||r.cat||'⑩ その他';});renderEstimateTable(key);syncEstimatesToDb(key);}
 function applyEstimatesToEvt(key){
   const rows=getEstimates(key);
   if(!rows.length){alert('見積行がありません');return;}
@@ -5278,6 +5500,7 @@ function undoLastAction() {
   if (!confirm(`「${entry.label}」の操作を取り消しますか？`)) { _undoStack.unshift(entry); return; }
   S = entry.data;
   save();
+  if (typeof syncAllEstimatesToDb === 'function') syncAllEstimatesToDb({removeStray:true});
   renderPg(_curPg);
   updateUndoBtn();
 }
@@ -5322,6 +5545,7 @@ function restoreSnapshot() {
   if (!confirm(`「${snap.label}」(${dt}) の状態に戻します。\n現在のデータは失われます。\n\nよろしいですか？`)) return;
   S = snap.data;
   save();
+  if (typeof syncAllEstimatesToDb === 'function') syncAllEstimatesToDb({removeStray:true});
   closeOv('ov-xl-import');
   renderPg(_curPg || 'ov');
   alert('✅ 前のバージョンに戻しました');
@@ -5449,6 +5673,7 @@ function executeXlImport() {
   }
 
   save();
+  if (typeof syncAllEstimatesToDb === 'function') syncAllEstimatesToDb();
   closeOv('ov-xl-import');
   renderPg(_curPg || 'ov');
   alert(`✅ インポート完了\n\n追加: ${addCount}件 / 更新: ${updateCount}件\n\n⏪ 元に戻す場合は「Excelインポート」→「前のバージョンに戻す」から復元できます。`);
@@ -6122,7 +6347,7 @@ async function togglePrevYearPanel(key) {
 
   // 前年行を既存行の先頭に追加
   estArr.unshift(...prevItems);
-  save();
+  syncEstimatesToDb(key);
   renderEstimateTable(key);
 
   const total = prevItems.reduce((t, r) => t + r.prevActual, 0);
@@ -6369,7 +6594,7 @@ function estDrop(e, key, targetIdx) {
 
   _estDragKey = null; _estDragIdx = null;
 
-  debouncedSave();
+  syncEstimatesToDb(key);
   renderEstimateTable(key);
 }
 
@@ -6532,6 +6757,7 @@ async function restoreSnapshotById(snapId, isRemote) {
   saveSnapshot('復元前（自動保存）', 'pre-restore');
   S = data;
   await save();
+  if (typeof syncAllEstimatesToDb === 'function') await syncAllEstimatesToDb({removeStray:true});
   closeOv('ov-version-history');
   renderPg(_curPg || 'ov');
   alert('✅ 指定のバージョンに復元しました。\n復元前データは履歴の「復元前（自動保存）」から再復元できます。');
@@ -6757,6 +6983,9 @@ async function executeCellRestore() {
   S = mergeS(S, partial);
 
   await save();
+  if (keys.includes('estimates') && typeof syncAllEstimatesToDb === 'function') {
+    await syncAllEstimatesToDb({removeStray:true});
+  }
   closeOv('ov-cell-restore');
   closeOv('ov-version-history');
   renderPg(_curPg || 'ov');
@@ -6924,6 +7153,7 @@ function applySyncData() {
   //   THEIRS = _pendingSyncData   (他人が保存した最新)
   // 自分が触ってないフィールドは theirs を採用 → 他人の最新が確実に反映
   // 自分が触ったフィールドは mine を維持 → 未保存編集を失わない
+  const _keepEst = S.estimates; // 見積・実績入力は行単位テーブルが正: ブロブ同期で巻き戻さない
   if (typeof mergeS3way === 'function' && _baseSnapshot) {
     S = mergeS3way(_baseSnapshot, S, _pendingSyncData);
   } else if (typeof mergeS === 'function') {
@@ -6931,6 +7161,7 @@ function applySyncData() {
   } else {
     S = _pendingSyncData;
   }
+  if (_keepEst) S.estimates = _keepEst;
   // 受信した最新を新しい base とする（次回 save 時の出発点）
   if (typeof _setBaseSnapshot === 'function') _setBaseSnapshot(_pendingSyncData);
   _pendingSyncData = null;
