@@ -1719,6 +1719,23 @@ const pct=(a,b)=>b>0?(a/b*100).toFixed(0)+'%':'—';
 const sessSum=(s,f)=>s.items?s.items.reduce((t,i)=>t+n(i[f]),0):n(s[f]||0);
 const evtSum=(key,f)=>S.events[key].items.reduce((t,i)=>t+n(i[f]),0);
 
+// イベント費目 (events[k].items) の同名科目の重複を統合する。
+// 会計科目は1科目=1行が前提だが、端末間の同期マージが id 単位の和集合のため、
+// 「予算を編集」保存 (全行を新 id で差し替え) や古い localStorage との統合で
+// 同名科目が2セット残り、会計科目別集計・KPI・円グラフが倍増するバグがあった。
+// 最初の1行 (「集計に反映」が更新してきた行) を正として残す。
+function dedupeEvtItems(items){
+  if(!Array.isArray(items))return items||[];
+  const seen=new Set();const out=[];
+  items.forEach(it=>{
+    const nm=it&&it.name;
+    if(nm==null||nm===''){out.push(it);return;}
+    if(seen.has(nm))return; // 既出の同名科目は捨てる
+    seen.add(nm);out.push(it);
+  });
+  return out;
+}
+
 // ── FEE_TEMPLATE ──
 const FEE_TEMPLATE=[{name:'会場費',budget:0,estimate:0,actual:0},{name:'講師・演者費',budget:0,estimate:0,actual:0},{name:'運営人件費',budget:0,estimate:0,actual:0},{name:'④ 制作・演出費',budget:0,estimate:0,actual:0},{name:'備品・消耗品',budget:0,estimate:0,actual:0},{name:'旅費交通費',budget:0,estimate:0,actual:0},{name:'諸経費',budget:0,estimate:0,actual:0}];
 
@@ -1816,6 +1833,16 @@ async function loadFromDB(){
         if(seen.has(key)) return false;
         seen.add(key);
         return true;
+      });
+    }
+
+    // イベント費目の同名科目重複を統合（同期マージ由来の重複で会計科目別集計が倍増するバグの修復）
+    // 次回保存時は name キーのマージで1科目1行に統合された状態で保存されるため、
+    // 誰かが保存すれば DB 側も自動修復される
+    if(S.events && typeof dedupeEvtItems==='function'){
+      Object.keys(S.events).forEach(k=>{
+        const ev=S.events[k];
+        if(ev && Array.isArray(ev.items)) ev.items=dedupeEvtItems(ev.items);
       });
     }
 
@@ -2076,7 +2103,9 @@ function mergeS(base, incoming) {
     keys.forEach(k => {
       const b = base.events?.[k] || {};
       const i = incoming.events?.[k] || {};
-      evt[k] = {...b, ...i, items: mergeArrayById(b.items, i.items, 'id')};
+      // items は「1科目=1行」なので name をキーに統合する
+      // (id キーだと「予算を編集」保存で id が変わるたびに同名科目が重複し、集計が倍増する)
+      evt[k] = {...b, ...i, items: mergeArrayById(dedupeEvtItems(b.items), dedupeEvtItems(i.items), 'name')};
     });
     result.events = evt;
   }
@@ -2273,7 +2302,8 @@ function mergeS3way(base, mine, theirs) {
       const tv = theirs.events?.[k] || {};
       evt[k] = {
         ...tv, ...mv, // label など 単純フィールドは mine 優先
-        items: merge3wayArrayById(bv.items, mv.items, tv.items, 'id'),
+        // items は「1科目=1行」なので name をキーに統合 (id だと同名科目が重複する)
+        items: merge3wayArrayById(dedupeEvtItems(bv.items), dedupeEvtItems(mv.items), dedupeEvtItems(tv.items), 'name'),
       };
     });
     result.events = evt;
@@ -4380,7 +4410,45 @@ function clearActuals(key) {
 function removeEstRow(key,i){pushUndo(`見積行削除`);const rows=getEstimates(key);rows.splice(i,1);renderEstimateTable(key);immediateSave();}
 function autoClassifyRow(key,i){const rows=getEstimates(key);if(!rows[i])return;if(rows[i].name&&!rows[i].cat){rows[i].cat=detectCat(rows[i].name);renderEstimateTable(key);}}
 function classifyAllEstimates(key){const rows=getEstimates(key);if(!rows.length){alert('先に品目を入力してください');return;}rows.forEach(r=>{if(r.name)r.cat=detectCat(r.name)||r.cat||'⑩ その他';});renderEstimateTable(key);save();}
-function applyEstimatesToEvt(key){const rows=getEstimates(key);if(!rows.length){alert('見積行がありません');return;}const uncat=rows.filter(r=>r.name&&!r.cat);if(uncat.length>0){if(!confirm(`${uncat.length}件の未分類項目があります。「⑨ その他」として反映しますか？`))return;uncat.forEach(r=>r.cat='⑩ その他');renderEstimateTable(key);}const catTotals={};rows.forEach(r=>{if(!r.name&&!r.estimate&&!r.actual&&!r.budget)return;const cat=r.cat||'⑩ その他';if(!catTotals[cat])catTotals[cat]={budget:0,estimate:0,actual:0};catTotals[cat].budget+=n(r.budget);catTotals[cat].estimate+=n(r.estimate);catTotals[cat].actual+=n(r.actual);});if(!S.events[key])S.events[key]={label:key,items:[]};ACCOUNTING_CATS.forEach(cat=>{const vals=catTotals[cat];if(!vals)return;const existing=S.events[key].items.findIndex(it=>it.name===cat);if(existing>=0){if(isAdmin()&&vals.budget)S.events[key].items[existing].budget=vals.budget;if(vals.estimate)S.events[key].items[existing].estimate=vals.estimate;if(vals.actual)S.events[key].items[existing].actual=vals.actual;}else S.events[key].items.push({id:uid(),name:cat,budget:isAdmin()?vals.budget:0,estimate:vals.estimate,actual:vals.actual});});S.events[key].items.sort((a,b)=>{const ai=ACCOUNTING_CATS.indexOf(a.name),bi=ACCOUNTING_CATS.indexOf(b.name);return(ai===-1?999:ai)-(bi===-1?999:bi);});logChange('event',`見積反映: ${key}`,null,Object.entries(catTotals).map(([c,v])=>`${c}: 見積${fmtN(v.estimate)}円`).join(', '));save();renderPg(key);}
+function applyEstimatesToEvt(key){
+  const rows=getEstimates(key);
+  if(!rows.length){alert('見積行がありません');return;}
+  const uncat=rows.filter(r=>r.name&&!r.cat);
+  if(uncat.length>0){
+    if(!confirm(`${uncat.length}件の未分類項目があります。「⑩ その他」として反映しますか？`))return;
+    uncat.forEach(r=>r.cat='⑩ その他');
+    renderEstimateTable(key);
+  }
+  const catTotals={};
+  rows.forEach(r=>{
+    if(!r.name&&!r.estimate&&!r.actual&&!r.budget)return;
+    const cat=r.cat||'⑩ その他';
+    if(!catTotals[cat])catTotals[cat]={budget:0,estimate:0,actual:0};
+    catTotals[cat].budget+=n(r.budget);
+    catTotals[cat].estimate+=n(r.estimate);
+    catTotals[cat].actual+=n(r.actual);
+  });
+  if(!S.events[key])S.events[key]={label:key,items:[]};
+  // 同名科目の重複を先に統合（重複があると1つ目しか更新されず、2つ目の古い値が集計に残り続ける）
+  S.events[key].items=dedupeEvtItems(S.events[key].items);
+  ACCOUNTING_CATS.forEach(cat=>{
+    const vals=catTotals[cat];
+    if(!vals)return;
+    const existing=S.events[key].items.findIndex(it=>it.name===cat);
+    if(existing>=0){
+      if(isAdmin()&&vals.budget)S.events[key].items[existing].budget=vals.budget;
+      // 0 もそのまま反映する（行を削除・0円にした時に古い見積/実績が残らないように）
+      S.events[key].items[existing].estimate=vals.estimate;
+      S.events[key].items[existing].actual=vals.actual;
+    } else {
+      S.events[key].items.push({id:uid(),name:cat,budget:isAdmin()?vals.budget:0,estimate:vals.estimate,actual:vals.actual});
+    }
+  });
+  S.events[key].items.sort((a,b)=>{const ai=ACCOUNTING_CATS.indexOf(a.name),bi=ACCOUNTING_CATS.indexOf(b.name);return(ai===-1?999:ai)-(bi===-1?999:bi);});
+  logChange('event',`見積反映: ${key}`,null,Object.entries(catTotals).map(([c,v])=>`${c}: 見積${fmtN(v.estimate)}円`).join(', '));
+  save();
+  renderPg(key);
+}
 
 // ── 変更履歴 ──
 if(!S.changelog)S.changelog=[];
