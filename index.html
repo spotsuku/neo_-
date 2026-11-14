@@ -1896,7 +1896,7 @@ function buildKpiCards({totR, totRB=0, totB, totE, totA, arariYosoku, arari, tar
   const revForForecast = totRB > 0 ? totRB : totR;  // 収入予算があればそれを使う
   const grossForecast = revForForecast - totB;   // 粗利予測 = 収入予算(or実収入) - 予算
   const gross         = totR - totA;   // 粗利実績 = 収入 - 実績
-  const grossEst      = revForForecast - totE;   // 粗利見積 = 収入目標(未設定なら実収入) - 見積
+  const grossEst      = revForForecast - totB;   // 見積行の粗利 = 収入目標(未設定なら実収入) - 予算
   const budgetRate    = totB > 0 ? Math.round(totE / totB * 100) : 0;
   const execRate      = totE > 0 ? Math.round(totA / totE * 100) : 0;
   const targetRate    = target > 0 ? Math.min(999, Math.round(gross / target * 100)) : null;
@@ -1935,16 +1935,16 @@ function buildKpiCards({totR, totRB=0, totB, totE, totA, arariYosoku, arari, tar
       <div class="kv" style="color:${grossForecast>=0?'var(--blue)':'var(--red)'}">${grossForecast>=0?'+':''}${fmtN(grossForecast)}<em>円</em></div>
       <div class="ks">収入 − 予算</div>
     </div>
-    <!-- 見積(緑): 見積合計 / 粗利 -->
+    <!-- 見積(緑): 予算 (サブに見積合計・消化率) / 粗利 (収入 − 予算) -->
     <div class="kpi" style="border-left:3px solid var(--green);background:rgba(16,185,129,.04)">
-      <div class="kl"><span style="font-size:8px;background:var(--green);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">見積</span>合計</div>
-      <div class="kv" style="color:var(--green)">${fmtN(totE)}<em>円</em></div>
-      <div class="ks">予算消化率 <strong style="color:${budgetRate>100?'var(--red)':'var(--green)'}">${budgetRate}%</strong></div>
+      <div class="kl"><span style="font-size:8px;background:var(--green);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">見積</span>予算</div>
+      <div class="kv" style="color:var(--green)">${fmtN(totB)}<em>円</em></div>
+      <div class="ks">見積合計 ${fmtN(totE)}円 ・ 消化率 <strong style="color:${budgetRate>100?'var(--red)':'var(--green)'}">${budgetRate}%</strong></div>
     </div>
     <div class="kpi" style="border-left:3px solid var(--green);background:rgba(16,185,129,.04)">
       <div class="kl"><span style="font-size:8px;background:var(--green);color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px">見積</span>粗利</div>
       <div class="kv" style="color:${grossEst>=0?'var(--green)':'var(--red)'}">${grossEst>=0?'+':''}${fmtN(grossEst)}<em>円</em></div>
-      <div class="ks">収入 − 見積</div>
+      <div class="ks">収入 − 予算</div>
     </div>
     <!-- 実績(オレンジ): 収入 / 合計 / 粗利 -->
     <div class="kpi" style="border-left:3px solid var(--acc);background:rgba(249,115,22,.04)">
@@ -1977,9 +1977,9 @@ function buildKpiSections({totR=0, totRB=0, totB=0, totE=0, totA=0, target=0, pr
   const revForPlan   = totRB>0 ? totRB : totR;
   const grossForecast = revForPlan - totB;
   const gross      = totR - totA;
-  // 見積粗利は見積行の「収入」カード (revForPlan = 収入目標、未設定なら実収入) と同じ収入を使う
-  // (旧: totR(実収入) を使っていたため、収入0円の段階で 粗利 = −見積合計 になり表示と矛盾していた)
-  const grossEst   = revForPlan - totE;
+  // 見積行は「収入 / 予算 / 粗利(収入 − 予算)」で表示する (三木さん指定)。
+  // 入力途中の見積合計を引くと未入力分が利益に見えてしまうため、予算ベースで計算する
+  const grossEst   = revForPlan - totB;
   const budgetRate = totB>0 ? Math.round(totE/totB*100) : 0;
   const execRate   = totE>0 ? Math.round(totA/totE*100) : 0;
   const targetRate   = target>0 ? Math.min(999,Math.round(gross/target*100)) : null;
@@ -2017,11 +2017,11 @@ function buildKpiSections({totR=0, totRB=0, totB=0, totE=0, totA=0, target=0, pr
     C('計画','粗利', (grossForecast>=0?'+':'')+fmtN(grossForecast)+'<em>円</em>', '収入 − 予算', grossForecast>=0?'var(--blue)':'var(--red)'),
   ].join('');
 
-  // 見積: 収入（計画値） / 合計 / 粗利
+  // 見積: 収入（計画値） / 予算（サブに見積合計・消化率） / 粗利（収入 − 予算）
   const estCards = [
     C('計画','収入', fmtN(revForPlan)+'<em>円</em>', totRB>0?'収入目標':'実収入', 'var(--blue)'),
-    C('見積','合計', fmtN(totE)+'<em>円</em>', `予算消化率 <strong>${budgetRate}%</strong>`, 'var(--green)'),
-    C('見積','粗利', (grossEst>=0?'+':'')+fmtN(grossEst)+'<em>円</em>', '収入 − 見積', grossEst>=0?'var(--green)':'var(--red)'),
+    C('見積','予算', fmtN(totB)+'<em>円</em>', `見積合計 ${fmtN(totE)}円 ・ 消化率 <strong>${budgetRate}%</strong>`, 'var(--green)'),
+    C('見積','粗利', (grossEst>=0?'+':'')+fmtN(grossEst)+'<em>円</em>', '収入 − 予算', grossEst>=0?'var(--green)':'var(--red)'),
   ].join('');
 
   // 実績: 収入 / 合計 / 粗利 / 前年粗利 / 粗利達成率
